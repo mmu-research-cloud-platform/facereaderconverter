@@ -44,7 +44,7 @@ test_that("convert_to_episodes", {
   )
   expect_error(
     convert_to_episodes(duplicate_long_df),
-    "Duplicate `video_time` values found within `id`/`subject`/`emotion` groups."
+    "Duplicate `video_time` values found within `id`/`subject` groups: id=1, subject=parent"
   )
 
   # wide data
@@ -150,11 +150,25 @@ test_that("convert_to_episodes", {
     )
   ))
 
-  expect_error(convert_to_episodes(
-    rbind.data.frame(
-      coding_df2 |> dplyr::mutate(id = 1),
-      coding_df2 |> dplyr::mutate(id = 1)
+  expect_error(
+    convert_to_episodes(
+      rbind.data.frame(
+        coding_df2 |> dplyr::mutate(id = 1),
+        coding_df2 |> dplyr::mutate(id = 1)
+      )
     ),
-    "Duplicate `video_time` values found within `id`/`subject`/`emotion` groups."
-  ))
+    "Duplicate `video_time` values found within `id`/`subject` groups: id=1, subject=parent"
+  )
+
+  expect_error(
+    convert_to_episodes(
+      rbind.data.frame(
+        coding_df2 |> dplyr::mutate(id = 1),
+        coding_df2 |> dplyr::mutate(id = 1),
+        coding_df2 |> dplyr::mutate(id = 2),
+        coding_df2 |> dplyr::mutate(id = 2)
+      )
+    ),
+    "Duplicate `video_time` values found within `id`/`subject` groups: id=1, subject=parent; id=2, subject=parent"
+  )
 })

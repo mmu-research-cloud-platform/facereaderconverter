@@ -15,6 +15,7 @@ convertFRDirectory(
   metadata_filename = "metadata.csv",
   fail_codes = FALSE,
   duplicate_timecodes_as_error = TRUE,
+  cores = 0L,
   ...
 )
 }
@@ -38,6 +39,8 @@ convertFRDirectory(
 \item{fail_codes}{adds a column with the fail reason, True or False. Column then has 0 for success, 1 for fit_failed, 2 for find_failed}
 
 \item{duplicate_timecodes_as_error}{throws an error if there are duplicate timecodes, if FALSE then throws warning}
+
+\item{cores}{integer Number of threads to use. Default 0 is auto.}
 
 \item{...}{arguments passed as necessary}
 }

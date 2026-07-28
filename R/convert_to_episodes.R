@@ -118,8 +118,16 @@ convert_to_episodes <- function(
     ][N > 1L]
 
     if (nrow(duplicate_video_time) > 0L) {
+      duplicate_groups <- duplicate_video_time[, unique(sprintf(
+        "id=%s, subject=%s",
+        as.character(id),
+        as.character(subject)
+      ))]
       stop(
-        "Duplicate `video_time` values found within `id`/`subject`/`emotion` groups.",
+        paste0(
+          "Duplicate `video_time` values found within `id`/`subject` groups: ",
+          paste(duplicate_groups, collapse = "; ")
+        ),
         call. = FALSE
       )
     }
