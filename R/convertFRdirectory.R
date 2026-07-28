@@ -143,23 +143,31 @@ convertFRDirectory <- function(
     metadata <- metadata_template
   } else if (cores > 1L && length(ls) > 1L) {
     worker_count <- min(cores, length(ls))
-    cl <- parallel::makeCluster(worker_count)
-    on.exit(parallel::stopCluster(cl), add = TRUE)
-    parallel::clusterEvalQ(cl, {
-      library(facereaderconverter)
-      NULL
-    })
-    metadata <- dplyr::bind_rows(parallel::parLapplyLB(
-      cl,
-      seq_along(ls),
-      process_file
-    ))
+    metadata <- tryCatch(
+      {
+        cl <- parallel::makeCluster(worker_count)
+        on.exit(parallel::stopCluster(cl), add = TRUE)
+        parallel::clusterEvalQ(cl, {
+          library(facereaderconverter)
+          NULL
+        })
+        dplyr::bind_rows(parallel::parLapplyLB(
+          cl,
+          seq_along(ls),
+          process_file
+        ))
+      },
+      error = function(e) {
+        dplyr::bind_rows(lapply(seq_along(ls), process_file))
+      }
+    )
   } else {
     metadata <- dplyr::bind_rows(lapply(seq_along(ls), process_file))
   }
 
   if (!is.null(save_metadata)) {
-    write.csv(metadata, paste0(save_metadata, "/", metadata_filename))
+    dir.create(save_metadata, showWarnings = FALSE, recursive = TRUE)
+    write.csv(metadata, file.path(save_metadata, metadata_filename))
   }
   invisible(metadata)
 }

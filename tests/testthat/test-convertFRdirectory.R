@@ -70,7 +70,9 @@ test_that("convertFRDirectory", {
     case = "all_caps"
   ))
   x <- read.csv("testdata/testdata_detailed.csv")
-  expect_all_true(names(x) == names(janitor::clean_names(x, case = "all_caps")))
+  expect_all_true(
+    names(x) == janitor::make_clean_names(names(x), case = "all_caps")
+  )
 
   x <- convertFRDirectory("testdata")
   expect_true(nrow(x) == 5)
