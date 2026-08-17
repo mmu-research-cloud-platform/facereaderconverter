@@ -17,14 +17,14 @@ You can install the development version of facereaderconverter from
 
 ``` r
 # install.packages("pak")
-pak::pak("sgbstats/facereaderconverter")
+pak::pak("mmu-research-cloud-platform/facereaderconverter")
 ```
 
 or
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("sgbstats/facereaderconverter")
+devtools::install_github("mmu-research-cloud-platform/facereaderconverter")
 ```
 
 ## File conversion
