@@ -51,4 +51,4 @@ rsconnect/
 **/junk/**
 /.quarto/
 **/*.quarto_ipynb
-**.posit/**
+**/.posit/**
