@@ -49,6 +49,17 @@ test_that("loadFRfile dispatches by extension", {
   )
 })
 
+test_that("loadFRfile handles bad headers", {
+  expect_message(
+    bad_header <- loadFRfile(file.path(
+      "testdata",
+      "testdata_detailed_fail.txt"
+    )),
+    "FaceReader header row not found"
+  )
+  expect_null(bad_header)
+})
+
 test_that("loadFRfile rejects unsupported extensions", {
   tmp <- tempfile(fileext = ".rds")
   file.copy(file.path("testdata", "testdata_detailed.txt"), tmp)

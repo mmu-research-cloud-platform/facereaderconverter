@@ -88,7 +88,12 @@ convertFRExcelFiles <- function(
     stringr::str_trim() |>
     as.POSIXct(format = "%m/%d/%Y %H:%M:%OS")
 
-  df <- readxl::read_excel(inpath, sheet = sheet, skip = header_row - 1)
+  df <- readxl::read_excel(
+    inpath,
+    sheet = sheet,
+    skip = header_row - 1,
+    .name_repair = "minimal"
+  )
   df <- df |>
     dplyr::select(
       tidyselect::any_of(c(

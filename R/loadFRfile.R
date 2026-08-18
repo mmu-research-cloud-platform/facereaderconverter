@@ -43,25 +43,43 @@ loadFRfile <- function(
   ext <- tolower(tools::file_ext(inpath))
 
   if (ext == "txt") {
-    convertFRFiles(
-      inpath = inpath,
-      return_data = TRUE,
-      values_as_numeric = values_as_numeric,
-      clean_names = clean_names,
-      fail_codes = fail_codes,
-      duplicate_timecodes_as_error = duplicate_timecodes_as_error,
-      ...
+    tryCatch(
+      convertFRFiles(
+        inpath = inpath,
+        return_data = TRUE,
+        values_as_numeric = values_as_numeric,
+        clean_names = clean_names,
+        fail_codes = fail_codes,
+        duplicate_timecodes_as_error = duplicate_timecodes_as_error,
+        ...
+      ),
+      error = function(e) {
+        if (identical(conditionMessage(e), "FaceReader header row not found")) {
+          message("FaceReader header row not found in ", inpath)
+          return(NULL)
+        }
+        stop(e)
+      }
     )
   } else if (ext == "xlsx") {
-    convertFRExcelFiles(
-      inpath = inpath,
-      return_data = TRUE,
-      values_as_numeric = values_as_numeric,
-      clean_names = clean_names,
-      fail_codes = fail_codes,
-      duplicate_timecodes_as_error = duplicate_timecodes_as_error,
-      sheet = sheet,
-      ...
+    tryCatch(
+      convertFRExcelFiles(
+        inpath = inpath,
+        return_data = TRUE,
+        values_as_numeric = values_as_numeric,
+        clean_names = clean_names,
+        fail_codes = fail_codes,
+        duplicate_timecodes_as_error = duplicate_timecodes_as_error,
+        sheet = sheet,
+        ...
+      ),
+      error = function(e) {
+        if (identical(conditionMessage(e), "FaceReader header row not found")) {
+          message("FaceReader header row not found in ", inpath)
+          return(NULL)
+        }
+        stop(e)
+      }
     )
   } else if (ext == "csv") {
     df <- readr::read_csv(inpath, show_col_types = FALSE, ...)

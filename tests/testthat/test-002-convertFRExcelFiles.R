@@ -30,6 +30,17 @@ test_that("convertFRExcelFiles matches detailed control output", {
   expect_equal(res$excel, res$control, tolerance = 1e-4)
 })
 
+test_that("convertFRExcelFiles silences name repair messages", {
+  expect_silent(
+    convertFRExcelFiles(
+      file.path("testdata", "testdata_excel_detailed.xlsx"),
+      return_data = TRUE,
+      clean_names = TRUE,
+      values_as_numeric = TRUE
+    )
+  )
+})
+
 test_that("convertFRExcelFiles matches state control output", {
   res <- read_excel_control("testdata_excel_state")
   expect_identical(res$excel, res$control)
