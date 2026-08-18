@@ -110,7 +110,10 @@ test_that("add_delta_column", {
   )
 
   expect_no_error(add_delta_column(
-    rbind.data.frame(coding_df2 |> dplyr::mutate(id = 1), coding_df2 |> dplyr::mutate(id = 2))
+    rbind.data.frame(
+      coding_df2 |> dplyr::mutate(id = 1),
+      coding_df2 |> dplyr::mutate(id = 2)
+    )
   ))
 
   expect_error(
@@ -130,7 +133,7 @@ test_that("add_delta_column", {
   expect_true(sum(x$delta == 1, na.rm = TRUE) > 0)
 
   #check deltas match
-  y = convert_to_episodes(coding_df2, T_up = 1)
+  y = convert_to_episodes(coding_df2, T_up = 1, delta_window = 0.2)
   x = add_delta_column(coding_df2)
   expect_true(all(y$episodes$start_frame %in% x$frame[x$delta == 1]))
 })

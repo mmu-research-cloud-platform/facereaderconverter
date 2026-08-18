@@ -1,6 +1,6 @@
 Package: facereaderconverter
 Title: Process of FaceReader outputs and emotional episodes
-Version: 0.2.1
+Version: 0.2.3
 Authors@R: 
     person("Seb", "Bate", , "s.bate@mmu.ac.uk", role = c("aut", "cre"))
 Description: Tools to convert FaceReader outputs; Markup of emotional episodes.
@@ -24,3 +24,4 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0
+RoxygenNote: 8.0.0

@@ -23,9 +23,16 @@ test_that("convertFRDirectory", {
   expect_false(file.exists("junk/testdata_state.csv"))
   expect_false(file.exists("junk/testdata2/testdata_state2.csv"))
 
-  expect_no_error(convertFRDirectory("testdata"))
+  expect_no_error(convertFRDirectory("testdata", cores = 2L))
   expect_true(file.exists("testdata/metadata.csv"))
-  x = read.csv("testdata/metadata.csv")
+
+  expect_no_error(convertFRDirectory(
+    "testdata",
+    metadata_filename = "metadata2.csv"
+  ))
+  expect_true(file.exists("testdata/metadata2.csv"))
+
+  x <- read.csv("testdata/metadata.csv")
   expect_all_true(grepl("csv", x$outpath[x$status == "Success"]))
 
   expect_true(file.exists("testdata/testdata_detailed.csv"))
@@ -34,25 +41,27 @@ test_that("convertFRDirectory", {
 
   expect_no_error(convertFRDirectory(
     "testdata",
-    values_as_numeric = TRUE
+    values_as_numeric = TRUE,
+    cores = 2L
   ))
   expect_no_error(convertFRDirectory(
     "testdata",
     "junk",
-    values_as_numeric = TRUE
+    values_as_numeric = TRUE,
+    cores = 2L
   ))
 
   expect_true(file.exists("junk/testdata_detailed.csv"))
   expect_true(file.exists("junk/testdata_state.csv"))
   expect_true(file.exists("junk/testdata2/testdata_state2.csv"))
 
-  x = read.csv("junk/testdata_detailed.csv")
+  x <- read.csv("junk/testdata_detailed.csv")
   expect_equal(class(x$neutral), "numeric")
   expect_no_error(convertFRDirectory(
     "testdata",
     clean_names = TRUE
   ))
-  x = read.csv("testdata/testdata_detailed.csv")
+  x <- read.csv("testdata/testdata_detailed.csv")
   expect_all_true(names(x) == names(janitor::clean_names(x)))
 
   expect_no_error(convertFRDirectory(
@@ -60,17 +69,23 @@ test_that("convertFRDirectory", {
     clean_names = TRUE,
     case = "all_caps"
   ))
-  x = read.csv("testdata/testdata_detailed.csv")
-  expect_all_true(names(x) == names(janitor::clean_names(x, case = "all_caps")))
+  x <- read.csv("testdata/testdata_detailed.csv")
+  expect_all_true(
+    names(x) == janitor::make_clean_names(names(x), case = "all_caps")
+  )
 
-  x = convertFRDirectory("testdata")
+  x <- convertFRDirectory("testdata")
   expect_true(nrow(x) == 5)
   expect_all_true(x |> dplyr::filter(status == "Fail") |> nrow() == 2)
 
-  x = convertFRDirectory("testdata", pattern = "state")
+  x <- convertFRDirectory("testdata", pattern = "state", cores = 2L)
   expect_true(nrow(x) == 2)
 
-  x = convertFRDirectory("testdata", duplicate_timecodes_as_error = FALSE)
+  x <- convertFRDirectory(
+    "testdata",
+    duplicate_timecodes_as_error = FALSE,
+    cores = 2L
+  )
 
   expect_all_true(x |> dplyr::filter(status == "Fail") |> nrow() == 1)
   expect_all_true(

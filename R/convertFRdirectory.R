@@ -11,6 +11,8 @@
 #' @param fail_codes adds a column with the fail reason, True or False. Column then has 0 for success, 1 for fit_failed, 2 for find_failed
 #' @param duplicate_timecodes_as_error throws an error if there are duplicate timecodes, if FALSE then throws warning
 #' @param save_metadata save the metadata as a csv in the outpath, set to NULL to not save
+#' @param metadata_filename filename of the metadata csv
+#' @param cores integer Number of threads to use. Default 0 is auto.
 #' @param ... arguments passed as necessary
 #' @return Invisibly returns the metadata.
 #' @examples
@@ -35,8 +37,10 @@ convertFRDirectory <- function(
   values_as_numeric = TRUE,
   clean_names = TRUE,
   save_metadata = outpath,
+  metadata_filename = "metadata.csv",
   fail_codes = FALSE,
   duplicate_timecodes_as_error = TRUE,
+  cores = 0L,
   ...
 ) {
   if (is.null(pattern)) {
@@ -56,7 +60,7 @@ convertFRDirectory <- function(
   }
 
   # initialise metadata with time as POSIXct
-  metadata <- tibble::tibble(
+  metadata_template <- tibble::tibble(
     inpath = character(),
     outpath = character(),
     video_filename = character(),
@@ -72,7 +76,18 @@ convertFRDirectory <- function(
     ls_out <- ls
   }
 
-  for (i in seq_along(ls)) {
+  if (!is.numeric(cores) || length(cores) != 1L || is.na(cores)) {
+    stop("`cores` must be a single numeric value.")
+  }
+  cores <- as.integer(cores)
+  if (cores < 0L) {
+    stop("`cores` must be non-negative.")
+  }
+  if (cores == 0L) {
+    cores <- max(1L, parallel::detectCores(logical = FALSE) - 1L)
+  }
+
+  process_file <- function(i) {
     tryCatch(
       {
         md <- convertFRFiles(
@@ -86,7 +101,7 @@ convertFRDirectory <- function(
         )
 
         # coerce success-row types to match metadata
-        md <- md |>
+        md |>
           dplyr::mutate(
             video_filename = as.character(video_filename),
             time = as.POSIXct(time, tz = "UTC"),
@@ -96,12 +111,10 @@ convertFRDirectory <- function(
             status = "Success",
             error = NA_character_
           )
-
-        metadata <- dplyr::bind_rows(metadata, md)
       },
       error = function(e) {
         # use POSIXct NA for time and character NA for strings
-        md_fail <- tibble::tibble(
+        tibble::tibble(
           video_filename = NA_character_,
           time = as.POSIXct(NA, tz = "UTC"),
           type = NA_character_,
@@ -110,11 +123,10 @@ convertFRDirectory <- function(
           status = "Fail",
           error = as.character(e$message)
         )
-        metadata <<- dplyr::bind_rows(metadata, md_fail)
       },
       warning = function(w) {
         # use POSIXct NA for time and character NA for strings
-        md_fail <- tibble::tibble(
+        tibble::tibble(
           video_filename = NA_character_,
           time = as.POSIXct(NA, tz = "UTC"),
           type = NA_character_,
@@ -123,12 +135,39 @@ convertFRDirectory <- function(
           status = "Success",
           error = as.character(w$message)
         )
-        metadata <<- dplyr::bind_rows(metadata, md_fail)
       }
     )
   }
+
+  if (length(ls) == 0L) {
+    metadata <- metadata_template
+  } else if (cores > 1L && length(ls) > 1L) {
+    worker_count <- min(cores, length(ls))
+    metadata <- tryCatch(
+      {
+        cl <- parallel::makeCluster(worker_count)
+        on.exit(parallel::stopCluster(cl), add = TRUE)
+        parallel::clusterEvalQ(cl, {
+          library(facereaderconverter)
+          NULL
+        })
+        dplyr::bind_rows(parallel::parLapplyLB(
+          cl,
+          seq_along(ls),
+          process_file
+        ))
+      },
+      error = function(e) {
+        dplyr::bind_rows(lapply(seq_along(ls), process_file))
+      }
+    )
+  } else {
+    metadata <- dplyr::bind_rows(lapply(seq_along(ls), process_file))
+  }
+
   if (!is.null(save_metadata)) {
-    write.csv(metadata, paste0(save_metadata, "/metadata.csv"))
+    dir.create(save_metadata, showWarnings = FALSE, recursive = TRUE)
+    write.csv(metadata, file.path(save_metadata, metadata_filename))
   }
   invisible(metadata)
 }

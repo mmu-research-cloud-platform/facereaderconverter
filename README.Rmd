@@ -26,44 +26,57 @@ You can install the development version of facereaderconverter from [GitHub](htt
 
 ```r
 # install.packages("pak")
-pak::pak("sgbstats/facereaderconverter")
+pak::pak("mmu-research-cloud-platform/facereaderconverter")
 ```
 or
 
 ```r
 # install.packages("devtools")
-devtools::install_github("sgbstats/facereaderconverter")
+devtools::install_github("mmu-research-cloud-platform/facereaderconverter")
 ```
 
-## Example
+## File conversion
 
-This is a basic example which shows you how to solve a common problem:
+### `convertFRFiles()`
 
-```{r example,eval = FALSE}
+`convertFRFiles()` reads a single FaceReader `.txt` file, skips the metadata header, guesses the delimiter, and writes a `.csv` with the same basename unless `return_data = TRUE`.
+
+```{r convert-fr-files-example, eval = FALSE}
 library(facereaderconverter)
-convertFRFiles("testdata/testdata_detailed.txt")
-#this will convert that file to a csv in the same name and location and apply defult settings
-```
-The default settings are values are returned as numeric/time objects and the names are `janitor`-style `clean_names` so lower case and spaces are replaced with underscores. When `return_data=FALSE` the metadata from the conversion is returned and when it is set to `TRUE` then the function returns the data itself to allow work. If you want to save the file in another location or under another name then specify the outpath.
 
-```{r example2,eval = FALSE}
+convertFRFiles(
+  inpath = "testdata/testdata_detailed.txt",
+  values_as_numeric = TRUE,
+  clean_names = TRUE
+)
+```
+
+When `values_as_numeric = TRUE`, the `Video Time` column is converted to `hms` time and detailed-file values are converted to numeric where possible. When `clean_names = TRUE`, the output names are converted with `janitor::clean_names()`.
+
+### `convertFRDirectory()`
+
+`convertFRDirectory()` processes all `.txt` files in a directory and returns metadata invisibly.
+
+```{r convert-fr-directory-example, eval = FALSE}
 library(facereaderconverter)
-convertFRDirectory("testdata")
-#this will convert all txt files in the directory to a csv in the same name and location and apply defult settings
+
+convertFRDirectory(
+  inpath = "testdata",
+  outpath = "junk",
+  values_as_numeric = TRUE,
+  cores = 2L
+)
 ```
 
-This function takes similar arguments to files function. The new arguments are `recrusive` which when true will look for all files in the whole of the inpath directory. `pattern` which when not null will filter the files to only those matching the regex pattern, e.g., if you only wanted to convert the state files.
+Useful arguments include `recursive` for searching subdirectories, `pattern` for filtering file names, `metadata_filename` for the output metadata file, and `duplicate_timecodes_as_error` for handling repeated time codes.
 
 ## Episode coding
 
 ### `convert_to_episodes()`
 
-`convert_to_episodes()` detects episodes using hysteresis thresholds, a delta rule, and a minimum duration filter. It accepts either:
+`convert_to_episodes()` detects episodes using hysteresis thresholds, a delta rule, and a minimum duration filter. It accepts either long data with `id`, `subject`, `video_time`, `emotion`, and `value`, or wide data with one column per emotion.
 
-- long data with `id`, `subject`, `video_time`, `emotion`, and `value`, or
-- wide data with `id`, `subject`, `video_time`, and one column per emotion
-
-If `emotion` and `value` are not already present, the function reshapes wide data to long format internally. If a `frame` column is missing, it is created from `video_time` using `fps`.
+If `emotion` and `value` are not already present, the function reshapes wide data to long format internally. If `id` or `subject` is missing, they are added with defaults. If `frame` is missing, it is created from `video_time` using `fps`.
 
 Important arguments:
 
@@ -75,22 +88,23 @@ Important arguments:
 - `min_dur_sec`: minimum episode duration in seconds
 - `consecutive_missing`: maximum allowed run of missing values while an episode is active
 
-The function returns a list with two elements:
-
-- `episodes`: episode-level summaries with `start_frame`, `end_frame`, `n_frames`, and `duration_s`
-- `coding`: the original coding data annotated with `status` and `in_state`
-
-`status` marks detected boundaries:
-
-- `1` for episode start frames
-- `0` for episode end frames
-- `NA` otherwise
+The function returns an `fr_coding` object with `episodes`, `coding`, and `metadata`.
 
 ```{r convert-to-episodes-example, eval = FALSE}
 library(facereaderconverter)
 
+coding_df <- read.csv("testdata/testdata_detailed.csv") |>
+  dplyr::mutate(id = 1, subject = "parent")
+
+coding_df2 <- coding_df |>
+  tidyr::pivot_longer(
+    cols = c(neutral, happy, sad, angry, surprised, scared, disgusted),
+    names_to = "emotion",
+    values_to = "value"
+  )
+
 res <- convert_to_episodes(
-  coding_df,
+  coding_df2,
   fps = 30L,
   T_up = 0.20,
   T_down = 0.18,
@@ -106,45 +120,56 @@ res$coding
 
 Episodes are grouped within each `id`, `subject`, and `emotion` combination. Episode end frames are adjusted to the last in-state frame with a non-missing `value`, and episodes shorter than the minimum duration are removed.
 
-
 ### `add_delta_column()`
 
-`add_delta_column()` appends a `delta` column to a coding data frame using a windowed delta rule within each `id`, `subject`, and `emotion` group.
-
-**Delta Rule and Direction:**
-
-- For each window, if the difference between the maximum and minimum value (`window_max - window_min`) exceeds the `delta` threshold, a delta event is triggered.
-- The direction is encoded as:
-    - `1` (up): if the maximum occurs after the minimum within the window (i.e., an upward change)
-    - `0` (down): if the maximum occurs before the minimum within the window (i.e., a downward change)
-    - `NA`: if no delta event is detected
-
-**Expected columns:**
-
-- `id`
-- `subject`
-- `emotion`
-- `frame` or `video_time`
-- `value`
-
-**Key arguments:**
-
-- `delta_window`: window size in seconds used to evaluate change
-- `delta`: threshold used for both upward and downward change detection
-- `fps`: frames per second used to convert the time window into frames
-
-**Example:**
+`add_delta_column()` appends a `delta` column to a coding data frame using a windowed delta rule within each `id`, `subject`, and `emotion` group. If the input is an `fr_coding` object, the coding data and `fps` are taken from that object.
 
 ```{r add-delta-example, eval = FALSE}
 library(facereaderconverter)
 
+coding_df <- read.csv("testdata/testdata_detailed.csv") |>
+  dplyr::mutate(id = 1, subject = "parent")
+
+coding_df2 <- coding_df |>
+  tidyr::pivot_longer(
+    cols = c(neutral, happy, sad, angry, surprised, scared, disgusted),
+    names_to = "emotion",
+    values_to = "value"
+  )
+
 coding_with_delta <- add_delta_column(
-  coding_df,
+  coding_df2,
   delta_window = 0.1,
   delta = 0.1,
   fps = 30L
 )
 ```
 
-The resulting `delta` column will contain `1` for upward events, `0` for downward events, and `NA` otherwise.
+The resulting `delta` column contains `1` for upward events, `0` for downward events, and `NA` otherwise.
+
+### `delta_episodes()`
+
+`delta_episodes()` converts a coding data frame with a `delta` column into episode summaries.
+
+```{r delta-episodes-example, eval = FALSE}
+library(facereaderconverter)
+
+coding_df <- read.csv("testdata/testdata_detailed.csv") |>
+  dplyr::mutate(id = 1, subject = "parent")
+
+coding_df2 <- coding_df |>
+  tidyr::pivot_longer(
+    cols = c(neutral, happy, sad, angry, surprised, scared, disgusted),
+    names_to = "emotion",
+    values_to = "value"
+  )
+
+episodes <- coding_df2 |>
+  add_delta_column(delta = 0.1, delta_window = 0.1, fps = 30L) |>
+  delta_episodes(fps = 30L)
+
+episodes
+```
+
+The output includes `start_frame`, `end_frame`, `start_time`, `end_time`, `n_frames`, `duration_s`, `id`, `subject`, `emotion`, and `run_id`.
 

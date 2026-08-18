@@ -8,10 +8,12 @@
 #' @param min_dur_sec numeric Minimum episode duration (in seconds). Default: 0.1.
 #' @param consecutive_missing integer Maximum allowed consecutive missing (NA) frames while in-state before forcing episode end. Default: 150L.
 #' @param fps integer Frames per second (sampling rate of the data). Default: 30L.
+#' @param cores integer Number of threads to use. Default 0 is auto.
 #' @return A list with two elements:
 #' \describe{
-#'   \item{episodes}{data.table of detected episodes with columns \code{start_frame}, \code{end_frame}, \code{n_frames}, \code{duration_s}, \code{id}, \code{subject}, \code{emotion}, and \code{run_id}.}
+#'   \item{episodes}{data.table of detected episodes with columns \code{start_frame}, \code{end_frame}, \code{n_frames}, \code{duration_s}, \code{id}, \code{subject}, \code{emotion},\code{start_time}, \code{end_time}, and \code{run_id}.}
 #'   \item{coding}{Annotated data.table containing the original columns plus \code{id}, \code{subject}, \code{emotion}, \code{value}, \code{run_id}, \code{status}, and \code{in_state}. \code{status} marks episode boundaries with \code{1L} at the start frame and \code{0L} at the end frame; \code{in_state} is \code{TRUE} for frames inside detected episodes.}
+#'   \item{fps}{Frames per second (sampling rate of the data).}
 #' }
 #' @details The function uses the exported native binding \code{hysteresis_state} if available; otherwise it will error.
 #' It relies on \pkg{data.table} for fast grouping and joins.
@@ -22,17 +24,24 @@
 #' }
 #' @import data.table
 #' @importFrom tidyr pivot_longer
+#' @importFrom hms as_hms
 #' @export
 convert_to_episodes <- function(
   coding_df,
   T_up = 0.20,
   T_down = 0.1,
   delta = 0.10,
-  delta_window = 0.1,
+  delta_window = 0.2,
   min_dur_sec = 0.1,
   consecutive_missing = 150L,
-  fps = 30L
+  fps = 30L,
+  cores = 0L
 ) {
+  # --- Multithreading ---
+  old_threads <- data.table::getDTthreads()
+  on.exit(data.table::setDTthreads(old_threads), add = TRUE)
+  data.table::setDTthreads(threads = cores)
+
   original_cols <- names(coding_df)
 
   is_scalar <- function(x) length(x) == 1 && !is.na(x)
@@ -58,6 +67,11 @@ convert_to_episodes <- function(
     stop("`T_up` must be >= `T_down`.")
   }
   if (!is.numeric(delta) || !is_scalar(delta) || delta <= 0) {
+    stop("`delta` must be a numeric scalar > 0.")
+  }
+  if (
+    !is.numeric(delta_window) || !is_scalar(delta_window) || delta_window <= 0
+  ) {
     stop("`delta` must be a numeric scalar > 0.")
   }
   if (!is.numeric(min_dur_sec) || !is_scalar(min_dur_sec) || min_dur_sec <= 0) {
@@ -104,8 +118,16 @@ convert_to_episodes <- function(
     ][N > 1L]
 
     if (nrow(duplicate_video_time) > 0L) {
+      duplicate_groups <- duplicate_video_time[, unique(sprintf(
+        "id=%s, subject=%s",
+        as.character(id),
+        as.character(subject)
+      ))]
       stop(
-        "Duplicate `video_time` values found within `id`/`subject`/`emotion` groups.",
+        paste0(
+          "Duplicate `video_time` values found within `id`/`subject` groups: ",
+          paste(duplicate_groups, collapse = "; ")
+        ),
         call. = FALSE
       )
     }
@@ -154,7 +176,8 @@ convert_to_episodes <- function(
     .(
       start_frame = first(frame),
       end_frame = last(frame),
-      n_frames = .N,
+      start_time = first(video_time),
+      end_time = last(video_time),
       duration_s = .N / fps
     ),
     by = .(id, subject, emotion, state_run)
@@ -254,9 +277,20 @@ convert_to_episodes <- function(
     "status",
     "in_state"
   ))
-
-  list(
-    episodes = episodes,
-    coding = dt[, .SD, .SDcols = coding_cols]
+  structure(
+    list(
+      episodes = episodes,
+      coding = dt[, .SD, .SDcols = coding_cols],
+      metadata = list(
+        fps = fps,
+        consecutive_missing = consecutive_missing,
+        delta = delta,
+        delta_window = delta_window,
+        min_dur_sec = min_dur_sec,
+        T_down = T_down,
+        T_up = T_up
+      )
+    ),
+    class = c("fr_coding", "list")
   )
 }

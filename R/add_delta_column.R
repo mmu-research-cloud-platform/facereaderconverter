@@ -1,16 +1,17 @@
 #' Add delta column to coding_df
 #'
-#' @param coding_df Data frame with columns: id, subject, emotion, frame (or video_time), value
+#' @param coding Data frame with columns: id, subject, emotion, frame (or video_time), value, or an `fr_coding` object
 #' @param delta Threshold for both up and down
 #' @param delta_window Window size in seconds
 #' @param fps Frames per second
+#' @param cores integer Number of threads to use. Default 0 is auto.
 #' @return coding_df with extra column 'delta' where 1 means up and 0 means down
 #' @examples
 #' \dontrun{
 #' coding_df = read.csv("testdata_detailed.csv")
 #' add_delta_column(
 #'     coding_df,
-#'     delta_window = 0.1,
+#'     delta_window = 0.2,
 #'     delta = 0.1,
 #'     fps = 30
 #'  )
@@ -19,16 +20,28 @@
 #' @export
 #'
 add_delta_column <- function(
-  coding_df,
+  coding,
   delta = 0.1,
-  delta_window = 0.1,
-  fps = 30L
+  delta_window = 0.2,
+  fps = 30L,
+  cores = 0L
 ) {
+  # --- Multithreading ---
+  old_threads <- data.table::getDTthreads()
+  on.exit(data.table::setDTthreads(old_threads), add = TRUE)
+  data.table::setDTthreads(threads = cores)
+
   is_scalar <- function(x) length(x) == 1 && !is.na(x)
   is_whole <- function(x) {
     is.numeric(x) && is_scalar(x) && abs(x - round(x)) < .Machine$double.eps^0.5
   }
-
+  stopifnot(requireNamespace("data.table"))
+  if ("fr_coding" %in% class(coding)) {
+    coding_df = coding$coding
+    fps = coding$metadata$fps
+  } else {
+    coding_df = coding
+  }
   if (!is_whole(fps) || fps <= 0) {
     stop("`fps` must be a positive integer scalar.")
   }
