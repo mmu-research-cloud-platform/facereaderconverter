@@ -1,9 +1,9 @@
 test_that("add_delta_column", {
   # Test with different delta_window and delta values
-  coding_df = read.csv("junk/testdata_detailed.csv") |>
+  coding_df <- read.csv(file.path("testdata", "testdata_detailed.csv")) |>
     dplyr::mutate(id = 1, subject = "teen")
 
-  coding_df2 = coding_df |>
+  coding_df2 <- coding_df |>
     tidyr::pivot_longer(
       cols = c(neutral, happy, sad, angry, surprised, scared, disgusted),
       names_to = "emotion",
@@ -94,12 +94,12 @@ test_that("add_delta_column", {
     "`fps` must be a positive integer scalar."
   )
 
-  x = add_delta_column(coding_df2 |> dplyr::select(-id))
+  x <- add_delta_column(coding_df2 |> dplyr::select(-id))
   expect_true("id" %in% names(x))
   expect_true(
     max(x$id, na.rm = TRUE) == 1
   )
-  x = add_delta_column(coding_df2 |> dplyr::select(-subject))
+  x <- add_delta_column(coding_df2 |> dplyr::select(-subject))
   expect_true("subject" %in% names(x))
 
   expect_true(
@@ -133,7 +133,7 @@ test_that("add_delta_column", {
   expect_true(sum(x$delta == 1, na.rm = TRUE) > 0)
 
   #check deltas match
-  y = convert_to_episodes(coding_df2, T_up = 1, delta_window = 0.2)
-  x = add_delta_column(coding_df2)
+  y <- convert_to_episodes(coding_df2, T_up = 1, delta_window = 0.2)
+  x <- add_delta_column(coding_df2)
   expect_true(all(y$episodes$start_frame %in% x$frame[x$delta == 1]))
 })

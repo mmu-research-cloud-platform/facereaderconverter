@@ -1,3 +1,6 @@
+TEST_DATA <- Sys.getenv("TEST_DATA")
+load(file.path(TEST_DATA, "test_data.RDa"))
+
 test_that("convertFRFiles", {
   remove_csv_in_dir <- function(dir, recursive = FALSE, dry_run = TRUE) {
     csvs <- list.files(
@@ -34,33 +37,33 @@ test_that("convertFRFiles", {
     values_as_numeric = TRUE
   ))
 
-  x = read.csv("testdata/testdata_detailed.csv")
+  x <- read.csv("testdata/testdata_detailed.csv")
   expect_equal(class(x$neutral), "numeric")
   expect_no_error(convertFRFiles(
     "testdata/testdata_detailed.txt",
     clean_names = TRUE
   ))
 
-  x1 = x |> mutate(time_length = stringr::str_length(video_time))
-  expect_equal(max(x1$time_length, na.rm = T), 12)
+  x1 <- x |> mutate(time_length = stringr::str_length(video_time))
+  expect_equal(max(x1$time_length, na.rm = TRUE), 12)
 
-  x = read.csv("testdata/testdata_detailed.csv")
+  x <- read.csv("testdata/testdata_detailed.csv")
   expect_all_true(names(x) == names(janitor::clean_names(x)))
 
   expect_no_error(convertFRFiles(
     "testdata/testdata_detailed.txt",
     case = "all_caps"
   ))
-  x = read.csv("testdata/testdata_detailed.csv")
+  x <- read.csv("testdata/testdata_detailed.csv")
   expect_all_true(names(x) == names(janitor::clean_names(x, case = "all_caps")))
 
-  x = convertFRFiles("testdata/testdata_detailed.txt")
+  x <- convertFRFiles("testdata/testdata_detailed.txt")
   expect_true(ncol(x) == 5)
   expect_true(grepl("csv", x$outpath))
-  x = convertFRFiles("testdata/testdata_state.txt")
+  x <- convertFRFiles("testdata/testdata_state.txt")
   expect_true(ncol(x) == 5)
 
-  x = convertFRFiles(
+  x <- convertFRFiles(
     "testdata/testdata_detailed.txt",
     return_data = TRUE,
     clean_names = TRUE,
@@ -75,9 +78,17 @@ test_that("convertFRFiles", {
     values_as_numeric = TRUE
   ))
   expect_true(file.exists("junk/testdata_detailed.csv"))
-  y = read.csv("junk/testdata_detailed.csv") |>
+  y <- read.csv("junk/testdata_detailed.csv") |>
     mutate(video_time = as_hms(video_time))
   expect_true(all.equal(x |> as.data.frame(), y))
+
+  z <- convertFRFiles(
+    "testdata/testdata_detailed_line_change.txt",
+    return_data = TRUE,
+    clean_names = TRUE,
+    values_as_numeric = TRUE
+  )
+  expect_equal(z, x, tolerance = 1e-4)
 
   expect_error(
     convertFRFiles("testdata/testdata_detailed_fake.txt"),
@@ -85,7 +96,7 @@ test_that("convertFRFiles", {
   )
   expect_error(
     convertFRFiles("testdata/testdata_detailed_fail.txt"),
-    "FaceReader metadata missing"
+    "FaceReader header row not found"
   )
 
   expect_error(
@@ -113,11 +124,11 @@ test_that("convertFRFiles", {
     ),
     "Duplicate timecodes"
   )
-  x = convertFRFiles(
+  x <- convertFRFiles(
     "testdata/testdata_detailed.txt",
     fail_codes = TRUE
   )
-  y = read.csv("testdata/testdata_detailed.csv")
+  y <- read.csv("testdata/testdata_detailed.csv")
   expect_true(ncol(y) == 9)
   expect_equal(
     y |> count(fail_code) |> pull(fail_code),

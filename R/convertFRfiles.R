@@ -1,8 +1,9 @@
 #' Convert Facereader TXT to CSV
 #'
-#' Reads a .txt file skipping the first 10 lines, guesses the delimiter from
-#' the first remaining line, writes a .csv with the same basename in the same
-#' directory, and returns the path to the created CSV (invisibly).
+#' Reads a .txt file, detects the FaceReader header row automatically,
+#' guesses the delimiter from the header line, writes a .csv with the same
+#' basename in the same directory, and returns the path to the created CSV
+#' (invisibly).
 #'
 #' @param inpath Path to an existing .txt file.
 #' @param outpath Path to save the csv to defaults to the inpath
@@ -54,7 +55,8 @@ convertFRFiles <- function(
 
   # metadata
 
-  md <- read_lines(inpath, n_max = 10)
+  md <- read_lines(inpath, n_max = 50)
+  header_row <- detect_fr_header_row(md)
 
   md_type <- dplyr::case_when(
     grepl("detailed", md[1]) ~ "detailed",
@@ -71,9 +73,13 @@ convertFRFiles <- function(
     stringr::str_trim() |>
     as.POSIXct(format = "%m/%d/%Y %H:%M:%S")
 
-  first_after_skip <- readr::read_lines(inpath, skip = 10, n_max = 1)
+  first_after_skip <- readr::read_lines(
+    inpath,
+    skip = header_row - 1,
+    n_max = 1
+  )
   if (length(first_after_skip) == 0) {
-    stop("File has no content after the first 10 lines.")
+    stop("File has no content after the detected header row.")
   }
 
   # guess delimiter from that first line
@@ -87,13 +93,13 @@ convertFRFiles <- function(
     "ws" # whitespace
   }
 
-  # read the data skipping the first 10 lines
+  # read the data skipping the detected header row
   df <- switch(
     delim,
     "," = readr::read_delim(
       inpath,
       delim = ",",
-      skip = 10,
+      skip = header_row - 1,
       col_types = cols(
         `Video Time` = col_character(),
         .default = col_guess(),
@@ -103,7 +109,7 @@ convertFRFiles <- function(
     "\t" = readr::read_delim(
       inpath,
       delim = "\t",
-      skip = 10,
+      skip = header_row - 1,
       col_types = readr::cols(
         `Video Time` = col_character(),
         .default = col_guess(),
@@ -113,7 +119,7 @@ convertFRFiles <- function(
     ";" = readr::read_delim(
       inpath,
       delim = ";",
-      skip = 10,
+      skip = header_row - 1,
       col_types = cols(
         `Video Time` = col_character(),
         .default = col_guess(),
@@ -122,7 +128,7 @@ convertFRFiles <- function(
     ),
     readr::read_table(
       inpath,
-      skip = 10,
+      skip = header_row - 1,
       col_types = cols(
         `Video Time` = col_character(),
         .default = col_guess(),
@@ -176,7 +182,7 @@ convertFRFiles <- function(
   } else {
     readr::write_csv(df, csv_path)
 
-    metadata = data.frame(
+    metadata <- data.frame(
       video_filename = md_videoname,
       time = md_time,
       type = md_type,

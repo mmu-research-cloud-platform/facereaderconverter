@@ -12,6 +12,31 @@
 #'
 #' @return A data.table with columns `id`, `denominator`, `numerator`,
 #'   `emotion`, `n_episodes`, and `synchrony`.
+#' @examples
+#' library(data.table)
+#'
+#' coding <- data.table(
+#'   id = rep(1L, 6),
+#'   subject = rep(c("teen", "parent"), each = 3),
+#'   emotion = "happy",
+#'   video_time = rep(1:3, 2),
+#'   value = c(0.1, 0.2, 0.3, 0.1, 0.2, 0.3),
+#'   in_state = c(FALSE, TRUE, FALSE, FALSE, FALSE, TRUE),
+#'   run_id = c(1L, 1L, 1L, 2L, 2L, 2L)
+#' )
+#' episodes <- data.table(
+#'   id = 1L,
+#'   subject = c("teen", "parent"),
+#'   emotion = "happy",
+#'   run_id = c(1L, 2L),
+#'   start_frame = c(2L, 3L),
+#'   end_frame = c(2L, 3L)
+#' )
+#' coded_data <- structure(
+#'   list(coding = coding, episodes = episodes),
+#'   class = c("fr_coding", "list")
+#' )
+#' synchrony(coded_data, subject_names = c("teen", "parent"), missing_threshold = 1)
 #' @export
 synchrony <- function(
   coded_data,
@@ -180,7 +205,10 @@ synchrony <- function(
 
     if (length(id_subjects) < 2L) {
       if (length(id_subjects) == 1L) {
-        singleton_ids <- c(singleton_ids, sprintf("id %s: %s", current_id, id_subjects[[1L]]))
+        singleton_ids <- c(
+          singleton_ids,
+          sprintf("id %s: %s", current_id, id_subjects[[1L]])
+        )
       }
       next
     }
@@ -200,7 +228,9 @@ synchrony <- function(
         next
       }
 
-      for (numerator_subject in id_subjects[id_subjects != denominator_subject]) {
+      for (numerator_subject in id_subjects[
+        id_subjects != denominator_subject
+      ]) {
         comparison_frames <- id_coding[
           subject == numerator_subject,
           .(
@@ -245,7 +275,13 @@ synchrony <- function(
           denominator = denominator_subject,
           numerator = numerator_subject
         )]
-        out[, synchrony := ifelse(n_episodes > 0L, numerator_count / n_episodes, NA_real_)]
+        out[,
+          synchrony := ifelse(
+            n_episodes > 0L,
+            numerator_count / n_episodes,
+            NA_real_
+          )
+        ]
         out[, `:=`(
           n_episodes = as.integer(n_episodes),
           synchrony = as.numeric(synchrony)

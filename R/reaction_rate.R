@@ -20,6 +20,17 @@
 #'
 #' @return A data.table with columns `id`, `subject`, `emotion`, `n_episodes`,
 #'   `n_reactions`, and `reaction_rate`.
+#' @examples
+#' library(data.table)
+#'
+#' coded_data <- data.table(
+#'   id = rep(1L, 8),
+#'   subject = rep(c("teen", "parent"), each = 4),
+#'   emotion = "happy",
+#'   frame = rep(1:4, 2),
+#'   delta = c(1L, 1L, 0L, 1L, 0L, 1L, 1L, 0L)
+#' )
+#' reaction_rate(coded_data, fps = 30)
 #' @export
 reaction_rate <- function(
   coded_data,

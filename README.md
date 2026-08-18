@@ -191,3 +191,141 @@ episodes
 The output includes `start_frame`, `end_frame`, `start_time`,
 `end_time`, `n_frames`, `duration_s`, `id`, `subject`, `emotion`, and
 `run_id`.
+
+## Utilities and downstream analysis
+
+### `to_seconds()`
+
+`to_seconds()` converts FaceReader-style timestamps such as `hh:mm:ss`
+or `hh:mm:ss.mmm` into numeric seconds.
+
+``` r
+library(facereaderconverter)
+
+to_seconds(c("00:00:10", "00:00:10.500", "00:01:00"))
+#> [1] 10.0 10.5 60.0
+```
+
+Use this when you need a numeric time variable for plotting or joining.
+
+### `parse_time_to_frame()`
+
+`parse_time_to_frame()` converts timestamps to frame indices at a given
+sampling rate. It accepts `HH:MM:SS`, `MM:SS`, or plain seconds.
+
+``` r
+library(facereaderconverter)
+
+parse_time_to_frame(c("00:00:10.5", "1:23.5", "83.5"), fps = 30)
+#> [1]  315 2505 2505
+```
+
+This is the helper used internally when `video_time` is present but
+`frame` is not.
+
+### `map_paths()`
+
+`map_paths()` remaps files from one root directory to another while
+preserving the relative folder structure.
+
+``` r
+library(facereaderconverter)
+
+map_paths(
+  input_dir = "data/raw",
+  output_dir = "data/converted",
+  files = c(
+    "data/raw/session1/a.txt",
+    "data/raw/session2/b.txt"
+  )
+)
+```
+
+This is useful when converting a directory of files into a parallel
+output tree.
+
+### `locf()`
+
+`locf()` applies last-observation-carried-forward logic to an
+`fr_coding` object and returns the imputed coding table plus episode
+summaries.
+
+``` r
+library(facereaderconverter)
+
+coding_df <- read.csv("testdata/testdata_detailed.csv") |>
+  dplyr::mutate(id = 1, subject = "parent")
+
+coding_df2 <- coding_df |>
+  tidyr::pivot_longer(
+    cols = c(neutral, happy, sad, angry, surprised, scared, disgusted),
+    names_to = "emotion",
+    values_to = "value"
+  )
+
+fr <- convert_to_episodes(coding_df2, fps = 30L)
+locf(fr)
+```
+
+Use this when short missing stretches should inherit the most recent
+non-missing run assignment.
+
+### `synchrony()`
+
+`synchrony()` compares the episode coding for one subject against
+another subject within each `id` and emotion.
+
+``` r
+library(facereaderconverter)
+
+coding <- data.table::data.table(
+  id = rep(1L, 6),
+  subject = rep(c("teen", "parent"), each = 3),
+  emotion = "happy",
+  video_time = rep(1:3, 2),
+  value = c(0.1, 0.2, 0.3, 0.1, 0.2, 0.3),
+  in_state = c(FALSE, TRUE, FALSE, FALSE, FALSE, TRUE),
+  run_id = c(1L, 1L, 1L, 2L, 2L, 2L)
+)
+
+episodes <- data.table::data.table(
+  id = 1L,
+  subject = c("teen", "parent"),
+  emotion = "happy",
+  run_id = c(1L, 2L),
+  start_frame = c(2L, 3L),
+  end_frame = c(2L, 3L)
+)
+
+coded_data <- structure(
+  list(coding = coding, episodes = episodes),
+  class = c("fr_coding", "list")
+)
+
+synchrony(coded_data, subject_names = c("teen", "parent"), missing_threshold = 1)
+```
+
+The result reports denominator and numerator subjects, the emotion, the
+number of episodes, and synchrony.
+
+### `reaction_rate()`
+
+`reaction_rate()` estimates the proportion of eligible episodes that
+contain at least one delta reaction after an initial exclusion window.
+
+``` r
+library(facereaderconverter)
+
+coded_data <- data.table::data.table(
+  id = rep(1L, 8),
+  subject = rep(c("teen", "parent"), each = 4),
+  emotion = "happy",
+  frame = rep(1:4, 2),
+  delta = c(1L, 1L, 0L, 1L, 0L, 1L, 1L, 0L)
+)
+
+reaction_rate(coded_data, fps = 30)
+```
+
+This is useful when you want a simple summary of reaction frequency by
+subject and emotion.

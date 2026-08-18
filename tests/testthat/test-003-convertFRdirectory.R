@@ -33,7 +33,12 @@ test_that("convertFRDirectory", {
   expect_true(file.exists("testdata/metadata2.csv"))
 
   x <- read.csv("testdata/metadata.csv")
-  expect_all_true(grepl("csv", x$outpath[x$status == "Success"]))
+  x <- dplyr::filter(
+    x,
+    status == "Success",
+    !grepl("metadata", basename(outpath))
+  )
+  expect_true(all(grepl("csv", x$outpath, fixed = TRUE)))
 
   expect_true(file.exists("testdata/testdata_detailed.csv"))
   expect_true(file.exists("testdata/testdata_state.csv"))
@@ -75,11 +80,11 @@ test_that("convertFRDirectory", {
   )
 
   x <- convertFRDirectory("testdata")
-  expect_true(nrow(x) == 5)
-  expect_all_true(x |> dplyr::filter(status == "Fail") |> nrow() == 2)
+  expect_true(nrow(x) == 8)
+  expect_true(sum(x$status == "Fail") == 2)
 
   x <- convertFRDirectory("testdata", pattern = "state", cores = 2L)
-  expect_true(nrow(x) == 2)
+  expect_true(nrow(x) == 3)
 
   x <- convertFRDirectory(
     "testdata",
@@ -87,8 +92,6 @@ test_that("convertFRDirectory", {
     cores = 2L
   )
 
-  expect_all_true(x |> dplyr::filter(status == "Fail") |> nrow() == 1)
-  expect_all_true(
-    x |> dplyr::filter(status == "Success", !is.na(error)) |> nrow() == 1
-  )
+  expect_true(sum(x$status == "Fail") == 1)
+  expect_true(sum(x$status == "Success" & !is.na(x$error)) == 1)
 })

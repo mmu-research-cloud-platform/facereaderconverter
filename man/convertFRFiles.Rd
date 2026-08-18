@@ -36,9 +36,10 @@ convertFRFiles(
 Invisibly returns the metadata.
 }
 \description{
-Reads a .txt file skipping the first 10 lines, guesses the delimiter from
-the first remaining line, writes a .csv with the same basename in the same
-directory, and returns the path to the created CSV (invisibly).
+Reads a .txt file, detects the FaceReader header row automatically,
+guesses the delimiter from the header line, writes a .csv with the same
+basename in the same directory, and returns the path to the created CSV
+(invisibly).
 }
 \examples{
 \dontrun{

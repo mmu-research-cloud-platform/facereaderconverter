@@ -32,3 +32,29 @@ A data.table with columns \code{id}, \code{denominator}, \code{numerator},
 \description{
 Calculate synchrony from converted episodes
 }
+\examples{
+library(data.table)
+
+coding <- data.table(
+  id = rep(1L, 6),
+  subject = rep(c("teen", "parent"), each = 3),
+  emotion = "happy",
+  video_time = rep(1:3, 2),
+  value = c(0.1, 0.2, 0.3, 0.1, 0.2, 0.3),
+  in_state = c(FALSE, TRUE, FALSE, FALSE, FALSE, TRUE),
+  run_id = c(1L, 1L, 1L, 2L, 2L, 2L)
+)
+episodes <- data.table(
+  id = 1L,
+  subject = c("teen", "parent"),
+  emotion = "happy",
+  run_id = c(1L, 2L),
+  start_frame = c(2L, 3L),
+  end_frame = c(2L, 3L)
+)
+coded_data <- structure(
+  list(coding = coding, episodes = episodes),
+  class = c("fr_coding", "list")
+)
+synchrony(coded_data, subject_names = c("teen", "parent"), missing_threshold = 1)
+}

@@ -46,3 +46,15 @@ A data.table with columns \code{id}, \code{subject}, \code{emotion}, \code{n_epi
 Reaction rate is the proportion of eligible episodes that contain at least one
 delta reaction after an initial exclusion window.
 }
+\examples{
+library(data.table)
+
+coded_data <- data.table(
+  id = rep(1L, 8),
+  subject = rep(c("teen", "parent"), each = 4),
+  emotion = "happy",
+  frame = rep(1:4, 2),
+  delta = c(1L, 1L, 0L, 1L, 0L, 1L, 1L, 0L)
+)
+reaction_rate(coded_data, fps = 30)
+}
