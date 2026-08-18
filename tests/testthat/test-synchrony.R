@@ -25,7 +25,7 @@ make_singleton_id <- function(x) {
 
 test_that("synchrony returns pairwise subject columns", {
   result <- synchrony(
-    test_data,
+    test_data_sync,
     subject_names = c("teen", "parent"),
     missing_threshold = 1
   )
@@ -52,7 +52,7 @@ test_that("synchrony returns pairwise subject columns", {
 })
 
 test_that("synchrony supports more than two subjects and filtering", {
-  multi_subject <- make_multi_subject(test_data)
+  multi_subject <- make_multi_subject(test_data_sync)
 
   all_subjects <- synchrony(multi_subject, missing_threshold = 1)
   filtered <- synchrony(
@@ -70,12 +70,12 @@ test_that("synchrony supports more than two subjects and filtering", {
 
 test_that("synchrony applies the missing-data threshold", {
   relaxed <- synchrony(
-    test_data,
+    test_data_sync,
     subject_names = c("teen", "parent"),
     missing_threshold = 1
   )
   strict <- synchrony(
-    test_data,
+    test_data_sync,
     subject_names = c("teen", "parent"),
     missing_threshold = 0.2
   )
@@ -87,7 +87,7 @@ test_that("synchrony applies the missing-data threshold", {
 })
 
 test_that("synchrony warns when an id retains only one subject", {
-  singleton_case <- make_singleton_id(test_data)
+  singleton_case <- make_singleton_id(test_data_sync)
 
   expect_warning(
     result <- synchrony(singleton_case, missing_threshold = 1),
@@ -98,17 +98,17 @@ test_that("synchrony warns when an id retains only one subject", {
 
 test_that("synchrony validates its inputs", {
   expect_error(
-    synchrony(test_data, subject_names = 1),
+    synchrony(test_data_sync, subject_names = 1),
     "`subject_names` must be a character vector with no missing values\\."
   )
 
   expect_error(
-    synchrony(test_data, subject_names = c("teen", "teen")),
+    synchrony(test_data_sync, subject_names = c("teen", "teen")),
     "`subject_names` must not contain duplicates\\."
   )
 
   expect_error(
-    synchrony(test_data, missing_threshold = -0.1),
+    synchrony(test_data_sync, missing_threshold = -0.1),
     "`missing_threshold` must be a numeric scalar in \\[0, 1\\]\\."
   )
 })
