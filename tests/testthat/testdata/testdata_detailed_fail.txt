@@ -1,0 +1,7 @@
+crap here
+
+Face Model	General
+Calibration	-
+Start time	1/2/2024 11:00:00
+Filename	C:\Users\1234\randomteen.mp4
+Frame rate	30.000000000
