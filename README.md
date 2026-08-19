@@ -317,7 +317,9 @@ non-missing run assignment.
 ### `synchrony()`
 
 `synchrony()` compares the episode coding for one subject against
-another subject within each `id` and emotion.
+another subject within each `id` and emotion. The `missing_threshold`
+argument controls how much missing comparison data is tolerated within a
+denominator episode before that episode is dropped.
 
 ``` r
 library(facereaderconverter)
@@ -346,7 +348,7 @@ coded_data <- structure(
   class = c("fr_coding", "list")
 )
 
-synchrony(coded_data, subject_names = c("teen", "parent"), missing_threshold = 1)
+synchrony(coded_data, missing_threshold = 0.5)
 ```
 
 The result reports denominator and numerator subjects, the emotion, the

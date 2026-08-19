@@ -1,12 +1,13 @@
 #' Calculate synchrony from converted episodes
 #'
 #' @param coded_data Output from `convert_to_episodes()`.
-#' @param subject_names Character vector of subject labels to compare. If `NULL`,
-#'   all unique subjects in `coded_data$coding` are used. If supplied, the data
-#'   are filtered to those subject levels before synchrony is calculated.
-#' @param missing_threshold Numeric scalar in `[0, 1]`. Denominator episodes are
+#' @param subject Character scalar giving the column in `coded_data$coding` and
+#'   `coded_data$episodes` that identifies the subject. Default is `"subject"`.
+#' @param id Character scalar giving the column in `coded_data$coding` and
+#'   `coded_data$episodes` that identifies the case or dyad. Default is `"id"`.
+#' @param missing_threshold Numeric scalar in `[0, 1]`. Denominator and numerator episodes are
 #'   dropped when the comparison subject is missing for more than this
-#'   proportion of frames within the episode.
+#'   proportion of frames within the episode. Default is `0`.
 #' @param exclude_emotions Character vector of emotions to exclude from the
 #'   denominator calculation. Default is `"neutral"`.
 #'
@@ -36,11 +37,12 @@
 #'   list(coding = coding, episodes = episodes),
 #'   class = c("fr_coding", "list")
 #' )
-#' synchrony(coded_data, subject_names = c("teen", "parent"), missing_threshold = 1)
+#' synchrony(coded_data, subject = "subject", id = "id", missing_threshold = 0)
 #' @export
 synchrony <- function(
   coded_data,
-  subject_names = NULL,
+  subject = "subject",
+  id = "id",
   missing_threshold = 0,
   exclude_emotions = "neutral"
 ) {
@@ -71,23 +73,25 @@ synchrony <- function(
     )
   }
 
-  if (!is.null(subject_names)) {
-    if (
-      !is.character(subject_names) ||
-        length(subject_names) < 1L ||
-        anyNA(subject_names)
-    ) {
-      stop(
-        "`subject_names` must be a character vector with no missing values.",
-        call. = FALSE
-      )
-    }
-    if (length(unique(subject_names)) != length(subject_names)) {
-      stop(
-        "`subject_names` must not contain duplicates.",
-        call. = FALSE
-      )
-    }
+  if (!is.character(subject) || !is_scalar(subject) || anyNA(subject)) {
+    stop(
+      "`subject` must be a character scalar with no missing values.",
+      call. = FALSE
+    )
+  }
+
+  if (!is.character(id) || !is_scalar(id) || anyNA(id)) {
+    stop(
+      "`id` must be a character scalar with no missing values.",
+      call. = FALSE
+    )
+  }
+
+  if (identical(subject, id)) {
+    stop(
+      "`subject` and `id` must refer to different columns.",
+      call. = FALSE
+    )
   }
 
   if (!is.null(exclude_emotions)) {
@@ -103,8 +107,8 @@ synchrony <- function(
   episodes <- data.table::as.data.table(coded_data$episodes)
 
   required_coding <- c(
-    "id",
-    "subject",
+    id,
+    subject,
     "emotion",
     "video_time",
     "value",
@@ -123,8 +127,8 @@ synchrony <- function(
   }
 
   required_episodes <- c(
-    "id",
-    "subject",
+    id,
+    subject,
     "emotion",
     "run_id",
     "start_frame",
@@ -141,40 +145,31 @@ synchrony <- function(
     )
   }
 
+  if (subject != "subject") {
+    data.table::setnames(coding, subject, "subject")
+    data.table::setnames(episodes, subject, "subject")
+  }
+  if (id != "id") {
+    data.table::setnames(coding, id, "id")
+    data.table::setnames(episodes, id, "id")
+  }
+
   coding[, subject := as.character(subject)]
   coding[, emotion := as.character(emotion)]
   episodes[, subject := as.character(subject)]
   episodes[, emotion := as.character(emotion)]
 
-  available_subjects <- unique(c(coding$subject, episodes$subject))
-  if (is.null(subject_names)) {
-    subject_names <- unique(coding$subject)
-  } else {
-    missing_subjects <- setdiff(subject_names, available_subjects)
-    if (length(missing_subjects) > 0L) {
-      stop(
-        sprintf(
-          "`subject_names` must be present in `coded_data$coding` and `coded_data$episodes`: %s.",
-          paste(missing_subjects, collapse = ", ")
-        ),
-        call. = FALSE
-      )
-    }
-    coding <- coding[subject %chin% subject_names]
-    episodes <- episodes[subject %chin% subject_names]
-  }
-
-  if (length(subject_names) < 1L) {
+  if (nrow(coding) < 1L) {
     stop(
-      "`coded_data$coding` must contain at least one subject or `subject_names` must be supplied.",
+      "`coded_data$coding` must contain at least one row.",
       call. = FALSE
     )
   }
 
-  if (is.null(exclude_emotions)) {
-    keep_emotions <- unique(episodes$emotion)
+  keep_emotions <- if (is.null(exclude_emotions)) {
+    unique(episodes$emotion)
   } else {
-    keep_emotions <- setdiff(unique(episodes$emotion), exclude_emotions)
+    setdiff(unique(episodes$emotion), exclude_emotions)
   }
 
   empty_result <- data.table::data.table(
@@ -198,10 +193,6 @@ synchrony <- function(
     id_coding <- coding[id == current_id & emotion %chin% keep_emotions]
     id_episodes <- episodes[id == current_id & emotion %chin% keep_emotions]
     id_subjects <- unique(id_coding$subject)
-
-    if (!is.null(subject_names)) {
-      id_subjects <- subject_names[subject_names %chin% id_subjects]
-    }
 
     if (length(id_subjects) < 2L) {
       if (length(id_subjects) == 1L) {
@@ -249,7 +240,7 @@ synchrony <- function(
           all.x = TRUE
         )[,
           .(
-            missing_prop = mean(is.na(comparison_value)),
+            present_prop = mean(!is.na(comparison_value)),
             synchrony_flag = as.integer(any(
               comparison_in_state == TRUE,
               na.rm = TRUE
@@ -258,7 +249,7 @@ synchrony <- function(
           by = .(id, emotion, denom_run_id)
         ]
 
-        eligible <- per_episode[missing_prop <= missing_threshold]
+        eligible <- per_episode[present_prop >= missing_threshold]
 
         summary <- eligible[,
           .(

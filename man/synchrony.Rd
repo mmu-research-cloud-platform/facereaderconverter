@@ -6,7 +6,8 @@
 \usage{
 synchrony(
   coded_data,
-  subject_names = NULL,
+  subject = "subject",
+  id = "id",
   missing_threshold = 0,
   exclude_emotions = "neutral"
 )
@@ -14,13 +15,15 @@ synchrony(
 \arguments{
 \item{coded_data}{Output from \code{convert_to_episodes()}.}
 
-\item{subject_names}{Character vector of subject labels to compare. If \code{NULL},
-all unique subjects in \code{coded_data$coding} are used. If supplied, the data
-are filtered to those subject levels before synchrony is calculated.}
+\item{subject}{Character scalar giving the column in \code{coded_data$coding} and
+\code{coded_data$episodes} that identifies the subject. Default is \code{"subject"}.}
 
-\item{missing_threshold}{Numeric scalar in \verb{[0, 1]}. Denominator episodes are
+\item{id}{Character scalar giving the column in \code{coded_data$coding} and
+\code{coded_data$episodes} that identifies the case or dyad. Default is \code{"id"}.}
+
+\item{missing_threshold}{Numeric scalar in \verb{[0, 1]}. Denominator and numerator episodes are
 dropped when the comparison subject is missing for more than this
-proportion of frames within the episode.}
+proportion of frames within the episode. Default is \code{0}.}
 
 \item{exclude_emotions}{Character vector of emotions to exclude from the
 denominator calculation. Default is \code{"neutral"}.}
@@ -56,5 +59,5 @@ coded_data <- structure(
   list(coding = coding, episodes = episodes),
   class = c("fr_coding", "list")
 )
-synchrony(coded_data, subject_names = c("teen", "parent"), missing_threshold = 1)
+synchrony(coded_data, subject = "subject", id = "id", missing_threshold = 0)
 }
