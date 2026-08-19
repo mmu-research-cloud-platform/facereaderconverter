@@ -64,12 +64,12 @@ convertFRExcelFiles <- function(
     stop("`sheet` is out of range for the workbook.")
   }
 
-  md <- readxl::read_excel(
+  md <- suppressMessages(readxl::read_excel(
     inpath,
     sheet = sheet,
     n_max = 200,
     col_names = FALSE
-  )
+  ))
   md_vals <- as.data.frame(md, stringsAsFactors = FALSE)
   header_row <- detect_fr_header_row(unlist(md_vals[1], use.names = FALSE))
 

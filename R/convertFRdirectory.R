@@ -87,32 +87,30 @@ convertFRDirectory <- function(
     cores <- max(1L, parallel::detectCores(logical = FALSE) - 1L)
   }
 
+  convertFRFiles_local <- convertFRFiles
   process_file <- function(i) {
-    tryCatch(
-      {
-        md <- convertFRFiles(
-          ls[i],
-          ls_out[i],
-          values_as_numeric = values_as_numeric,
-          clean_names = clean_names,
-          fail_codes = fail_codes,
-          duplicate_timecodes_as_error = duplicate_timecodes_as_error,
-          ...
-        )
-
-        # coerce success-row types to match metadata
-        md |>
-          dplyr::mutate(
-            video_filename = as.character(video_filename),
-            time = as.POSIXct(time, tz = "UTC"),
-            type = as.character(type),
-            inpath = as.character(inpath),
-            outpath = as.character(outpath),
-            status = "Success",
-            error = NA_character_
+    warning_message <- NULL
+    success <- TRUE
+    md <- tryCatch(
+      withCallingHandlers(
+        {
+          convertFRFiles_local(
+            ls[i],
+            ls_out[i],
+            values_as_numeric = values_as_numeric,
+            clean_names = clean_names,
+            fail_codes = fail_codes,
+            duplicate_timecodes_as_error = duplicate_timecodes_as_error,
+            ...
           )
-      },
+        },
+        warning = function(w) {
+          warning_message <<- conditionMessage(w)
+          invokeRestart("muffleWarning")
+        }
+      ),
       error = function(e) {
+        success <<- FALSE
         # use POSIXct NA for time and character NA for strings
         tibble::tibble(
           video_filename = NA_character_,
@@ -123,20 +121,28 @@ convertFRDirectory <- function(
           status = "Fail",
           error = as.character(e$message)
         )
-      },
-      warning = function(w) {
-        # use POSIXct NA for time and character NA for strings
-        tibble::tibble(
-          video_filename = NA_character_,
-          time = as.POSIXct(NA, tz = "UTC"),
-          type = NA_character_,
-          inpath = as.character(ls[i]),
-          outpath = as.character(ls_out[i]),
-          status = "Success",
-          error = as.character(w$message)
-        )
       }
     )
+
+    if (success) {
+      if (!is.null(warning_message)) {
+        warning(warning_message, call. = FALSE)
+      }
+
+      # coerce success-row types to match metadata
+      md |>
+        dplyr::mutate(
+          video_filename = as.character(video_filename),
+          time = as.POSIXct(time, tz = "UTC"),
+          type = as.character(type),
+          inpath = as.character(inpath),
+          outpath = as.character(outpath),
+          status = "Success",
+          error = NA_character_
+        )
+    } else {
+      md
+    }
   }
 
   if (length(ls) == 0L) {
@@ -147,10 +153,11 @@ convertFRDirectory <- function(
       {
         cl <- parallel::makeCluster(worker_count)
         on.exit(parallel::stopCluster(cl), add = TRUE)
-        parallel::clusterEvalQ(cl, {
-          library(facereaderconverter)
-          NULL
-        })
+        parallel::clusterExport(
+          cl,
+          varlist = c("convertFRFiles", "detect_fr_header_row"),
+          envir = asNamespace("facereaderconverter")
+        )
         dplyr::bind_rows(parallel::parLapplyLB(
           cl,
           seq_along(ls),

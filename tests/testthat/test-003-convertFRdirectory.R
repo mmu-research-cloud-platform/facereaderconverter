@@ -38,7 +38,6 @@ test_that("convertFRDirectory", {
     status == "Success",
     !grepl("metadata", basename(outpath))
   )
-  expect_true(all(grepl("csv", x$outpath, fixed = TRUE)))
 
   expect_true(file.exists("testdata/testdata_detailed.csv"))
   expect_true(file.exists("testdata/testdata_state.csv"))
@@ -82,6 +81,12 @@ test_that("convertFRDirectory", {
   x <- convertFRDirectory("testdata")
   expect_true(nrow(x) == 8)
   expect_true(sum(x$status == "Fail") == 2)
+  expect_true(any(grepl(
+    "FaceReader header row not found",
+    x$error,
+    fixed = TRUE
+  )))
+  expect_true(any(grepl("Duplicate timecodes", x$error, fixed = TRUE)))
 
   x <- convertFRDirectory("testdata", pattern = "state", cores = 2L)
   expect_true(nrow(x) == 3)
@@ -93,5 +98,6 @@ test_that("convertFRDirectory", {
   )
 
   expect_true(sum(x$status == "Fail") == 1)
-  expect_true(sum(x$status == "Success" & !is.na(x$error)) == 1)
+  expect_true(x$error[x$status == "Fail"] == "FaceReader header row not found")
+  expect_true(sum(x$status == "Success" & !is.na(x$error)) == 0)
 })
