@@ -1,9 +1,0 @@
-"","video_filename","time","type","inpath","outpath","status","error"
-"1","C:\Users\1234\randomparent.mp4",2024-01-02 11:00:00,"state","testdata/testdata2/testdata_state2.txt","testdata/testdata2/testdata_state2.csv","Success",NA
-"2","C:\Users\1234\randomparent.mp4",2026-06-04 08:54:03,"detailed","testdata/testdata_detailed.txt","testdata/testdata_detailed.csv","Success",NA
-"3",NA,NA,NA,"testdata/testdata_detailed_duplicate_timecode.txt","testdata/testdata_detailed_duplicate_timecode.txt","Fail","Duplicate timecodes"
-"4",NA,NA,NA,"testdata/testdata_detailed_fail.txt","testdata/testdata_detailed_fail.txt","Fail","FaceReader header row not found"
-"5","C:\Users\1234\randomparent.mp4",2026-06-04 08:54:03,"detailed","testdata/testdata_detailed_line_change.txt","testdata/testdata_detailed_line_change.csv","Success",NA
-"6","testdata/exceltest.avi",2026-06-04 08:54:03,"detailed","testdata/testdata_excel_detailed_control.txt","testdata/testdata_excel_detailed_control.csv","Success",NA
-"7","testdata/exceltest.avi",2026-06-04 08:54:03,"state","testdata/testdata_excel_state_control.txt","testdata/testdata_excel_state_control.csv","Success",NA
-"8","C:\Users\1234\randomparent.mp4",2026-06-04 08:54:03,"state","testdata/testdata_state.txt","testdata/testdata_state.csv","Success",NA

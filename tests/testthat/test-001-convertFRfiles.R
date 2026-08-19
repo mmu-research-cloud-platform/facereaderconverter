@@ -1,6 +1,8 @@
 TEST_DATA <- Sys.getenv("TEST_DATA")
 load(file.path(TEST_DATA, "test_data.RDa"))
 
+skip_if_not_installed("openxlsx")
+
 test_that("convertFRFiles", {
   remove_csv_in_dir <- function(dir, recursive = FALSE, dry_run = TRUE) {
     csvs <- list.files(
@@ -71,6 +73,15 @@ test_that("convertFRFiles", {
   )
   expect_true(nrow(x) > 1000)
 
+  y <- convertFRFiles(
+    "testdata/testdata_extracols_detailed.txt",
+    return_data = TRUE,
+    clean_names = TRUE,
+    values_as_numeric = TRUE,
+    duplicate_timecodes_as_error = FALSE
+  )
+  expect_true(all(c("participant_name", "analysis_index") %in% names(y)))
+
   expect_no_error(convertFRFiles(
     "testdata/testdata_detailed.txt",
     outpath = "junk/testdata_detailed.csv",
@@ -124,6 +135,64 @@ test_that("convertFRFiles", {
     ),
     "Duplicate timecodes"
   )
+
+  tmp_txt_ok <- tempfile(fileext = ".txt")
+  tmp_txt_bad <- tempfile(fileext = ".txt")
+  txt_ok <- c(
+    "Video analysis detailed log",
+    "",
+    "Face Model\tGeneral",
+    "Calibration\t-",
+    "Start time\t6/4/2026 13:31:06.331",
+    "Filename\tC:/tmp/example.mp4",
+    "Frame rate\t30.000000000",
+    "",
+    "",
+    "",
+    paste(
+      c(
+        "Video Time",
+        "Neutral",
+        "Happy",
+        "Sad",
+        "Angry",
+        "Surprised",
+        "Scared",
+        "Disgusted",
+        "Participant Name",
+        "Analysis Index"
+      ),
+      collapse = "\t"
+    ),
+    paste(
+      c("00:00:00.000", rep("0", 7), "Rebecca", "Analysis 5"),
+      collapse = "\t"
+    ),
+    paste(c("00:00:00.000", rep("0", 7), "Alex", "Analysis 6"), collapse = "\t")
+  )
+  txt_bad <- txt_ok
+  txt_bad[length(txt_bad)] <- paste(
+    c("00:00:00.000", rep("0", 7), "Rebecca", "Analysis 5"),
+    collapse = "\t"
+  )
+  writeLines(txt_ok, tmp_txt_ok)
+  writeLines(txt_bad, tmp_txt_bad)
+  expect_no_error(convertFRFiles(
+    tmp_txt_ok,
+    return_data = TRUE,
+    clean_names = TRUE,
+    values_as_numeric = TRUE
+  ))
+  expect_error(
+    convertFRFiles(
+      tmp_txt_bad,
+      return_data = TRUE,
+      clean_names = TRUE,
+      values_as_numeric = TRUE
+    ),
+    "Duplicate timecodes"
+  )
+
   x <- convertFRFiles(
     "testdata/testdata_detailed.txt",
     fail_codes = TRUE

@@ -87,16 +87,15 @@ convertFRDirectory <- function(
     cores <- max(1L, parallel::detectCores(logical = FALSE) - 1L)
   }
 
-  convertFRFiles_local <- convertFRFiles
   process_file <- function(i) {
     warning_message <- NULL
     success <- TRUE
     md <- tryCatch(
       withCallingHandlers(
         {
-          convertFRFiles_local(
+          convertFRFiles(
             ls[i],
-            ls_out[i],
+            outpath = ls_out[i],
             values_as_numeric = values_as_numeric,
             clean_names = clean_names,
             fail_codes = fail_codes,

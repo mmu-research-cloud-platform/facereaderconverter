@@ -136,13 +136,7 @@ convertFRFiles <- function(
       show_col_types = FALSE
     )
   )
-  n_vals <- df |> count(`Video Time`) |> pull(n)
-  timecount <- if (length(n_vals) == 0) 0L else max(n_vals)
-  if (timecount > 1 && duplicate_timecodes_as_error) {
-    stop("Duplicate timecodes")
-  } else if (timecount > 1) {
-    warning("Duplicate timecodes")
-  }
+  check_duplicate_timecodes(df, duplicate_timecodes_as_error)
 
   if (md_type == "detailed" && fail_codes) {
     df <- df |>
@@ -160,11 +154,26 @@ convertFRFiles <- function(
       dplyr::mutate(`Video Time` = as_hms(`Video Time`))
 
     if (md_type == "detailed") {
+      numeric_cols <- intersect(
+        names(df),
+        c(
+          "Neutral",
+          "Happy",
+          "Sad",
+          "Angry",
+          "Surprised",
+          "Scared",
+          "Disgusted",
+          "Age"
+        )
+      )
       df <- df |>
-        dplyr::mutate(across(
-          -any_of(c("Video Time")),
-          ~ suppressWarnings(as.numeric(.))
-        ))
+        dplyr::mutate(
+          dplyr::across(
+            tidyselect::any_of(numeric_cols),
+            ~ suppressWarnings(as.numeric(.))
+          )
+        )
     }
   }
 

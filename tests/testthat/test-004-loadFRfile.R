@@ -15,8 +15,13 @@ test_that("loadFRfile dispatches by extension", {
     values_as_numeric = TRUE
   )
   csv <- loadFRfile(
-    file.path("testdata", "testdata_detailed.csv"),
+    file.path(TEST_DATA, "testdata_detailed.csv"),
     clean_names = TRUE
+  )
+  extra <- loadFRfile(
+    file.path("testdata", "testdata_extracols_detailed.xlsx"),
+    clean_names = TRUE,
+    values_as_numeric = TRUE
   )
 
   expect_equal(
@@ -47,6 +52,15 @@ test_that("loadFRfile dispatches by extension", {
     ) |>
       janitor::clean_names()
   )
+  expect_true(ncol(extra) == 13)
+})
+
+test_that("loadFRfile handles missing metadata", {
+  expect_no_error(suppressWarnings(loadFRfile(
+    file.path("testdata", "testdata_extracols_nometadata_detailed.xlsx"),
+    clean_names = TRUE,
+    values_as_numeric = TRUE
+  )))
 })
 
 test_that("loadFRfile handles bad headers", {

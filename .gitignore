@@ -56,3 +56,4 @@ rsconnect/
 .cache/
 **/.cache/
 AGENTS.md
+**/_snaps/

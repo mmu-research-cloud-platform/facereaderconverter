@@ -73,20 +73,22 @@ convertFRExcelFiles <- function(
   md_vals <- as.data.frame(md, stringsAsFactors = FALSE)
   header_row <- detect_fr_header_row(unlist(md_vals[1], use.names = FALSE))
 
-  md_type <- dplyr::case_when(
-    grepl("detailed", md_vals[[1]][1], ignore.case = TRUE) ~ "detailed",
-    grepl("state", md_vals[[1]][1], ignore.case = TRUE) ~ "state",
-    TRUE ~ "other"
-  )
+  has_metadata <- grepl("video analysis", md_vals[[1]][1], ignore.case = TRUE)
 
-  if (!grepl("video analysis", md_vals[[1]][1], ignore.case = TRUE)) {
-    stop("FaceReader metadata missing")
+  md_videoname <- if (
+    has_metadata && nrow(md_vals) >= 6 && ncol(md_vals) >= 2
+  ) {
+    md_vals[[2]][6] |> stringr::str_trim()
+  } else {
+    NA_character_
   }
-
-  md_videoname <- md_vals[[2]][6] |> stringr::str_trim()
-  md_time <- md_vals[[2]][5] |>
-    stringr::str_trim() |>
-    as.POSIXct(format = "%m/%d/%Y %H:%M:%OS")
+  md_time <- if (has_metadata && nrow(md_vals) >= 5 && ncol(md_vals) >= 2) {
+    md_vals[[2]][5] |>
+      stringr::str_trim() |>
+      as.POSIXct(format = "%m/%d/%Y %H:%M:%OS")
+  } else {
+    as.POSIXct(NA, tz = "UTC")
+  }
 
   df <- readxl::read_excel(
     inpath,
@@ -94,28 +96,19 @@ convertFRExcelFiles <- function(
     skip = header_row - 1,
     .name_repair = "minimal"
   )
-  df <- df |>
-    dplyr::select(
-      tidyselect::any_of(c(
-        "Video Time",
-        "Dominant Expression",
-        "Neutral",
-        "Happy",
-        "Sad",
-        "Angry",
-        "Surprised",
-        "Scared",
-        "Disgusted"
-      ))
-    )
 
-  n_vals <- df |> dplyr::count(`Video Time`) |> dplyr::pull(n)
-  timecount <- if (length(n_vals) == 0) 0L else max(n_vals)
-  if (timecount > 1 && duplicate_timecodes_as_error) {
-    stop("Duplicate timecodes")
-  } else if (timecount > 1) {
-    warning("Duplicate timecodes")
+  md_type <- dplyr::case_when(
+    "Neutral" %in% names(df) ~ "detailed",
+    "Dominant Expression" %in% names(df) ~ "state",
+    grepl("detailed", md_vals[[1]][1], ignore.case = TRUE) ~ "detailed",
+    grepl("state", md_vals[[1]][1], ignore.case = TRUE) ~ "state",
+    TRUE ~ "other"
+  )
+
+  if (!has_metadata) {
+    duplicate_timecodes_as_error <- FALSE
   }
+  check_duplicate_timecodes(df, duplicate_timecodes_as_error)
 
   if (md_type == "detailed" && fail_codes) {
     df <- df |>
@@ -133,10 +126,23 @@ convertFRExcelFiles <- function(
       dplyr::mutate(`Video Time` = hms::as_hms(`Video Time`))
 
     if (md_type == "detailed") {
+      numeric_cols <- intersect(
+        names(df),
+        c(
+          "Neutral",
+          "Happy",
+          "Sad",
+          "Angry",
+          "Surprised",
+          "Scared",
+          "Disgusted",
+          "Age"
+        )
+      )
       df <- df |>
         dplyr::mutate(
           dplyr::across(
-            -tidyselect::any_of(c("Video Time")),
+            tidyselect::any_of(numeric_cols),
             ~ suppressWarnings(as.numeric(.))
           )
         )

@@ -7,8 +7,12 @@
 
 <!-- badges: end -->
 
-The goal of facereaderconverter is to convert FaceReader txt files to
-usable csv files that preserve the timings.
+The package is a series of functions for converting FaceReader output
+files into a more analysis-friendly format, and for detecting episodes
+of emotion from the time series data. It also includes some utilities
+for downstream analysis.
+
+Tested to work with FaceReader 9.1.
 
 ## Installation
 
@@ -28,6 +32,25 @@ devtools::install_github("mmu-research-cloud-platform/facereaderconverter")
 ```
 
 ## File conversion
+
+### `loadFRfile()`
+
+`loadFRfile()` loads a FaceReader export into memory without writing an
+output file. It dispatches to the TXT, Excel, or CSV reader based on the
+file extension.
+
+``` r
+library(facereaderconverter)
+
+loadFRfile(
+  inpath = "testdata/testdata_detailed.txt",
+  values_as_numeric = TRUE,
+  clean_names = TRUE
+)
+```
+
+Use this when you want a parsed data frame directly from a FaceReader
+export.
 
 ### `convertFRFiles()`
 
@@ -50,6 +73,26 @@ When `values_as_numeric = TRUE`, the `Video Time` column is converted to
 possible. When `clean_names = TRUE`, the output names are converted with
 `janitor::clean_names()`.
 
+### `convertFRExcelFiles()`
+
+`convertFRExcelFiles()` reads a single FaceReader `.xlsx` file, detects
+the header row automatically, and returns the parsed data unless
+`return_data = FALSE`.
+
+``` r
+library(facereaderconverter)
+
+convertFRExcelFiles(
+  inpath = "FaceReaderOutput.xlsx",
+  return_data = TRUE,
+  values_as_numeric = TRUE,
+  clean_names = TRUE
+)
+```
+
+When `return_data = FALSE`, the function returns metadata about the
+workbook import.
+
 ### `convertFRDirectory()`
 
 `convertFRDirectory()` processes all `.txt` files in a directory and
@@ -69,7 +112,8 @@ convertFRDirectory(
 Useful arguments include `recursive` for searching subdirectories,
 `pattern` for filtering file names, `metadata_filename` for the output
 metadata file, and `duplicate_timecodes_as_error` for handling repeated
-time codes.
+time codes. The metadata output includes success and failure status
+columns.
 
 ## Episode coding
 
