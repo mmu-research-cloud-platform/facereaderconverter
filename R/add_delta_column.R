@@ -37,10 +37,10 @@ add_delta_column <- function(
   }
   stopifnot(requireNamespace("data.table"))
   if ("fr_coding" %in% class(coding)) {
-    coding_df = coding$coding
-    fps = coding$metadata$fps
+    coding_df <- coding$coding
+    fps <- coding$metadata$fps
   } else {
-    coding_df = coding
+    coding_df <- coding
   }
   if (!is_whole(fps) || fps <= 0) {
     stop("`fps` must be a positive integer scalar.")
@@ -55,10 +55,10 @@ add_delta_column <- function(
   }
 
   if (!"id" %in% names(coding_df)) {
-    coding_df <- dplyr::mutate(coding_df, id = 1L)
+    coding_df$id <- 1L
   }
   if (!"subject" %in% names(coding_df)) {
-    coding_df <- dplyr::mutate(coding_df, subject = "unknown")
+    coding_df$subject <- "unknown"
   }
   if (!all(c("emotion", "value") %in% names(coding_df))) {
     coding_df <- coding_df |>

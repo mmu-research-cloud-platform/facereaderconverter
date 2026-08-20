@@ -85,10 +85,10 @@ convert_to_episodes <- function(
   }
 
   if (!"id" %in% names(coding_df)) {
-    coding_df <- dplyr::mutate(coding_df, id = 1L)
+    coding_df$id <- 1L
   }
   if (!"subject" %in% names(coding_df)) {
-    coding_df <- dplyr::mutate(coding_df, subject = "unknown")
+    coding_df$subject <- "unknown"
   }
   if (!"video_time" %in% names(coding_df) && !"frame" %in% names(coding_df)) {
     stop(
@@ -171,101 +171,83 @@ convert_to_episodes <- function(
 
   dt[, state_run := data.table::rleid(state), by = .(id, subject, emotion)]
 
-  episodes <- dt[
-    state == TRUE,
-    .(
-      start_frame = first(frame),
-      end_frame = last(frame),
-      start_time = first(video_time),
-      end_time = last(video_time),
-      duration_s = .N / fps
-    ),
-    by = .(id, subject, emotion, state_run)
-  ]
-  data.table::setorder(episodes, id, subject, emotion, start_frame)
-  episodes[, run_id := as.integer(.I)]
-
-  valid_in_state <- dt[
-    state == TRUE & !is.na(value),
-    .(id, subject, emotion, state_run, frame)
-  ]
-
-  if (nrow(valid_in_state) > 0L && nrow(episodes) > 0L) {
-    data.table::setkey(valid_in_state, id, subject, emotion, state_run, frame)
-
-    end_map <- valid_in_state[
-      episodes,
-      on = .(
-        id,
-        subject,
-        emotion,
-        state_run,
-        frame >= start_frame,
-        frame <= end_frame
-      ),
-      mult = "last",
-      .(run_id = i.run_id, end_frame_nonNA = frame),
-      by = .EACHI
+  if ("video_time" %in% names(dt)) {
+    episodes <- dt[
+      state == TRUE,
+      {
+        non_missing <- which(!is.na(value))
+        if (length(non_missing) == 0L) {
+          NULL
+        } else {
+          end_idx <- non_missing[[length(non_missing)]]
+          .(
+            start_frame = first(frame),
+            end_frame = frame[[end_idx]],
+            start_time = first(video_time),
+            end_time = video_time[[end_idx]]
+          )
+        }
+      },
+      by = .(id, subject, emotion, state_run)
     ]
-
-    episodes[end_map, on = "run_id", end_frame := i.end_frame_nonNA]
-    episodes <- episodes[!is.na(end_frame)]
-
-    n_map <- dt[state == TRUE][
-      episodes,
-      on = .(
-        id,
-        subject,
-        emotion,
-        state_run,
-        frame >= start_frame,
-        frame <= end_frame
-      ),
-      .(run_id = i.run_id, n = .N),
-      by = .EACHI
+  } else {
+    episodes <- dt[
+      state == TRUE,
+      {
+        non_missing <- which(!is.na(value))
+        if (length(non_missing) == 0L) {
+          NULL
+        } else {
+          end_idx <- non_missing[[length(non_missing)]]
+          .(
+            start_frame = first(frame),
+            end_frame = frame[[end_idx]],
+            start_time = NA,
+            end_time = NA
+          )
+        }
+      },
+      by = .(id, subject, emotion, state_run)
     ]
-
-    episodes[n_map, on = "run_id", n := i.n]
-    episodes[, duration_s := n / fps]
   }
 
-  episodes[, `:=`(
-    n_frames = as.integer(end_frame - start_frame + 1L)
-  )]
+  episodes[, n_frames := as.integer(end_frame - start_frame + 1L)]
   episodes[, duration_s := n_frames / fps]
 
   if (nrow(episodes) > 0L) {
     episodes <- episodes[n_frames >= min_len]
   }
-  if ("n" %in% names(episodes)) {
-    episodes[, n := NULL]
-  }
-  if ("state_run" %in% names(episodes)) {
-    episodes[, state_run := NULL]
-  }
+
+  data.table::setorder(episodes, id, subject, emotion, start_frame)
+  episodes[, run_id := as.integer(.I)]
 
   dt[, `:=`(status = NA_integer_, in_state = FALSE, run_id = NA_integer_)]
 
   if (nrow(episodes) > 0L) {
     dt[
       episodes,
-      on = .(id, subject, emotion, frame = start_frame),
-      status := 1L
+      on = .(id, subject, emotion, state_run),
+      `:=`(
+        run_id = i.run_id,
+        start_frame_episode = i.start_frame,
+        end_frame_episode = i.end_frame
+      )
     ]
+
     dt[
-      episodes,
-      on = .(id, subject, emotion, frame = end_frame),
-      status := 0L
+      state == TRUE & frame >= start_frame_episode & frame <= end_frame_episode,
+      in_state := TRUE
     ]
-    dt[
-      episodes,
-      on = .(id, subject, emotion, frame >= start_frame, frame <= end_frame),
-      `:=`(in_state = TRUE, run_id = i.run_id)
-    ]
+    dt[state == TRUE & frame == start_frame_episode, status := 1L]
+    dt[state == TRUE & frame == end_frame_episode, status := 0L]
+    dt[in_state == FALSE, run_id := NA_integer_]
+    dt[, c("start_frame_episode", "end_frame_episode") := NULL]
   }
 
-  dt[in_state == FALSE, run_id := NA_integer_]
-  dt[, state_run := NULL]
+  dt[, c("state", "state_run") := NULL]
+  if ("state_run" %in% names(episodes)) {
+    episodes[, state_run := NULL]
+  }
 
   coding_cols <- unique(c(
     intersect(original_cols, names(dt)),
