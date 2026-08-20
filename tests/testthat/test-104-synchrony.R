@@ -23,6 +23,21 @@ make_singleton_id <- function(x) {
   out
 }
 
+sort_coded_data <- function(x) {
+  out <- copy(x)
+  data.table::setorder(out$coding, id, subject, emotion, video_time, run_id)
+  data.table::setorder(
+    out$episodes,
+    id,
+    subject,
+    emotion,
+    start_frame,
+    end_frame,
+    run_id
+  )
+  out
+}
+
 test_that("synchrony returns pairwise subject columns", {
   result <- synchrony(
     test_data_sync,
@@ -174,4 +189,22 @@ test_that("episodes are not dropped when missing_threshold = 0", {
     as.data.frame()
 
   expect_true(nrow(test_frame) == 0)
+})
+
+test_that("convert_to_episodes matches the stored synchrony fixture", {
+  converted <- sort_coded_data(
+    convert_to_episodes(
+      test_coding,
+      fps = 30L,
+      delta_window = 0.1,
+      T_up = 0.15,
+      T_down = 0.05,
+      delta = 1,
+      min_dur_sec = 0.1,
+      consecutive_missing = 90L
+    )
+  )
+  expected <- sort_coded_data(test_data_sync)
+
+  expect_equal(converted, expected)
 })
