@@ -18,9 +18,11 @@ Imports: dplyr,
     tools,
     tibble,
     Rcpp,
+    RcppParallel,
     data.table,
     tidyr
-LinkingTo: Rcpp
+LinkingTo: Rcpp,
+    RcppParallel
 Suggests: 
     openxlsx,
     testthat (>= 3.0.0)

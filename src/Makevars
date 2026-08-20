@@ -1,0 +1,2 @@
+PKG_CXXFLAGS += $(shell "${R_HOME}/bin${R_ARCH_BIN}/Rscript" -e "RcppParallel::CxxFlags()")
+PKG_LIBS += $(shell "${R_HOME}/bin${R_ARCH_BIN}/Rscript" -e "RcppParallel::RcppParallelLibs()")

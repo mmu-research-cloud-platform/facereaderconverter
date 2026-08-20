@@ -40,10 +40,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// synchrony_cpp
+List synchrony_cpp(DataFrame coding, DataFrame episodes, double missing_threshold);
+RcppExport SEXP _facereaderconverter_synchrony_cpp(SEXP codingSEXP, SEXP episodesSEXP, SEXP missing_thresholdSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< DataFrame >::type coding(codingSEXP);
+    Rcpp::traits::input_parameter< DataFrame >::type episodes(episodesSEXP);
+    Rcpp::traits::input_parameter< double >::type missing_threshold(missing_thresholdSEXP);
+    rcpp_result_gen = Rcpp::wrap(synchrony_cpp(coding, episodes, missing_threshold));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_facereaderconverter_all_deltas", (DL_FUNC) &_facereaderconverter_all_deltas, 3},
     {"_facereaderconverter_hysteresis_state", (DL_FUNC) &_facereaderconverter_hysteresis_state, 7},
+    {"_facereaderconverter_synchrony_cpp", (DL_FUNC) &_facereaderconverter_synchrony_cpp, 3},
     {NULL, NULL, 0}
 };
 

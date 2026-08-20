@@ -154,6 +154,8 @@ synchrony <- function(
     data.table::setnames(episodes, id, "id")
   }
 
+  id_type <- typeof(coding$id)
+
   coding[, subject := as.character(subject)]
   coding[, emotion := as.character(emotion)]
   episodes[, subject := as.character(subject)]
@@ -185,110 +187,28 @@ synchrony <- function(
     return(empty_result)
   }
 
-  id_values <- unique(coding$id)
-  results <- list()
-  singleton_ids <- character()
+  coding <- coding[emotion %chin% keep_emotions]
+  episodes <- episodes[emotion %chin% keep_emotions]
 
-  for (current_id in id_values) {
-    id_coding <- coding[id == current_id & emotion %chin% keep_emotions]
-    id_episodes <- episodes[id == current_id & emotion %chin% keep_emotions]
-    id_subjects <- unique(id_coding$subject)
+  cpp_result <- synchrony_cpp(
+    coding = as.data.frame(coding[, .(
+      id = as.character(id),
+      subject,
+      emotion,
+      video_time,
+      value,
+      in_state,
+      run_id
+    )]),
+    episodes = as.data.frame(episodes[, .(
+      id = as.character(id),
+      subject,
+      emotion
+    )]),
+    missing_threshold = missing_threshold
+  )
 
-    if (length(id_subjects) < 2L) {
-      if (length(id_subjects) == 1L) {
-        singleton_ids <- c(
-          singleton_ids,
-          sprintf("id %s: %s", current_id, id_subjects[[1L]])
-        )
-      }
-      next
-    }
-
-    for (denominator_subject in id_subjects) {
-      denominator_episodes <- id_episodes[subject == denominator_subject]
-      if (nrow(denominator_episodes) == 0L) {
-        next
-      }
-
-      denominator_frames <- id_coding[
-        subject == denominator_subject & in_state == TRUE,
-        .(id, emotion, video_time, denom_run_id = run_id)
-      ]
-
-      if (nrow(denominator_frames) == 0L) {
-        next
-      }
-
-      for (numerator_subject in id_subjects[
-        id_subjects != denominator_subject
-      ]) {
-        comparison_frames <- id_coding[
-          subject == numerator_subject,
-          .(
-            id,
-            emotion,
-            video_time,
-            comparison_value = value,
-            comparison_in_state = in_state
-          )
-        ]
-
-        per_episode <- merge(
-          denominator_frames,
-          comparison_frames,
-          by = c("id", "emotion", "video_time"),
-          all.x = TRUE
-        )[,
-          .(
-            present_prop = mean(!is.na(comparison_value)),
-            synchrony_flag = as.integer(any(
-              comparison_in_state == TRUE,
-              na.rm = TRUE
-            ))
-          ),
-          by = .(id, emotion, denom_run_id)
-        ]
-
-        eligible <- per_episode[present_prop >= missing_threshold]
-
-        summary <- eligible[,
-          .(
-            n_episodes = .N,
-            numerator_count = sum(synchrony_flag)
-          ),
-          by = .(id, emotion)
-        ]
-
-        base <- unique(denominator_episodes[, .(id, emotion)])
-        out <- summary[base, on = .(id, emotion)]
-        out[is.na(n_episodes), `:=`(n_episodes = 0L, numerator_count = 0L)]
-        out[, `:=`(
-          denominator = denominator_subject,
-          numerator = numerator_subject
-        )]
-        out[,
-          synchrony := ifelse(
-            n_episodes > 0L,
-            numerator_count / n_episodes,
-            NA_real_
-          )
-        ]
-        out[, `:=`(
-          n_episodes = as.integer(n_episodes),
-          synchrony = as.numeric(synchrony)
-        )]
-
-        results[[length(results) + 1L]] <- out[, .(
-          id,
-          denominator,
-          numerator,
-          emotion,
-          n_episodes,
-          synchrony
-        )]
-      }
-    }
-  }
+  singleton_ids <- cpp_result$singleton_ids
 
   if (length(singleton_ids) > 0L) {
     warning(
@@ -300,11 +220,19 @@ synchrony <- function(
     )
   }
 
-  if (length(results) == 0L) {
+  out <- data.table::as.data.table(cpp_result$result)
+  if (nrow(out) == 0L) {
     return(empty_result)
   }
 
-  out <- data.table::rbindlist(results, fill = TRUE)
+  if (identical(id_type, "integer")) {
+    out[, id := as.integer(id)]
+  } else if (identical(id_type, "double")) {
+    out[, id := as.numeric(id)]
+  }
+
+  out[, n_episodes := as.integer(n_episodes)]
+  out[, synchrony := as.numeric(synchrony)]
   data.table::setorder(out, id, denominator, numerator, emotion)
   out
 }

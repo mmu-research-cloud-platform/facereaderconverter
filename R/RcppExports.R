@@ -9,3 +9,7 @@ hysteresis_state <- function(v, k, T_up, T_down, delta, min_len, consecutive_mis
     .Call(`_facereaderconverter_hysteresis_state`, v, k, T_up, T_down, delta, min_len, consecutive_missing)
 }
 
+synchrony_cpp <- function(coding, episodes, missing_threshold) {
+    .Call(`_facereaderconverter_synchrony_cpp`, coding, episodes, missing_threshold)
+}
+
