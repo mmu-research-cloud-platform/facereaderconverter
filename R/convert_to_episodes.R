@@ -184,7 +184,7 @@ convert_to_episodes <- function(
             start_frame = first(frame),
             end_frame = frame[[end_idx]],
             start_time = first(video_time),
-            end_time = video_time[[end_idx]]
+            end_time = last(video_time)
           )
         }
       },
@@ -211,15 +211,14 @@ convert_to_episodes <- function(
     ]
   }
 
+  data.table::setorder(episodes, id, subject, emotion, start_frame)
+  episodes[, run_id := as.integer(.I)]
   episodes[, n_frames := as.integer(end_frame - start_frame + 1L)]
   episodes[, duration_s := n_frames / fps]
 
   if (nrow(episodes) > 0L) {
     episodes <- episodes[n_frames >= min_len]
   }
-
-  data.table::setorder(episodes, id, subject, emotion, start_frame)
-  episodes[, run_id := as.integer(.I)]
 
   dt[, `:=`(status = NA_integer_, in_state = FALSE, run_id = NA_integer_)]
 
@@ -248,6 +247,18 @@ convert_to_episodes <- function(
   if ("state_run" %in% names(episodes)) {
     episodes[, state_run := NULL]
   }
+  episodes <- episodes[, .(
+    id,
+    subject,
+    emotion,
+    start_frame,
+    end_frame,
+    start_time,
+    end_time,
+    duration_s,
+    run_id,
+    n_frames
+  )]
 
   coding_cols <- unique(c(
     intersect(original_cols, names(dt)),
