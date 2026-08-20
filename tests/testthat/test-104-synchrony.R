@@ -206,5 +206,28 @@ test_that("convert_to_episodes matches the stored synchrony fixture", {
   )
   expected <- sort_coded_data(test_data_sync)
 
+  expect_equal(
+    converted$episodes |>
+      dplyr::select(
+        id,
+        subject,
+        emotion,
+        start_frame,
+        end_frame,
+        duration_s,
+        n_frames
+      ),
+    expected$episodes |>
+      dplyr::select(
+        id,
+        subject,
+        emotion,
+        start_frame,
+        end_frame,
+        duration_s,
+        n_frames
+      )
+  )
+  expect_equal(converted$episodes, expected$episodes)
   expect_equal(converted, expected)
 })
