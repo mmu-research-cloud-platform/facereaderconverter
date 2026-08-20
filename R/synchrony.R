@@ -185,13 +185,19 @@ synchrony <- function(
     return(empty_result)
   }
 
-  id_values <- unique(coding$id)
+  coding <- coding[emotion %chin% keep_emotions]
+  episodes <- episodes[emotion %chin% keep_emotions]
+
+  coding_by_id <- split(coding, by = "id", keep.by = TRUE)
+  episodes_by_id <- split(episodes, by = "id", keep.by = TRUE)
+
   results <- list()
   singleton_ids <- character()
 
-  for (current_id in id_values) {
-    id_coding <- coding[id == current_id & emotion %chin% keep_emotions]
-    id_episodes <- episodes[id == current_id & emotion %chin% keep_emotions]
+  for (id_name in names(coding_by_id)) {
+    id_coding <- coding_by_id[[id_name]]
+    current_id <- id_coding$id[[1L]]
+    id_episodes <- episodes_by_id[[id_name]]
     id_subjects <- unique(id_coding$subject)
 
     if (length(id_subjects) < 2L) {
@@ -204,41 +210,46 @@ synchrony <- function(
       next
     }
 
+    subject_coding <- split(id_coding, by = "subject", keep.by = FALSE)
+
+    denominator_frames <- lapply(subject_coding, function(x) {
+      x[in_state == TRUE, .(emotion, video_time, denom_run_id = run_id)]
+    })
+
+    comparison_frames <- lapply(subject_coding, function(x) {
+      out <- x[, .(
+        emotion,
+        video_time,
+        comparison_value = value,
+        comparison_in_state = in_state
+      )]
+      data.table::setkey(out, emotion, video_time)
+      out
+    })
+
+    denominator_bases <- lapply(id_subjects, function(current_subject) {
+      unique(id_episodes[subject == current_subject, .(emotion)])
+    })
+    names(denominator_bases) <- id_subjects
+
     for (denominator_subject in id_subjects) {
-      denominator_episodes <- id_episodes[subject == denominator_subject]
-      if (nrow(denominator_episodes) == 0L) {
+      denominator_base <- denominator_bases[[denominator_subject]]
+      if (nrow(denominator_base) == 0L) {
         next
       }
 
-      denominator_frames <- id_coding[
-        subject == denominator_subject & in_state == TRUE,
-        .(id, emotion, video_time, denom_run_id = run_id)
-      ]
-
-      if (nrow(denominator_frames) == 0L) {
+      denominator_subject_frames <- denominator_frames[[denominator_subject]]
+      if (nrow(denominator_subject_frames) == 0L) {
         next
       }
 
       for (numerator_subject in id_subjects[
         id_subjects != denominator_subject
       ]) {
-        comparison_frames <- id_coding[
-          subject == numerator_subject,
-          .(
-            id,
-            emotion,
-            video_time,
-            comparison_value = value,
-            comparison_in_state = in_state
-          )
-        ]
-
-        per_episode <- merge(
-          denominator_frames,
-          comparison_frames,
-          by = c("id", "emotion", "video_time"),
-          all.x = TRUE
-        )[,
+        per_episode <- comparison_frames[[numerator_subject]][
+          denominator_subject_frames,
+          on = .(emotion, video_time)
+        ][,
           .(
             present_prop = mean(!is.na(comparison_value)),
             synchrony_flag = as.integer(any(
@@ -246,7 +257,7 @@ synchrony <- function(
               na.rm = TRUE
             ))
           ),
-          by = .(id, emotion, denom_run_id)
+          by = .(emotion, denom_run_id)
         ]
 
         eligible <- per_episode[present_prop >= missing_threshold]
@@ -256,13 +267,13 @@ synchrony <- function(
             n_episodes = .N,
             numerator_count = sum(synchrony_flag)
           ),
-          by = .(id, emotion)
+          by = emotion
         ]
 
-        base <- unique(denominator_episodes[, .(id, emotion)])
-        out <- summary[base, on = .(id, emotion)]
+        out <- summary[denominator_base, on = "emotion"]
         out[is.na(n_episodes), `:=`(n_episodes = 0L, numerator_count = 0L)]
         out[, `:=`(
+          id = current_id,
           denominator = denominator_subject,
           numerator = numerator_subject
         )]
