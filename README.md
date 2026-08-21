@@ -352,7 +352,25 @@ synchrony(coded_data, missing_threshold = 0.5)
 ```
 
 The result reports denominator and numerator subjects, the emotion, the
-number of episodes, and synchrony.
+number of episodes, and synchrony. The `id` column keeps the same type
+as the input data.
+
+### `synchrony_by_episode()`
+
+`synchrony_by_episode()` returns the episode-level comparison table used
+by `synchrony()`. It includes one row per denominator episode, the
+numerator subject matched to that episode, and a logical `synchrony`
+flag indicating whether the comparison subject was present during the
+denominator episode.
+
+``` r
+library(facereaderconverter)
+
+synchrony_by_episode(coded_data, missing_threshold = 0.5)
+```
+
+Use this when you need the underlying episode-level matches rather than
+the aggregated synchrony summary.
 
 ### `reaction_rate()`
 
