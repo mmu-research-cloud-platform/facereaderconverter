@@ -52,3 +52,8 @@ rsconnect/
 /.quarto/
 **/*.quarto_ipynb
 **/.posit/**
+.posit/assistant/plans/
+.cache/
+**/.cache/
+AGENTS.md
+**/_snaps/

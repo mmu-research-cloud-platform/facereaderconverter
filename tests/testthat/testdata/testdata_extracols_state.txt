@@ -1,0 +1,29 @@
+Video analysis state log
+
+Face Model	General
+Calibration	-
+Start time	6/4/2026 13:31:06.331
+Filename	C:\Users\1234\randomparent.mp4
+Frame rate	30.000000000
+
+
+
+Video Time	Dominant Expression
+00:00:00.000	Unknown
+00:00:13.866	Neutral
+00:00:15.133	Unknown
+00:00:48.633	Neutral
+00:00:52.966	Unknown
+00:00:56.033	Neutral
+00:00:57.533	Unknown
+00:01:29.966	Neutral
+00:01:31.033	Unknown
+00:02:03.166	Neutral
+00:02:03.866	Unknown
+00:02:20.800	Neutral
+00:02:25.000	Unknown
+00:05:18.966	Happy
+00:05:19.533	Unknown
+00:06:28.766	Happy
+00:06:32.833	Unknown
+00:06:54.033	END

@@ -18,7 +18,9 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of facereaderconverter is to convert FaceReader txt files to usable csv files that preserve the timings.
+The package is a series of functions for converting FaceReader output files into a more analysis-friendly format, and for detecting episodes of emotion from the time series data. It also includes some utilities for downstream analysis.
+
+Tested to work with FaceReader 9.1.
 
 ## Installation
 
@@ -37,6 +39,22 @@ devtools::install_github("mmu-research-cloud-platform/facereaderconverter")
 
 ## File conversion
 
+### `loadFRfile()`
+
+`loadFRfile()` loads a FaceReader export into memory without writing an output file. It dispatches to the TXT, Excel, or CSV reader based on the file extension.
+
+```{r load-fr-file-example, eval = FALSE}
+library(facereaderconverter)
+
+loadFRfile(
+  inpath = "testdata/testdata_detailed.txt",
+  values_as_numeric = TRUE,
+  clean_names = TRUE
+)
+```
+
+Use this when you want a parsed data frame directly from a FaceReader export.
+
 ### `convertFRFiles()`
 
 `convertFRFiles()` reads a single FaceReader `.txt` file, skips the metadata header, guesses the delimiter, and writes a `.csv` with the same basename unless `return_data = TRUE`.
@@ -53,6 +71,23 @@ convertFRFiles(
 
 When `values_as_numeric = TRUE`, the `Video Time` column is converted to `hms` time and detailed-file values are converted to numeric where possible. When `clean_names = TRUE`, the output names are converted with `janitor::clean_names()`.
 
+### `convertFRExcelFiles()`
+
+`convertFRExcelFiles()` reads a single FaceReader `.xlsx` file, detects the header row automatically, and returns the parsed data unless `return_data = FALSE`.
+
+```{r convert-fr-excel-example, eval = FALSE}
+library(facereaderconverter)
+
+convertFRExcelFiles(
+  inpath = "FaceReaderOutput.xlsx",
+  return_data = TRUE,
+  values_as_numeric = TRUE,
+  clean_names = TRUE
+)
+```
+
+When `return_data = FALSE`, the function returns metadata about the workbook import.
+
 ### `convertFRDirectory()`
 
 `convertFRDirectory()` processes all `.txt` files in a directory and returns metadata invisibly.
@@ -68,7 +103,7 @@ convertFRDirectory(
 )
 ```
 
-Useful arguments include `recursive` for searching subdirectories, `pattern` for filtering file names, `metadata_filename` for the output metadata file, and `duplicate_timecodes_as_error` for handling repeated time codes.
+Useful arguments include `recursive` for searching subdirectories, `pattern` for filtering file names, `metadata_filename` for the output metadata file, and `duplicate_timecodes_as_error` for handling repeated time codes. The metadata output includes success and failure status columns.
 
 ## Episode coding
 
@@ -172,4 +207,140 @@ episodes
 ```
 
 The output includes `start_frame`, `end_frame`, `start_time`, `end_time`, `n_frames`, `duration_s`, `id`, `subject`, `emotion`, and `run_id`.
+
+## Utilities and downstream analysis
+
+### `to_seconds()`
+
+`to_seconds()` converts FaceReader-style timestamps such as `hh:mm:ss` or `hh:mm:ss.mmm` into numeric seconds.
+
+```{r to-seconds-example}
+library(facereaderconverter)
+
+to_seconds(c("00:00:10", "00:00:10.500", "00:01:00"))
+```
+
+Use this when you need a numeric time variable for plotting or joining.
+
+### `parse_time_to_frame()`
+
+`parse_time_to_frame()` converts timestamps to frame indices at a given sampling rate. It accepts `HH:MM:SS`, `MM:SS`, or plain seconds.
+
+```{r parse-time-to-frame-example}
+library(facereaderconverter)
+
+parse_time_to_frame(c("00:00:10.5", "1:23.5", "83.5"), fps = 30)
+```
+
+This is the helper used internally when `video_time` is present but `frame` is not.
+
+### `map_paths()`
+
+`map_paths()` remaps files from one root directory to another while preserving the relative folder structure.
+
+```{r map-paths-example, eval = FALSE}
+library(facereaderconverter)
+
+map_paths(
+  input_dir = "data/raw",
+  output_dir = "data/converted",
+  files = c(
+    "data/raw/session1/a.txt",
+    "data/raw/session2/b.txt"
+  )
+)
+```
+
+This is useful when converting a directory of files into a parallel output tree.
+
+### `locf()`
+
+`locf()` applies last-observation-carried-forward logic to an `fr_coding` object and returns the imputed coding table plus episode summaries.
+
+```{r locf-example, eval = FALSE}
+library(facereaderconverter)
+
+coding_df <- read.csv("testdata/testdata_detailed.csv") |>
+  dplyr::mutate(id = 1, subject = "parent")
+
+coding_df2 <- coding_df |>
+  tidyr::pivot_longer(
+    cols = c(neutral, happy, sad, angry, surprised, scared, disgusted),
+    names_to = "emotion",
+    values_to = "value"
+  )
+
+fr <- convert_to_episodes(coding_df2, fps = 30L)
+locf(fr)
+```
+
+Use this when short missing stretches should inherit the most recent non-missing run assignment.
+
+### `synchrony()`
+
+`synchrony()` compares the episode coding for one subject against another subject within each `id` and emotion. The `missing_threshold` argument controls how much missing comparison data is tolerated within a denominator episode before that episode is dropped.
+
+```{r synchrony-example, eval = FALSE}
+library(facereaderconverter)
+
+coding <- data.table::data.table(
+  id = rep(1L, 6),
+  subject = rep(c("teen", "parent"), each = 3),
+  emotion = "happy",
+  video_time = rep(1:3, 2),
+  value = c(0.1, 0.2, 0.3, 0.1, 0.2, 0.3),
+  in_state = c(FALSE, TRUE, FALSE, FALSE, FALSE, TRUE),
+  run_id = c(1L, 1L, 1L, 2L, 2L, 2L)
+)
+
+episodes <- data.table::data.table(
+  id = 1L,
+  subject = c("teen", "parent"),
+  emotion = "happy",
+  run_id = c(1L, 2L),
+  start_frame = c(2L, 3L),
+  end_frame = c(2L, 3L)
+)
+
+coded_data <- structure(
+  list(coding = coding, episodes = episodes),
+  class = c("fr_coding", "list")
+)
+
+synchrony(coded_data, missing_threshold = 0.5)
+```
+
+The result reports denominator and numerator subjects, the emotion, the number of episodes, and synchrony. The `id` column keeps the same type as the input data.
+
+### `synchrony_by_episode()`
+
+`synchrony_by_episode()` returns the episode-level comparison table used by `synchrony()`. It includes one row per denominator episode, the numerator subject matched to that episode, and a logical `synchrony` flag indicating whether the comparison subject was present during the denominator episode.
+
+```{r synchrony-by-episode-example, eval = FALSE}
+library(facereaderconverter)
+
+synchrony_by_episode(coded_data, missing_threshold = 0.5)
+```
+
+Use this when you need the underlying episode-level matches rather than the aggregated synchrony summary.
+
+### `reaction_rate()`
+
+`reaction_rate()` estimates the proportion of eligible episodes that contain at least one delta reaction after an initial exclusion window.
+
+```{r reaction-rate-example, eval = FALSE}
+library(facereaderconverter)
+
+coded_data <- data.table::data.table(
+  id = rep(1L, 8),
+  subject = rep(c("teen", "parent"), each = 4),
+  emotion = "happy",
+  frame = rep(1:4, 2),
+  delta = c(1L, 1L, 0L, 1L, 0L, 1L, 1L, 0L)
+)
+
+reaction_rate(coded_data, fps = 30)
+```
+
+This is useful when you want a simple summary of reaction frequency by subject and emotion.
 
