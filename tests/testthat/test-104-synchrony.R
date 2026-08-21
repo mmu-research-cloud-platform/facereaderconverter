@@ -100,7 +100,25 @@ test_that("synchrony applies the missing-data threshold", {
   expect_true(
     sum(strict$n_episodes, na.rm = TRUE) < sum(relaxed$n_episodes, na.rm = TRUE)
   )
-  expect_true(any(strict$n_episodes < relaxed$n_episodes))
+  comparison <- merge(
+    strict[, .(
+      id,
+      denominator,
+      numerator,
+      emotion,
+      n_episodes_strict = n_episodes
+    )],
+    relaxed[, .(
+      id,
+      denominator,
+      numerator,
+      emotion,
+      n_episodes_relaxed = n_episodes
+    )],
+    by = c("id", "denominator", "numerator", "emotion")
+  )
+
+  expect_true(any(comparison$n_episodes_strict < comparison$n_episodes_relaxed))
 })
 
 test_that("synchrony warns when an id retains only one subject", {
