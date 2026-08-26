@@ -173,7 +173,7 @@ convertFRDirectory <- function(
 
   if (!is.null(save_metadata)) {
     dir.create(save_metadata, showWarnings = FALSE, recursive = TRUE)
-    write.csv(metadata, file.path(save_metadata, metadata_filename))
+    utils::write.csv(metadata, file.path(save_metadata, metadata_filename))
   }
   invisible(metadata)
 }

@@ -13,13 +13,14 @@ reaction_rate_by_episode(
   fps = 30L,
   subject_names = NULL,
   exclude_emotions = "neutral",
-  minimum_threshold = 0
+  minimum_threshold = 0,
+  constraint_method = "episode"
 )
 }
 \arguments{
 \item{coded_data}{Output from \code{add_delta_column()} or a compatible data frame.}
 
-\item{episode_limit}{Maximum episode length to include in the denominator.}
+\item{episode_limit}{Maximum episode (in seconds) length to include in the denominator.}
 
 \item{episode_limit_frames}{Optional maximum episode length in frames. If
 supplied, this takes precedence over \code{episode_limit}.}
@@ -42,6 +43,14 @@ to those subject levels before reaction rate is calculated.}
 \item{minimum_threshold}{Numeric scalar in \verb{[0, 1]}. Episodes are included
 only when at least this proportion of delta frames have non-missing
 \code{value}s. Default is \code{0}.}
+
+\item{constraint_method}{Character scalar controlling how the reaction
+window ends. \code{"strict"} uses the earlier of the observed episode end and
+the requested episode limit. \code{"episode"} uses the observed episode end and
+ignores \code{episode_limit}. \code{"loose"} uses the later of the observed episode
+end and the requested episode limit. \code{"frames"} uses only the requested
+episode limit and ignores the observed episode end. Default is
+\code{"episode"}.}
 }
 \value{
 A data.table with columns \code{id}, \code{subject}, \code{emotion}, \code{episode_id},

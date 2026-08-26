@@ -4,7 +4,7 @@
 #' delta reaction after an initial exclusion window.
 #'
 #' @param coded_data Output from `add_delta_column()` or a compatible data frame.
-#' @param episode_limit Maximum episode length to include in the denominator.
+#' @param episode_limit Maximum episode (in seconds) length to include in the denominator.
 #' @param episode_limit_frames Optional maximum episode length in frames. If
 #'   supplied, this takes precedence over `episode_limit`.
 #' @param exclude_start Minimum reaction onset to count. Reactions that begin
@@ -20,6 +20,13 @@
 #' @param minimum_threshold Numeric scalar in `[0, 1]`. Episodes are included
 #'   only when at least this proportion of delta frames have non-missing
 #'   `value`s. Default is `0`.
+#' @param constraint_method Character scalar controlling how the reaction
+#'   window ends. `"strict"` uses the earlier of the observed episode end and
+#'   the requested episode limit. `"episode"` uses the observed episode end and
+#'   ignores `episode_limit`. `"loose"` uses the later of the observed episode
+#'   end and the requested episode limit. `"frames"` uses only the requested
+#'   episode limit and ignores the observed episode end. Default is
+#'   `"episode"`.
 #'
 #' @return A data.table with columns `id`, `subject`, `emotion`, `n_episodes`,
 #'   `n_reactions`, and `reaction_rate`.
@@ -46,7 +53,8 @@ reaction_rate <- function(
   fps = 30L,
   subject_names = NULL,
   exclude_emotions = "neutral",
-  minimum_threshold = 0
+  minimum_threshold = 0,
+  constraint_method = "episode"
 ) {
   inputs <- prepare_reaction_rate_inputs(
     coded_data = coded_data,
@@ -57,7 +65,8 @@ reaction_rate <- function(
     fps = fps,
     subject_names = subject_names,
     exclude_emotions = exclude_emotions,
-    minimum_threshold = minimum_threshold
+    minimum_threshold = minimum_threshold,
+    constraint_method = constraint_method
   )
   episode_table <- build_reaction_rate_episode_table(inputs)
 
@@ -119,7 +128,8 @@ reaction_rate_by_episode <- function(
   fps = 30L,
   subject_names = NULL,
   exclude_emotions = "neutral",
-  minimum_threshold = 0
+  minimum_threshold = 0,
+  constraint_method = "episode"
 ) {
   inputs <- prepare_reaction_rate_inputs(
     coded_data = coded_data,
@@ -130,7 +140,8 @@ reaction_rate_by_episode <- function(
     fps = fps,
     subject_names = subject_names,
     exclude_emotions = exclude_emotions,
-    minimum_threshold = minimum_threshold
+    minimum_threshold = minimum_threshold,
+    constraint_method = constraint_method
   )
   build_reaction_rate_episode_table(inputs)
 }
