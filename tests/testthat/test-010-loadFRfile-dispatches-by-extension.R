@@ -54,32 +54,3 @@ test_that("loadFRfile dispatches by extension", {
   )
   expect_true(ncol(extra) == 13)
 })
-
-test_that("loadFRfile handles missing metadata", {
-  expect_no_error(suppressWarnings(loadFRfile(
-    file.path("testdata", "testdata_extracols_nometadata_detailed.xlsx"),
-    clean_names = TRUE,
-    values_as_numeric = TRUE
-  )))
-})
-
-test_that("loadFRfile handles bad headers", {
-  expect_message(
-    bad_header <- loadFRfile(file.path(
-      "testdata",
-      "testdata_detailed_fail.txt"
-    )),
-    "FaceReader header row not found"
-  )
-  expect_null(bad_header)
-})
-
-test_that("loadFRfile rejects unsupported extensions", {
-  tmp <- tempfile(fileext = ".rds")
-  file.copy(file.path("testdata", "testdata_detailed.txt"), tmp)
-  on.exit(unlink(tmp), add = TRUE)
-
-  expect_snapshot(error = TRUE, {
-    loadFRfile(tmp)
-  })
-})

@@ -17,6 +17,9 @@
 #'   to those subject levels before reaction rate is calculated.
 #' @param exclude_emotions Character vector of emotions to exclude. Default is
 #'   `"neutral"`.
+#' @param minimum_threshold Numeric scalar in `[0, 1]`. Episodes are included
+#'   only when at least this proportion of delta frames have non-missing
+#'   `value`s. Default is `0`.
 #'
 #' @return A data.table with columns `id`, `subject`, `emotion`, `n_episodes`,
 #'   `n_reactions`, and `reaction_rate`.
@@ -28,9 +31,11 @@
 #'   subject = rep(c("teen", "parent"), each = 4),
 #'   emotion = "happy",
 #'   frame = rep(1:4, 2),
+#'   value = c(0.1, 0.2, NA, 0.4, 0.2, 0.3, 0.4, 0.5),
 #'   delta = c(1L, 1L, 0L, 1L, 0L, 1L, 1L, 0L)
 #' )
 #' reaction_rate(coded_data, fps = 30)
+#' @seealso [reaction_rate_by_episode()]
 #' @export
 reaction_rate <- function(
   coded_data,
@@ -40,174 +45,38 @@ reaction_rate <- function(
   exclude_start_frames = NULL,
   fps = 30L,
   subject_names = NULL,
-  exclude_emotions = "neutral"
+  exclude_emotions = "neutral",
+  minimum_threshold = 0
 ) {
-  is_scalar <- function(x) {
-    length(x) == 1L && !is.na(x)
-  }
-  is_whole <- function(x) {
-    is.numeric(x) && is_scalar(x) && abs(x - round(x)) < .Machine$double.eps^0.5
-  }
-
-  empty_result <- data.table::data.table(
-    id = integer(),
-    subject = character(),
-    emotion = character(),
-    n_episodes = integer(),
-    n_reactions = integer(),
-    reaction_rate = numeric()
+  inputs <- prepare_reaction_rate_inputs(
+    coded_data = coded_data,
+    episode_limit = episode_limit,
+    episode_limit_frames = episode_limit_frames,
+    exclude_start = exclude_start,
+    exclude_start_frames = exclude_start_frames,
+    fps = fps,
+    subject_names = subject_names,
+    exclude_emotions = exclude_emotions,
+    minimum_threshold = minimum_threshold
   )
+  episode_table <- build_reaction_rate_episode_table(inputs)
 
-  if (inherits(coded_data, "fr_coding")) {
-    fps <- coded_data$metadata$fps
-    coded_data <- coded_data$coding
-  }
-
-  if (!is_whole(fps) || fps <= 0) {
-    stop("`fps` must be a positive integer scalar.", call. = FALSE)
-  }
-  if (
-    !is.numeric(episode_limit) ||
-      !is_scalar(episode_limit) ||
-      episode_limit <= 0
-  ) {
-    stop("`episode_limit` must be a numeric scalar > 0.", call. = FALSE)
-  }
-  if (
-    !is.null(episode_limit_frames) &&
-      (!is_whole(episode_limit_frames) || episode_limit_frames <= 0)
-  ) {
-    stop(
-      "`episode_limit_frames` must be a positive integer scalar or `NULL`.",
-      call. = FALSE
-    )
-  }
-  if (
-    !is.numeric(exclude_start) || !is_scalar(exclude_start) || exclude_start < 0
-  ) {
-    stop("`exclude_start` must be a numeric scalar >= 0.", call. = FALSE)
-  }
-  if (
-    !is.null(exclude_start_frames) &&
-      (!is_whole(exclude_start_frames) || exclude_start_frames < 0)
-  ) {
-    stop(
-      "`exclude_start_frames` must be a non-negative integer scalar or `NULL`.",
-      call. = FALSE
-    )
-  }
-  if (!is.null(subject_names)) {
-    if (
-      !is.character(subject_names) ||
-        anyNA(subject_names) ||
-        length(subject_names) < 1L
-    ) {
-      stop(
-        "`subject_names` must be a character vector with no missing values.",
-        call. = FALSE
-      )
-    }
-    if (length(unique(subject_names)) != length(subject_names)) {
-      stop("`subject_names` must not contain duplicates.", call. = FALSE)
-    }
-  }
-  if (!is.null(exclude_emotions)) {
-    if (!is.character(exclude_emotions) || anyNA(exclude_emotions)) {
-      stop(
-        "`exclude_emotions` must be a character vector or `NULL`.",
-        call. = FALSE
-      )
-    }
+  if (nrow(episode_table) == 0L) {
+    return(inputs$empty_summary_result)
   }
 
-  if (all(c("delta", "frame") %in% names(coded_data))) {
-    dt <- data.table::as.data.table(coded_data)
-  } else {
-    dt <- add_delta_column(coded_data, fps = fps)
-  }
-
-  required <- c("id", "subject", "emotion", "frame", "delta")
-  missing <- setdiff(required, names(dt))
-  if (length(missing) > 0L) {
-    stop(
-      sprintf(
-        "`coded_data` is missing required columns: %s.",
-        paste(missing, collapse = ", ")
-      ),
-      call. = FALSE
-    )
-  }
-
-  dt[, subject := as.character(subject)]
-  dt[, emotion := as.character(emotion)]
-
-  if (!is.null(subject_names)) {
-    available_subjects <- unique(dt$subject)
-    missing_subjects <- setdiff(subject_names, available_subjects)
-    if (length(missing_subjects) > 0L) {
-      stop(
-        sprintf(
-          "`subject_names` must be present in `coded_data`: %s.",
-          paste(missing_subjects, collapse = ", ")
-        ),
-        call. = FALSE
-      )
-    }
-    dt <- dt[subject %chin% subject_names]
-  }
-
-  if (!is.null(exclude_emotions)) {
-    dt <- dt[!emotion %chin% exclude_emotions]
-  }
-
-  if (nrow(dt) == 0L) {
-    return(empty_result)
-  }
-
-  limit_frames <- if (!is.null(episode_limit_frames)) {
-    as.integer(episode_limit_frames)
-  } else {
-    as.integer(round(episode_limit * fps))
-  }
-  start_frames <- if (!is.null(exclude_start_frames)) {
-    as.integer(exclude_start_frames)
-  } else {
-    as.integer(round(exclude_start * fps))
-  }
-
-  dt[,
-    episode_id := data.table::rleid(delta == 1),
-    by = .(id, subject, emotion)
-  ]
-
-  episodes <- dt[
-    delta == 1,
-    .(
-      start_frame = min(frame),
-      n_frames = .N,
-      first_reaction_frame = min(frame)
-    ),
-    by = .(id, subject, emotion, episode_id)
-  ][n_frames <= limit_frames]
-
-  if (nrow(episodes) == 0L) {
-    dt[, episode_id := NULL]
-    return(empty_result)
-  }
-
-  summary <- episodes[,
+  out <- episode_table[,
     .(
       n_episodes = .N,
-      n_reactions = sum(first_reaction_frame >= start_frames, na.rm = TRUE)
+      n_reactions = sum(reaction)
     ),
     by = .(id, subject, emotion)
   ]
 
-  out <- data.table::as.data.table(summary)
   out[, `:=`(
     n_episodes = as.integer(n_episodes),
     n_reactions = as.integer(n_reactions),
-    reaction_rate = ifelse(n_episodes > 0L, n_reactions / n_episodes, NA_real_)
+    reaction_rate = as.numeric(n_reactions / n_episodes)
   )]
   out <- out[, .(
     id,
@@ -215,9 +84,53 @@ reaction_rate <- function(
     emotion,
     n_episodes,
     n_reactions,
-    reaction_rate = as.numeric(reaction_rate)
+    reaction_rate
   )]
   data.table::setorder(out, id, subject, emotion)
-  dt[, episode_id := NULL]
   out
+}
+
+#' Calculate reaction rate by episode
+#'
+#' @inheritParams reaction_rate
+#'
+#' @return A data.table with columns `id`, `subject`, `emotion`, `episode_id`,
+#'   `start_frame`, `end_frame`, `n_frames`, `present_prop`, and `reaction`.
+#' @examples
+#' library(data.table)
+#'
+#' coded_data <- data.table(
+#'   id = rep(1L, 8),
+#'   subject = rep(c("teen", "parent"), each = 4),
+#'   emotion = "happy",
+#'   frame = rep(1:4, 2),
+#'   value = c(0.1, 0.2, NA, 0.4, 0.2, 0.3, 0.4, 0.5),
+#'   delta = c(1L, 1L, 0L, 1L, 0L, 1L, 1L, 0L)
+#' )
+#' reaction_rate_by_episode(coded_data, fps = 30)
+#' @seealso [reaction_rate()]
+#' @export
+reaction_rate_by_episode <- function(
+  coded_data,
+  episode_limit = 3,
+  episode_limit_frames = NULL,
+  exclude_start = 0.1,
+  exclude_start_frames = NULL,
+  fps = 30L,
+  subject_names = NULL,
+  exclude_emotions = "neutral",
+  minimum_threshold = 0
+) {
+  inputs <- prepare_reaction_rate_inputs(
+    coded_data = coded_data,
+    episode_limit = episode_limit,
+    episode_limit_frames = episode_limit_frames,
+    exclude_start = exclude_start,
+    exclude_start_frames = exclude_start_frames,
+    fps = fps,
+    subject_names = subject_names,
+    exclude_emotions = exclude_emotions,
+    minimum_threshold = minimum_threshold
+  )
+  build_reaction_rate_episode_table(inputs)
 }

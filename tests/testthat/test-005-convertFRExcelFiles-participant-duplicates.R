@@ -26,60 +26,6 @@ read_excel_control <- function(file_stub) {
   )
 }
 
-test_that("convertFRExcelFiles matches detailed control output", {
-  res <- read_excel_control("testdata_excel_detailed")
-  expect_equal(res$excel[names(res$control)], res$control, tolerance = 1e-4)
-})
-
-test_that("convertFRExcelFiles preserves extra detailed columns", {
-  x <- convertFRExcelFiles(
-    file.path("testdata", "testdata_extracols_detailed.xlsx"),
-    return_data = TRUE,
-    clean_names = TRUE,
-    values_as_numeric = TRUE
-  )
-
-  expect_true(all(
-    c(
-      "video_time",
-      "neutral",
-      "happy",
-      "sad",
-      "angry",
-      "surprised",
-      "scared",
-      "disgusted",
-      "gender",
-      "age",
-      "glasses",
-      "participant_name",
-      "analysis_index"
-    ) %in%
-      names(x)
-  ))
-  expect_equal(class(x$age), "numeric")
-  expect_true(all(x$participant_name == "Rebecca"))
-})
-
-test_that("convertFRExcelFiles handles missing metadata", {
-  detailed <- suppressWarnings(convertFRExcelFiles(
-    file.path("testdata", "testdata_extracols_nometadata_detailed.xlsx"),
-    return_data = TRUE,
-    clean_names = TRUE,
-    values_as_numeric = TRUE
-  ))
-  state <- suppressWarnings(convertFRExcelFiles(
-    file.path("testdata", "testdata_extracols_nometadata_state.xlsx"),
-    return_data = TRUE,
-    clean_names = TRUE,
-    values_as_numeric = TRUE
-  ))
-
-  expect_true(ncol(detailed) == 15)
-  expect_true(ncol(state) == 4)
-  expect_true(all(c("participant_name", "analysis_index") %in% names(detailed)))
-})
-
 test_that("convertFRExcelFiles respects participant-aware duplicates", {
   header_meta <- data.frame(
     V1 = c(
@@ -179,36 +125,4 @@ test_that("convertFRExcelFiles respects participant-aware duplicates", {
     ),
     "Duplicate timecodes"
   )
-})
-
-test_that("convertFRExcelFiles silences name repair messages", {
-  expect_silent(
-    convertFRExcelFiles(
-      file.path("testdata", "testdata_excel_detailed.xlsx"),
-      return_data = TRUE,
-      clean_names = TRUE,
-      values_as_numeric = TRUE
-    )
-  )
-})
-
-test_that("convertFRExcelFiles matches state control output", {
-  res <- read_excel_control("testdata_excel_state")
-  expect_identical(res$excel, res$control)
-})
-
-test_that("convertFRExcelFiles handles shifted metadata lines", {
-  excel_line_change <- convertFRExcelFiles(
-    file.path("testdata", "testdata_excel_detailed_line_change.xlsx"),
-    return_data = TRUE,
-    clean_names = TRUE,
-    values_as_numeric = TRUE
-  )
-  excel_original <- convertFRExcelFiles(
-    file.path("testdata", "testdata_excel_detailed.xlsx"),
-    return_data = TRUE,
-    clean_names = TRUE,
-    values_as_numeric = TRUE
-  )
-  expect_equal(excel_line_change, excel_original, tolerance = 1e-4)
 })

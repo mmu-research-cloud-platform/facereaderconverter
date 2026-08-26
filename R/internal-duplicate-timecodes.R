@@ -1,5 +1,7 @@
 check_duplicate_timecodes <- function(df, duplicate_timecodes_as_error = TRUE) {
-  has_participant_group <- all(c("Participant Name", "Analysis Index") %in% names(df))
+  has_participant_group <- all(
+    c("Participant Name", "Analysis Index") %in% names(df)
+  )
 
   if (has_participant_group) {
     counts <- df |>

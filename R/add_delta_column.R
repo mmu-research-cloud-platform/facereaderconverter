@@ -103,3 +103,35 @@ add_delta_column <- function(
   dt[, delta := all_deltas(value, k, delta), by = .(id, subject, emotion)]
   return(dt)
 }
+
+#' Add delta column alias
+#'
+#' @inheritParams add_delta_column
+#' @inherit add_delta_column return
+#' @examples
+#' \dontrun{
+#' coding_df = read.csv("testdata_detailed.csv")
+#' delta(
+#'   coding_df,
+#'   delta_window = 0.2,
+#'   delta = 0.1,
+#'   fps = 30
+#' )
+#' }
+#' @export
+#'
+delta <- function(
+  coding,
+  delta = 0.1,
+  delta_window = 0.2,
+  fps = 30L,
+  cores = 0L
+) {
+  add_delta_column(
+    coding = coding,
+    delta = delta,
+    delta_window = delta_window,
+    fps = fps,
+    cores = cores
+  )
+}

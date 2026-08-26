@@ -16,14 +16,14 @@
 locf <- function(coding, fps = 30, consecutive_missing = NULL) {
   stopifnot(requireNamespace("data.table"))
   if ("fr_coding" %in% class(coding)) {
-    table = coding$coding
-    fps = coding$metadata$fps
+    table <- coding$coding
+    fps <- coding$metadata$fps
     if (is.null(consecutive_missing)) {
-      consecutive_missing = coding$metadata$consecutive_missing
+      consecutive_missing <- coding$metadata$consecutive_missing
     }
-    metadata = coding$metadata
+    metadata <- coding$metadata
   } else {
-    table = coding
+    table <- coding
   }
   dt_sensitivity <- data.table::copy(table)
 
@@ -76,9 +76,9 @@ locf <- function(coding, fps = 30, consecutive_missing = NULL) {
     by = .(id, subject, emotion, run_id)
   ][]
   if (!exists("metadata")) {
-    metadata = list(fps = fps, consecutive_missing = consecutive_missing)
+    metadata <- list(fps = fps, consecutive_missing = consecutive_missing)
   } else if (!is.null(consecutive_missing)) {
-    metadata$consecutive_missing = consecutive_missing
+    metadata$consecutive_missing <- consecutive_missing
   }
   structure(
     list(
