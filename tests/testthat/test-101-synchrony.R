@@ -215,8 +215,20 @@ test_that("episodes are not dropped when missing_threshold = 0", {
 })
 
 
-test_that("synchrony_by_episode preserves id column type", {
-  result <- synchrony_by_episode(test_data_sync, missing_threshold = 0)
+test_that("synchrony missing threshold is applied", {
+  test_data_sync1 <- synchrony(test_data_sync, missing_threshold = 1)
+  test_data_sync0 <- synchrony(test_data_sync, missing_threshold = 0)
 
-  expect_identical(typeof(result$id), typeof(test_data_sync$coding$id))
+  expect_equal(nrow(test_data_sync1), nrow(test_data_sync0))
+
+  comparison <- merge(
+    test_data_sync1[, .(id, denominator, numerator, emotion, n_episodes_1 = n_episodes, synchrony_1 = synchrony)],
+    test_data_sync0[, .(id, denominator, numerator, emotion, n_episodes_0 = n_episodes, synchrony_0 = synchrony)],
+    by = c("id", "denominator", "numerator", "emotion")
+  )
+
+  expect_true(all(comparison$n_episodes_1 <= comparison$n_episodes_0))
+  expect_true(any(comparison$n_episodes_1 == 0L))
+  expect_true(all(is.na(comparison$synchrony_1[comparison$n_episodes_1 == 0L])))
+
 })

@@ -6,7 +6,7 @@
 #' @param id Character scalar giving the column in `coded_data$coding` and
 #'   `coded_data$episodes` that identifies the case or dyad. Default is `"id"`.
 #' @param missing_threshold Numeric scalar in `[0, 1]`. Denominator and numerator episodes are
-#'   dropped when the comparison subject is missing for more than this
+#'   dropped when the comparison subject is missing for less than this
 #'   proportion of frames within the episode. Default is `0`.
 #' @param exclude_emotions Character vector of emotions to exclude from the
 #'   denominator calculation. Default is `"neutral"`.
@@ -69,26 +69,34 @@ synchrony <- function(
     return(empty_result)
   }
 
-  out <- episode_table[,
-    .(
-      n_episodes = .N,
-      numerator_count = sum(synchrony)
-    ),
-    by = .(id, denominator, numerator, emotion)
-  ]
+  out <- episode_table[, .(
+    n_episodes = .N,
+    numerator_count = sum(synchrony)
+  ), by = .(id, denominator, numerator, emotion)]
 
-  denominator_base <- unique(
-    episode_table[, .(id, denominator, emotion)]
+  base_grid <- unique(inputs$episodes[, .(id, denominator = subject, emotion)])
+  base_grid <- merge(
+    base_grid,
+    unique(inputs$coding[, .(id, numerator = subject)]),
+    by = "id",
+    allow.cartesian = TRUE,
+    sort = FALSE
   )
-  out <- out[denominator_base, on = .(id, denominator, emotion)]
+  base_grid <- base_grid[denominator != numerator]
+
+  out <- merge(
+    base_grid,
+    out,
+    by = c("id", "denominator", "numerator", "emotion"),
+    all.x = TRUE,
+    sort = FALSE
+  )
   out[is.na(n_episodes), `:=`(n_episodes = 0L, numerator_count = 0L)]
-  out[,
-    synchrony := ifelse(
-      n_episodes > 0L,
-      numerator_count / n_episodes,
-      NA_real_
-    )
-  ]
+  out[, synchrony := ifelse(
+    n_episodes > 0L,
+    numerator_count / n_episodes,
+    NA_real_
+  )]
   out[, `:=`(
     n_episodes = as.integer(n_episodes),
     synchrony = as.numeric(synchrony)
@@ -104,7 +112,6 @@ synchrony <- function(
   data.table::setorder(out, id, denominator, numerator, emotion)
   out
 }
-
 #' Calculate synchrony by denominator episode
 #'
 #' @inheritParams synchrony

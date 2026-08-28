@@ -33,3 +33,9 @@ test_that("synchrony_by_episode returns episode-level columns", {
   expect_false(any(result$emotion == "neutral"))
   expect_true(all(result$run_id %in% test_data_sync$episodes$run_id))
 })
+
+test_that("synchrony_by_episode preserves id column type", {
+  result <- synchrony_by_episode(test_data_sync, missing_threshold = 0)
+
+  expect_identical(typeof(result$id), typeof(test_data_sync$coding$id))
+})

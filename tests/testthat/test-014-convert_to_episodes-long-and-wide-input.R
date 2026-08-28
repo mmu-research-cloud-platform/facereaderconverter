@@ -340,3 +340,17 @@ test_that("convert_to_episodes; from test_data", {
     "Duplicate `video_time` values found within `id`/`subject` groups: id=1, subject=parent; id=1, subject=teen; id=2, subject=parent; id=2, subject=teen"
   )
 })
+
+test_that("convert_to_episodes logic", {
+  coding_df <- test_coding
+  c2e1 <- convert_to_episodes(coding_df, T_up = 0.2)
+  c2e2 <- convert_to_episodes(coding_df, T_up = 0.15)
+
+  expect_lte(nrow(c2e1$episodes), nrow(c2e2$episodes))
+  expect_lt(nrow(c2e1$episodes), nrow(c2e2$episodes))
+
+  c2e3 <- convert_to_episodes(coding_df, T_up = 0.2, T_down = 0.1)
+  c2e4 <- convert_to_episodes(coding_df, T_up = 0.2, T_down = 0.15)
+
+  expect_lte(nrow(c2e3$episodes), nrow(c2e4$episodes))
+})
