@@ -193,4 +193,20 @@ test_that("add_delta_column, rda", {
   y <- convert_to_episodes(coding_df2, T_up = 1, delta_window = 0.2)
   x <- add_delta_column(coding_df2)
   expect_true(all(y$episodes$start_frame %in% x$frame[x$delta == 1]))
+
+  expect_equal(
+    nrow(
+      coding_df |> add_delta_column(delta_window = 0.1, delta = 0.1, fps = 30)
+    ),
+    nrow(coding_df)
+  )
+
+  expect_equal(
+    nrow(
+      coding_df |>
+        convert_to_episodes() |>
+        add_delta_column(delta_window = 0.1, delta = 0.1, fps = 30)
+    ),
+    nrow(coding_df)
+  )
 })

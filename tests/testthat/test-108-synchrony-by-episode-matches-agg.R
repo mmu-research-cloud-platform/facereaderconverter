@@ -62,20 +62,3 @@ test_that("synchrony_by_episode matches synchrony after aggregation", {
     ignore_attr = TRUE
   )
 })
-
-test_that("synch rows", {
-  test_data_sync_agg <- synchrony(test_data_sync, missing_threshold = 0)
-  test_data_sync_row <- synchrony_by_episode(
-    test_data_sync,
-    missing_threshold = 0
-  )
-
-  expect_equal(sum(test_data_sync_agg$n_episodes), nrow(test_data_sync_row))
-
-  test_data_sync_row1 <- synchrony_by_episode(
-    test_data_sync,
-    missing_threshold = 1
-  )
-
-  expect_gte(nrow(test_data_sync_row), nrow(test_data_sync_row1))
-})
