@@ -20,11 +20,12 @@ prepare_reaction_rate_inputs <- function(
   minimum_threshold = 0,
   constraint_method = "episode"
 ) {
-  fr_episodes <- NULL
-  if (inherits(coded_data, "fr_coding")) {
+  is_fr_coding <- is.list(coded_data) &&
+    !is.null(coded_data$coding) &&
+    !is.null(coded_data$episodes)
+
+  if (is_fr_coding && !is.null(coded_data$metadata$fps)) {
     fps <- coded_data$metadata$fps
-    fr_episodes <- coded_data$episodes
-    coded_data <- coded_data$coding
   }
 
   if (!is_reaction_rate_whole(fps) || fps <= 0) {
@@ -89,7 +90,7 @@ prepare_reaction_rate_inputs <- function(
     stop(
       paste0(
         "`constraint_method` must be one of: ",
-        "\"strict\", \"episode\", \"loose\", \"frames\"."
+        '"strict", "episode", "loose", "frames".'
       ),
       call. = FALSE
     )
@@ -118,45 +119,117 @@ prepare_reaction_rate_inputs <- function(
     }
   }
 
-  dt <- data.table::as.data.table(coded_data)
+  if (is_fr_coding) {
+    coding <- data.table::as.data.table(coded_data$coding)
+    episodes <- data.table::as.data.table(coded_data$episodes)
 
-  required <- c("id", "subject", "emotion", "frame", "delta")
-  missing <- setdiff(required, names(dt))
-  if (length(missing) > 0L) {
-    stop(
-      sprintf(
-        "`coded_data` is missing required columns: %s.",
-        paste(missing, collapse = ", ")
+    required_coding <- c("id", "subject", "emotion", "frame", "delta")
+    missing_coding <- setdiff(required_coding, names(coding))
+    if (length(missing_coding) > 0L) {
+      stop(
+        sprintf(
+          "`coded_data$coding` is missing required columns: %s.",
+          paste(missing_coding, collapse = ", ")
+        ),
+        call. = FALSE
+      )
+    }
+
+    required_episodes <- c(
+      "id",
+      "subject",
+      "emotion",
+      "run_id",
+      "start_frame",
+      "end_frame"
+    )
+    missing_episodes <- setdiff(required_episodes, names(episodes))
+    if (length(missing_episodes) > 0L) {
+      stop(
+        sprintf(
+          "`coded_data$episodes` is missing required columns: %s.",
+          paste(missing_episodes, collapse = ", ")
+        ),
+        call. = FALSE
+      )
+    }
+  } else {
+    coding <- data.table::as.data.table(coded_data)
+
+    required_coding <- c(
+      "id",
+      "subject",
+      "emotion",
+      "frame",
+      "delta",
+      "run_id",
+      "in_state"
+    )
+    missing_coding <- setdiff(required_coding, names(coding))
+    if (length(missing_coding) > 0L) {
+      stop(
+        sprintf(
+          "`coded_data` is missing required column(s): %s.",
+          paste(missing_coding, collapse = ", ")
+        ),
+        call. = FALSE
+      )
+    }
+
+    episodes <- coding[
+      in_state == TRUE & !is.na(run_id),
+      .(
+        start_frame = min(frame),
+        end_frame = max(frame),
+        n_frames = .N
       ),
+      by = .(id, subject, emotion, run_id)
+    ]
+  }
+
+  coding[, subject := as.character(subject)]
+  coding[, emotion := as.character(emotion)]
+  episodes[, subject := as.character(subject)]
+  episodes[, emotion := as.character(emotion)]
+  coding[is.na(delta), delta := 0L]
+  coding[, delta := as.integer(delta)]
+
+  if (nrow(coding) < 1L) {
+    stop(
+      "`coded_data$coding` must contain at least one row.",
       call. = FALSE
     )
   }
 
-  dt[, subject := as.character(subject)]
-  dt[, emotion := as.character(emotion)]
+  if (!"n_frames" %in% names(episodes)) {
+    episodes[, n_frames := end_frame - start_frame + 1L]
+  }
 
   if (!is.null(subject_names)) {
-    available_subjects <- unique(dt$subject)
+    available_subjects <- unique(coding$subject)
     missing_subjects <- setdiff(subject_names, available_subjects)
     if (length(missing_subjects) > 0L) {
       stop(
         sprintf(
-          "`subject_names` must be present in `coded_data`: %s.",
+          "`subject_names` must be present in `coded_data$coding`: %s.",
           paste(missing_subjects, collapse = ", ")
         ),
         call. = FALSE
       )
     }
-    dt <- dt[subject %chin% subject_names]
+    coding <- coding[subject %chin% subject_names]
+    episodes <- episodes[subject %chin% subject_names]
   }
 
   if (!is.null(exclude_emotions)) {
-    dt <- dt[!emotion %chin% exclude_emotions]
+    coding <- coding[!emotion %chin% exclude_emotions]
+    episodes <- episodes[!emotion %chin% exclude_emotions]
   }
 
   empty_summary_result <- data.table::data.table(
-    id = dt$id[0],
-    subject = character(),
+    id = coding$id[0],
+    denominator = character(),
+    numerator = character(),
     emotion = character(),
     n_episodes = integer(),
     n_reactions = integer(),
@@ -164,10 +237,11 @@ prepare_reaction_rate_inputs <- function(
   )
 
   empty_episode_result <- data.table::data.table(
-    id = dt$id[0],
-    subject = character(),
+    id = coding$id[0],
+    denominator = character(),
+    numerator = character(),
     emotion = character(),
-    episode_id = integer(),
+    run_id = integer(),
     start_frame = integer(),
     end_frame = integer(),
     n_frames = integer(),
@@ -198,16 +272,16 @@ prepare_reaction_rate_inputs <- function(
     stop(
       paste0(
         "`episode_limit` or `episode_limit_frames` cannot be infinite when ",
-        "`constraint_method` is \"loose\" or \"frames\"."
+        '`constraint_method` is "loose" or "frames".'
       ),
       call. = FALSE
     )
   }
 
-  if (nrow(dt) == 0L) {
+  if (nrow(coding) == 0L || nrow(episodes) == 0L) {
     return(list(
-      dt = dt,
-      fr_episodes = fr_episodes,
+      coding = coding,
+      episodes = episodes,
       limit_frames = limit_frames,
       start_frames = start_frames,
       minimum_threshold = minimum_threshold,
@@ -220,8 +294,8 @@ prepare_reaction_rate_inputs <- function(
   }
 
   list(
-    dt = dt,
-    fr_episodes = fr_episodes,
+    coding = coding,
+    episodes = episodes,
     limit_frames = limit_frames,
     start_frames = start_frames,
     minimum_threshold = minimum_threshold,
@@ -234,131 +308,143 @@ prepare_reaction_rate_inputs <- function(
 }
 
 build_reaction_rate_episode_table <- function(inputs) {
-  dt <- data.table::copy(inputs$dt)
+  coding <- inputs$coding
+  episodes <- inputs$episodes
   empty_episode_result <- inputs$empty_episode_result
 
-  if (nrow(dt) == 0L) {
+  if (nrow(coding) < 1L || nrow(episodes) < 1L) {
     return(empty_episode_result)
   }
 
-  if (!is.null(inputs$fr_episodes) && inputs$constraint_method == "episode") {
-    episodes <- data.table::as.data.table(inputs$fr_episodes)
+  coding_by_id <- split(coding, by = "id", keep.by = TRUE)
+  episodes_by_id <- split(episodes, by = "id", keep.by = TRUE)
 
-    if (!is.null(inputs$subject_names)) {
-      episodes <- episodes[subject %chin% inputs$subject_names]
+  results <- list()
+  singleton_ids <- character()
+
+  for (id_name in names(coding_by_id)) {
+    id_coding <- coding_by_id[[id_name]]
+    id_episodes <- episodes_by_id[[id_name]]
+    current_id <- id_coding$id[[1L]]
+
+    if (is.null(id_episodes) || nrow(id_episodes) == 0L) {
+      next
     }
-    if (!is.null(inputs$exclude_emotions)) {
-      episodes <- episodes[!emotion %chin% inputs$exclude_emotions]
+
+    id_subjects <- unique(id_coding$subject)
+    if (length(id_subjects) < 2L) {
+      singleton_ids <- c(
+        singleton_ids,
+        sprintf("id %s: %s", current_id, id_subjects[[1L]])
+      )
+      next
     }
 
-    if (nrow(episodes) == 0L) {
-      return(empty_episode_result)
-    }
+    subject_coding <- split(id_coding, by = "subject", keep.by = FALSE)
+    subject_episodes <- split(id_episodes, by = "subject", keep.by = FALSE)
 
-    episodes[, subject := as.character(subject)]
-    episodes[, emotion := as.character(emotion)]
+    for (denominator_subject in names(subject_episodes)) {
+      denominator_episodes <- data.table::copy(subject_episodes[[
+        denominator_subject
+      ]])
+      if (nrow(denominator_episodes) == 0L) {
+        next
+      }
 
-    if ("value" %in% names(dt)) {
-      episode_frames <- dt[
-        episodes,
-        on = .(
+      denominator_episodes[, n_frames := as.integer(n_frames)]
+      denominator_episodes[,
+        limit_end := if (is.infinite(inputs$limit_frames)) {
+          Inf
+        } else {
+          start_frame + inputs$limit_frames - 1L
+        }
+      ]
+
+      if (inputs$constraint_method == "strict") {
+        denominator_episodes[, constraint_end := pmin(end_frame, limit_end)]
+      } else if (inputs$constraint_method == "episode") {
+        denominator_episodes[, constraint_end := end_frame]
+      } else if (inputs$constraint_method == "loose") {
+        denominator_episodes[, constraint_end := pmax(end_frame, limit_end)]
+      } else {
+        denominator_episodes[, constraint_end := limit_end]
+      }
+
+      denominator_episodes[, reaction_window_start := start_frame]
+      denominator_episodes[,
+        eligible_start_frame := start_frame + inputs$start_frames
+      ]
+
+      for (numerator_subject in id_subjects[
+        id_subjects != denominator_subject
+      ]) {
+        numerator_coding <- subject_coding[[numerator_subject]]
+        has_value <- "value" %in% names(numerator_coding)
+
+        per_episode <- numerator_coding[
+          denominator_episodes,
+          on = .(
+            emotion,
+            frame >= reaction_window_start,
+            frame <= constraint_end
+          ),
+          allow.cartesian = TRUE,
+          .(
+            id = current_id,
+            denominator = denominator_subject,
+            numerator = numerator_subject,
+            emotion = i.emotion,
+            run_id = i.run_id,
+            start_frame = i.start_frame,
+            end_frame = i.constraint_end,
+            n_frames = i.constraint_end - i.start_frame + 1L,
+            present_prop = if (has_value) mean(!is.na(value)) else 1,
+            reaction = any(
+              delta == 1L & frame >= i.eligible_start_frame,
+              na.rm = TRUE
+            )
+          ),
+          by = .EACHI
+        ]
+
+        per_episode[is.nan(present_prop), present_prop := 0]
+        per_episode <- per_episode[present_prop >= inputs$minimum_threshold]
+
+        if (nrow(per_episode) == 0L) {
+          next
+        }
+
+        results[[length(results) + 1L]] <- per_episode[, .(
           id,
-          subject,
+          denominator,
+          numerator,
           emotion,
-          frame >= start_frame,
-          frame <= end_frame
-        ),
-        allow.cartesian = TRUE,
-        .(
-          id = i.id,
-          subject = i.subject,
-          emotion = i.emotion,
-          run_id = i.run_id,
-          frame = x.frame,
-          value = x.value
-        )
-      ]
-
-      present_lookup <- episode_frames[,
-        .(present_prop = mean(!is.na(value))),
-        by = .(id, subject, emotion, run_id)
-      ]
-      episodes[
-        present_lookup,
-        on = .(id, subject, emotion, run_id),
-        present_prop := i.present_prop
-      ]
-      episodes[is.na(present_prop), present_prop := 0]
-    } else {
-      episodes[, present_prop := 1]
+          run_id = as.integer(run_id),
+          start_frame = as.integer(start_frame),
+          end_frame = as.integer(end_frame),
+          n_frames = as.integer(n_frames),
+          present_prop = as.numeric(present_prop),
+          reaction = as.logical(reaction)
+        )]
+      }
     }
-
-    episodes[, episode_id := seq_len(.N), by = .(id, subject, emotion)]
-  } else {
-    dt[,
-      episode_id := data.table::rleid(delta == 1),
-      by = .(id, subject, emotion)
-    ]
-
-    episodes <- dt[
-      delta == 1,
-      .(
-        start_frame = min(frame),
-        end_frame = max(frame),
-        n_frames = .N,
-        present_prop = if ("value" %in% names(dt)) mean(!is.na(value)) else 1
-      ),
-      by = .(id, subject, emotion, episode_id)
-    ]
   }
 
-  episodes <- episodes[present_prop >= inputs$minimum_threshold]
+  if (length(singleton_ids) > 0L) {
+    warning(
+      sprintf(
+        "Skipping id(s) with fewer than two subjects after filtering: %s.",
+        paste(unique(singleton_ids), collapse = ", ")
+      ),
+      call. = FALSE
+    )
+  }
 
-  if (nrow(episodes) == 0L) {
+  if (length(results) == 0L) {
     return(empty_episode_result)
   }
 
-  episodes[,
-    limit_end := if (is.infinite(inputs$limit_frames)) {
-      Inf
-    } else {
-      start_frame + inputs$limit_frames - 1L
-    }
-  ]
-
-  if (inputs$constraint_method == "strict") {
-    episodes[, constraint_end := pmin(end_frame, limit_end)]
-  } else if (inputs$constraint_method == "episode") {
-    episodes[, constraint_end := end_frame]
-  } else if (inputs$constraint_method == "loose") {
-    episodes[, constraint_end := pmax(end_frame, limit_end)]
-  } else {
-    episodes[, constraint_end := limit_end]
-  }
-
-  episodes[, reaction_frame := start_frame + inputs$start_frames]
-  episodes[, reaction := reaction_frame <= constraint_end]
-
-  episodes[, `:=`(
-    episode_id = as.integer(episode_id),
-    start_frame = as.integer(start_frame),
-    end_frame = as.integer(end_frame),
-    n_frames = as.integer(n_frames),
-    present_prop = as.numeric(present_prop),
-    reaction = as.logical(reaction)
-  )]
-
-  out <- episodes[, .(
-    id,
-    subject,
-    emotion,
-    episode_id,
-    start_frame,
-    end_frame,
-    n_frames,
-    present_prop,
-    reaction
-  )]
-  data.table::setorder(out, id, subject, emotion, episode_id)
+  out <- data.table::rbindlist(results, fill = TRUE)
+  data.table::setorder(out, id, denominator, numerator, emotion, run_id)
   out
 }

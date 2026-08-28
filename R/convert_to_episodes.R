@@ -85,10 +85,10 @@ convert_to_episodes <- function(
   }
 
   if (!"id" %in% names(coding_df)) {
-    coding_df$id <- 1L
+    stop("`id` column required.", call. = FALSE)
   }
   if (!"subject" %in% names(coding_df)) {
-    coding_df$subject <- "unknown"
+    stop("`subject` column required.", call. = FALSE)
   }
   if (!"video_time" %in% names(coding_df) && !"frame" %in% names(coding_df)) {
     stop(

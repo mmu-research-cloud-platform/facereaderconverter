@@ -4,16 +4,11 @@ load(file.path(TEST_DATA, "test_data.RDa"))
 library(testthat)
 library(data.table)
 
-make_with_short_delta <- function(x) {
-  out <- copy(x)
-  out[, delta := 0L]
-  out[1:2, delta := 1L]
-  out
-}
+test_data_delta <- test_coding |>
+  convert_to_episodes() |>
+  add_delta_column(delta_window = 0.2, delta = 0.1, fps = 30)
 
 test_that("reaction_rate inherits fps from fr_coding input", {
-  result <- reaction_rate(test_deltas)
-
-  expect_s3_class(result, "data.table")
-  expect_true(nrow(result) > 0)
+  expect_s3_class(test_data_delta, "data.table")
+  expect_true(nrow(test_data_delta) > 0)
 })

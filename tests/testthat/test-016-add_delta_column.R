@@ -1,4 +1,8 @@
-test_that("add_delta_column", {
+TEST_DATA <- Sys.getenv("TEST_DATA")
+
+load(file.path(TEST_DATA, "test_data.RDa"))
+
+test_that("add_delta_column, csv", {
   # Test with different delta_window and delta values
   coding_df <- read.csv(file.path("testdata", "testdata_detailed.csv")) |>
     dplyr::mutate(id = 1, subject = "teen")
@@ -131,6 +135,59 @@ test_that("add_delta_column", {
   expect_true(all(c(0, 1) %in% x$delta, na.rm = TRUE))
   expect_true(sum(x$delta == 0, na.rm = TRUE) > 0)
   expect_true(sum(x$delta == 1, na.rm = TRUE) > 0)
+
+  #check deltas match
+  y <- convert_to_episodes(coding_df2, T_up = 1, delta_window = 0.2)
+  x <- add_delta_column(coding_df2)
+  expect_true(all(y$episodes$start_frame %in% x$frame[x$delta == 1]))
+})
+
+
+test_that("add_delta_column, rda", {
+  # Test with different delta_window and delta values
+  coding_df <- test_coding
+
+  coding_df2 <- test_coding_wide
+
+  expect_no_error({
+    result <- add_delta_column(
+      coding_df,
+      delta_window = 0.1,
+      delta = 0.1,
+      fps = 30
+    )
+  })
+  expect_no_error({
+    result <- add_delta_column(
+      coding_df2,
+      delta_window = 0.1,
+      delta = 0.1,
+      fps = 30
+    )
+  })
+
+  # Test that the result contains the 'delta' column
+  result <- add_delta_column(
+    coding_df,
+    delta_window = 0.1,
+    delta = 0.1,
+    fps = 30
+  )
+  expect_true("delta" %in% names(result))
+
+  # Test with different delta_window and delta values
+  expect_no_error({
+    result <- add_delta_column(
+      coding_df,
+      delta_window = 0.2,
+      delta = 0.2,
+      fps = 30
+    )
+  })
+
+  expect_true(all(c(0, 1) %in% result$delta, na.rm = TRUE))
+  expect_true(sum(result$delta == 0, na.rm = TRUE) > 0)
+  expect_true(sum(result$delta == 1, na.rm = TRUE) > 0)
 
   #check deltas match
   y <- convert_to_episodes(coding_df2, T_up = 1, delta_window = 0.2)

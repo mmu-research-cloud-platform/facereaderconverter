@@ -6,7 +6,9 @@ library(data.table)
 
 test_that("reaction-rate internals retain infinite limits for episode mode", {
   inputs <- facereaderconverter:::prepare_reaction_rate_inputs(
-    test_deltas,
+    test_coding |>
+      convert_to_episodes() |>
+      add_delta_column(delta_window = 0.2, delta = 0.1, fps = 30),
     episode_limit = Inf,
     constraint_method = "episode"
   )

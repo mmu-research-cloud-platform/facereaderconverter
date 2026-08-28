@@ -51,7 +51,7 @@ test_that("convert_to_episodes matches the stored synchrony fixture", {
       consecutive_missing = 90L
     )
   )
-  expected <- sort_coded_data(test_data_sync)
+  expected <- sort_coded_data(test_data_sync2)
 
   expect_equal(
     converted$episodes |>

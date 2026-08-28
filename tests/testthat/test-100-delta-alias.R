@@ -6,13 +6,13 @@ library(testthat)
 
 test_that("delta is an alias for add_delta_column", {
   result_alias <- delta(
-    test_data_sync,
+    test_coding,
     delta_window = 0.2,
     delta = 0.1,
     fps = 30
   )
   result_direct <- add_delta_column(
-    test_data_sync,
+    test_coding,
     delta_window = 0.2,
     delta = 0.1,
     fps = 30

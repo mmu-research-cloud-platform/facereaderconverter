@@ -7,3 +7,7 @@ test_that("to_seconds converts hh:mm:ss and hh:mm:ss.mmm to seconds", {
     c(0, 0, 62.5, 3723.25)
   )
 })
+
+test_that("to_seconds returns NA for malformed input", {
+  expect_equal(to_seconds("00:00:10."), NA_real_)
+})

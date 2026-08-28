@@ -1,25 +1,17 @@
-#' Calculate reaction rate from delta episodes
+#' Calculate reaction rate from converted episodes
 #'
-#' Reaction rate is the proportion of eligible episodes that contain at least one
-#' delta reaction after an initial exclusion window.
+#' Reaction rate mirrors `synchrony()` but uses the numerator subject's
+#' `delta` column as the reaction signal. Denominator episodes come from
+#' `convert_to_episodes()`, and a reaction is counted when the numerator subject
+#' has at least one `delta == 1` within the constrained denominator episode
+#' window.
 #'
-#' @param coded_data Output from `add_delta_column()` or a compatible data frame.
-#' @param episode_limit Maximum episode (in seconds) length to include in the denominator.
-#' @param episode_limit_frames Optional maximum episode length in frames. If
-#'   supplied, this takes precedence over `episode_limit`.
-#' @param exclude_start Minimum reaction onset to count. Reactions that begin
-#'   earlier than this are excluded from the numerator.
-#' @param exclude_start_frames Optional minimum reaction onset in frames. If
-#'   supplied, this takes precedence over `exclude_start`.
-#' @param fps Frames per second used to convert between seconds and frames.
-#' @param subject_names Character vector of subject labels to compare. If `NULL`,
-#'   all unique subjects in `coded_data` are used. If supplied, data are filtered
-#'   to those subject levels before reaction rate is calculated.
-#' @param exclude_emotions Character vector of emotions to exclude. Default is
-#'   `"neutral"`.
-#' @param minimum_threshold Numeric scalar in `[0, 1]`. Episodes are included
-#'   only when at least this proportion of delta frames have non-missing
-#'   `value`s. Default is `0`.
+#' @param coded_data Output from `convert_to_episodes()` with a `delta` column
+#'   added to `coded_data$coding`.
+#' @param episode_limit Maximum episode-window length in seconds when a frame
+#'   constraint is applied.
+#' @param episode_limit_frames Optional maximum episode-window length in frames.
+#'   If supplied, this takes precedence over `episode_limit`.
 #' @param constraint_method Character scalar controlling how the reaction
 #'   window ends. `"strict"` uses the earlier of the observed episode end and
 #'   the requested episode limit. `"episode"` uses the observed episode end and
@@ -27,34 +19,41 @@
 #'   end and the requested episode limit. `"frames"` uses only the requested
 #'   episode limit and ignores the observed episode end. Default is
 #'   `"episode"`.
+#' @param exclude_start Minimum delay, in seconds from the denominator episode
+#'   start, before numerator `delta == 1` values count as a reaction.
+#' @param exclude_start_frames Optional minimum delay in frames. If supplied,
+#'   this takes precedence over `exclude_start`.
+#' @param fps Frames per second used to convert between seconds and frames when
+#'   `coded_data$metadata$fps` is unavailable.
+#' @param subject_names Character vector of subject labels to compare. If
+#'   `NULL`, all unique subjects in `coded_data$coding` are used.
+#' @param exclude_emotions Character vector of emotions to exclude from the
+#'   denominator calculation. Default is `"neutral"`.
+#' @param minimum_threshold Numeric scalar in `[0, 1]`. Denominator episodes are
+#'   kept only when at least this proportion of numerator frames in the
+#'   constrained window have non-missing `value`s. Default is `0`.
 #'
-#' @return A data.table with columns `id`, `subject`, `emotion`, `n_episodes`,
-#'   `n_reactions`, and `reaction_rate`.
+#' @return A data.table with columns `id`, `denominator`, `numerator`,
+#'   `emotion`, `n_episodes`, `n_reactions`, and `reaction_rate`.
 #' @examples
-#' library(data.table)
-#'
-#' coded_data <- data.table(
-#'   id = rep(1L, 8),
-#'   subject = rep(c("teen", "parent"), each = 4),
-#'   emotion = "happy",
-#'   frame = rep(1:4, 2),
-#'   value = c(0.1, 0.2, NA, 0.4, 0.2, 0.3, 0.4, 0.5),
-#'   delta = c(1L, 1L, 0L, 1L, 0L, 1L, 1L, 0L)
-#' )
-#' reaction_rate(coded_data, fps = 30)
+#' \dontrun{
+#' coded_data <- convert_to_episodes(coding_df)
+#' coded_data$coding <- add_delta_column(coded_data)
+#' reaction_rate(coded_data)
+#' }
 #' @seealso [reaction_rate_by_episode()]
 #' @export
 reaction_rate <- function(
   coded_data,
   episode_limit = 3,
   episode_limit_frames = NULL,
+  constraint_method = "episode",
   exclude_start = 0.1,
   exclude_start_frames = NULL,
   fps = 30L,
   subject_names = NULL,
   exclude_emotions = "neutral",
-  minimum_threshold = 0,
-  constraint_method = "episode"
+  minimum_threshold = 0
 ) {
   inputs <- prepare_reaction_rate_inputs(
     coded_data = coded_data,
@@ -74,62 +73,60 @@ reaction_rate <- function(
     return(inputs$empty_summary_result)
   }
 
-  out <- episode_table[,
-    .(
-      n_episodes = .N,
-      n_reactions = sum(reaction)
-    ),
-    by = .(id, subject, emotion)
-  ]
+  out <- episode_table[, .(
+    n_episodes = .N,
+    n_reactions = sum(reaction)
+  ), by = .(id, denominator, numerator, emotion)]
 
+  out[, reaction_rate := ifelse(
+    n_episodes > 0L,
+    n_reactions / n_episodes,
+    NA_real_
+  )]
   out[, `:=`(
     n_episodes = as.integer(n_episodes),
     n_reactions = as.integer(n_reactions),
-    reaction_rate = as.numeric(n_reactions / n_episodes)
+    reaction_rate = as.numeric(reaction_rate)
   )]
   out <- out[, .(
     id,
-    subject,
+    denominator,
+    numerator,
     emotion,
     n_episodes,
     n_reactions,
     reaction_rate
   )]
-  data.table::setorder(out, id, subject, emotion)
+  data.table::setorder(out, id, denominator, numerator, emotion)
   out
 }
 
-#' Calculate reaction rate by episode
+#' Calculate reaction rate by denominator episode
 #'
 #' @inheritParams reaction_rate
 #'
-#' @return A data.table with columns `id`, `subject`, `emotion`, `episode_id`,
-#'   `start_frame`, `end_frame`, `n_frames`, `present_prop`, and `reaction`.
+#' @return A data.table with columns `id`, `denominator`, `numerator`,
+#'   `emotion`, `run_id`, `start_frame`, `end_frame`, `n_frames`,
+#'   `present_prop`, and `reaction`.
 #' @examples
-#' library(data.table)
-#'
-#' coded_data <- data.table(
-#'   id = rep(1L, 8),
-#'   subject = rep(c("teen", "parent"), each = 4),
-#'   emotion = "happy",
-#'   frame = rep(1:4, 2),
-#'   value = c(0.1, 0.2, NA, 0.4, 0.2, 0.3, 0.4, 0.5),
-#'   delta = c(1L, 1L, 0L, 1L, 0L, 1L, 1L, 0L)
-#' )
-#' reaction_rate_by_episode(coded_data, fps = 30)
+#' \dontrun{
+#' coded_data <- convert_to_episodes(coding_df)
+#' coded_data$coding <- add_delta_column(coded_data)
+#' reaction_rate_by_episode(coded_data)
+#' }
 #' @seealso [reaction_rate()]
 #' @export
 reaction_rate_by_episode <- function(
   coded_data,
   episode_limit = 3,
   episode_limit_frames = NULL,
+  constraint_method = "episode",
   exclude_start = 0.1,
   exclude_start_frames = NULL,
   fps = 30L,
   subject_names = NULL,
   exclude_emotions = "neutral",
-  minimum_threshold = 0,
-  constraint_method = "episode"
+  minimum_threshold = 0
 ) {
   inputs <- prepare_reaction_rate_inputs(
     coded_data = coded_data,

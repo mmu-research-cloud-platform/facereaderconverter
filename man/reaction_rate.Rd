@@ -2,47 +2,30 @@
 % Please edit documentation in R/reaction_rate.R
 \name{reaction_rate}
 \alias{reaction_rate}
-\title{Calculate reaction rate from delta episodes}
+\title{Calculate reaction rate from converted episodes}
 \usage{
 reaction_rate(
   coded_data,
   episode_limit = 3,
   episode_limit_frames = NULL,
+  constraint_method = "episode",
   exclude_start = 0.1,
   exclude_start_frames = NULL,
   fps = 30L,
   subject_names = NULL,
   exclude_emotions = "neutral",
-  minimum_threshold = 0,
-  constraint_method = "episode"
+  minimum_threshold = 0
 )
 }
 \arguments{
-\item{coded_data}{Output from \code{add_delta_column()} or a compatible data frame.}
+\item{coded_data}{Output from \code{convert_to_episodes()} with a \code{delta} column
+added to \code{coded_data$coding}.}
 
-\item{episode_limit}{Maximum episode (in seconds) length to include in the denominator.}
+\item{episode_limit}{Maximum episode-window length in seconds when a frame
+constraint is applied.}
 
-\item{episode_limit_frames}{Optional maximum episode length in frames. If
-supplied, this takes precedence over \code{episode_limit}.}
-
-\item{exclude_start}{Minimum reaction onset to count. Reactions that begin
-earlier than this are excluded from the numerator.}
-
-\item{exclude_start_frames}{Optional minimum reaction onset in frames. If
-supplied, this takes precedence over \code{exclude_start}.}
-
-\item{fps}{Frames per second used to convert between seconds and frames.}
-
-\item{subject_names}{Character vector of subject labels to compare. If \code{NULL},
-all unique subjects in \code{coded_data} are used. If supplied, data are filtered
-to those subject levels before reaction rate is calculated.}
-
-\item{exclude_emotions}{Character vector of emotions to exclude. Default is
-\code{"neutral"}.}
-
-\item{minimum_threshold}{Numeric scalar in \verb{[0, 1]}. Episodes are included
-only when at least this proportion of delta frames have non-missing
-\code{value}s. Default is \code{0}.}
+\item{episode_limit_frames}{Optional maximum episode-window length in frames.
+If supplied, this takes precedence over \code{episode_limit}.}
 
 \item{constraint_method}{Character scalar controlling how the reaction
 window ends. \code{"strict"} uses the earlier of the observed episode end and
@@ -51,27 +34,43 @@ ignores \code{episode_limit}. \code{"loose"} uses the later of the observed epis
 end and the requested episode limit. \code{"frames"} uses only the requested
 episode limit and ignores the observed episode end. Default is
 \code{"episode"}.}
+
+\item{exclude_start}{Minimum delay, in seconds from the denominator episode
+start, before numerator \code{delta == 1} values count as a reaction.}
+
+\item{exclude_start_frames}{Optional minimum delay in frames. If supplied,
+this takes precedence over \code{exclude_start}.}
+
+\item{fps}{Frames per second used to convert between seconds and frames when
+\code{coded_data$metadata$fps} is unavailable.}
+
+\item{subject_names}{Character vector of subject labels to compare. If
+\code{NULL}, all unique subjects in \code{coded_data$coding} are used.}
+
+\item{exclude_emotions}{Character vector of emotions to exclude from the
+denominator calculation. Default is \code{"neutral"}.}
+
+\item{minimum_threshold}{Numeric scalar in \verb{[0, 1]}. Denominator episodes are
+kept only when at least this proportion of numerator frames in the
+constrained window have non-missing \code{value}s. Default is \code{0}.}
 }
 \value{
-A data.table with columns \code{id}, \code{subject}, \code{emotion}, \code{n_episodes},
-\code{n_reactions}, and \code{reaction_rate}.
+A data.table with columns \code{id}, \code{denominator}, \code{numerator},
+\code{emotion}, \code{n_episodes}, \code{n_reactions}, and \code{reaction_rate}.
 }
 \description{
-Reaction rate is the proportion of eligible episodes that contain at least one
-delta reaction after an initial exclusion window.
+Reaction rate mirrors \code{synchrony()} but uses the numerator subject's
+\code{delta} column as the reaction signal. Denominator episodes come from
+\code{convert_to_episodes()}, and a reaction is counted when the numerator subject
+has at least one \code{delta == 1} within the constrained denominator episode
+window.
 }
 \examples{
-library(data.table)
-
-coded_data <- data.table(
-  id = rep(1L, 8),
-  subject = rep(c("teen", "parent"), each = 4),
-  emotion = "happy",
-  frame = rep(1:4, 2),
-  value = c(0.1, 0.2, NA, 0.4, 0.2, 0.3, 0.4, 0.5),
-  delta = c(1L, 1L, 0L, 1L, 0L, 1L, 1L, 0L)
-)
-reaction_rate(coded_data, fps = 30)
+\dontrun{
+coded_data <- convert_to_episodes(coding_df)
+coded_data$coding <- add_delta_column(coded_data)
+reaction_rate(coded_data)
+}
 }
 \seealso{
 \code{\link[=reaction_rate_by_episode]{reaction_rate_by_episode()}}

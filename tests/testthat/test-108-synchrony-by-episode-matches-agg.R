@@ -3,7 +3,8 @@ load(file.path(TEST_DATA, "test_data.RDa"))
 
 library(testthat)
 library(data.table)
-
+test_data_sync <- test_coding |>
+  convert_to_episodes()
 test_that("synchrony_by_episode matches synchrony after aggregation", {
   episode_result <- synchrony_by_episode(
     test_data_sync,
