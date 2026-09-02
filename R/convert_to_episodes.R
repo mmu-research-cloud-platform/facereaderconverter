@@ -107,26 +107,19 @@ convert_to_episodes <- function(
     )
   }
 
-  if (!all(c("emotion", "value") %in% names(coding_df))) {
-    coding_df <- coding_df |>
-      tidyr::pivot_longer(
-        cols = -tidyselect::any_of(c("id", "subject", "video_time", "frame")),
-        names_to = "emotion",
-        values_to = "value"
-      )
-  }
-
   stopifnot(requireNamespace("data.table"))
   dt <- data.table::as.data.table(coding_df)
+  is_long <- all(c("emotion", "value") %in% names(dt))
   delta_threshold <- delta
   k <- as.integer(round(delta_window * fps))
   min_len <- as.integer(ceiling(min_dur_sec * fps))
 
   if ("video_time" %in% names(dt)) {
-    duplicate_video_time <- dt[,
-      .N,
-      by = .(id, subject, emotion, video_time)
-    ][N > 1L]
+    duplicate_by <- c("id", "subject", "video_time")
+    if (is_long) {
+      duplicate_by <- append(duplicate_by, "emotion", after = 2L)
+    }
+    duplicate_video_time <- dt[, .N, by = duplicate_by][N > 1L]
 
     if (nrow(duplicate_video_time) > 0L) {
       duplicate_groups <- duplicate_video_time[, unique(sprintf(
@@ -149,6 +142,17 @@ convert_to_episodes <- function(
       stop("Need either 'frame' or 'video_time' column.")
     }
     dt[, frame := parse_time_to_frame(video_time, fps = fps)]
+  }
+
+  if (!is_long) {
+    id_cols <- intersect(c("id", "subject", "video_time", "frame"), names(dt))
+    dt <- suppressWarnings(data.table::melt(
+      dt,
+      id.vars = id_cols,
+      variable.name = "emotion",
+      value.name = "value",
+      variable.factor = FALSE
+    ))
   }
 
   if ("subject" %in% names(dt) && !is.factor(dt$subject)) {
