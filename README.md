@@ -320,7 +320,11 @@ or `hh:mm:ss.mmm` into numeric seconds.
 ``` r
 library(facereaderconverter)
 
-to_seconds(c("00:00:10", "00:00:10.500", "00:01:00"))
+c(
+  to_seconds("00:00:10", digits = 0L),
+  to_seconds("00:00:10.500"),
+  to_seconds("00:01:00", digits = 0L)
+)
 #> [1] 10.0 10.5 60.0
 ```
 
