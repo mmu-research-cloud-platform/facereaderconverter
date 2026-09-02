@@ -4,14 +4,16 @@ load(file.path(TEST_DATA, "test_data.RDa"))
 library(testthat)
 
 test_that("delta is a deprecated alias for add_delta_column", {
-  expect_snapshot({
+  expect_warning(
     result_alias <- delta(
       test_coding,
       delta_window = 0.2,
       delta = 0.1,
       fps = 30
-    )
-  })
+    ),
+    "deprecated",
+    fixed = TRUE
+  )
 
   result_direct <- suppressWarnings(add_delta_column(
     test_coding,
