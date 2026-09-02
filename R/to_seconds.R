@@ -33,7 +33,7 @@ to_seconds <- \(x, digits = 3L) {
     stringr::str_match(x, pattern) |>
       as_tibble(.name_repair = ~ c("match", "hh", "mm", "ss", "ms")) |>
       mutate(across(-match, as.numeric), ms = tidyr::replace_na(ms, 0)) |>
-      dplyr::transmute(time_sec = hh * 3600 + mm * 60 + ss + ms / 1000) |>
+      dplyr::transmute(time_sec = hh * 3600 + mm * 60 + ss + ms / (10 ^ digits)) |>
       pull(time_sec)
   }
 }
