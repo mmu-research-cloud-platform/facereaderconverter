@@ -178,7 +178,7 @@ convertFRFiles <- function(
   }
 
   if (clean_names) {
-    df <- janitor::clean_names(df)
+    df <- janitor::clean_names(df, ...)
   }
   # construct CSV path (same dir, same basename, .csv extension)
   csv_path <- file.path(
