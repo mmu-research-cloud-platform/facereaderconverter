@@ -8,8 +8,8 @@ skip_if_not_installed("readxl")
 skip_if_not_installed("openxlsx")
 
 read_excel_control <- function(file_stub) {
-  xlsx_path <- file.path("testdata", paste0(file_stub, ".xlsx"))
-  txt_path <- file.path("testdata", paste0(file_stub, "_control.txt"))
+  xlsx_path <- testthat::test_path("testdata", paste0(file_stub, ".xlsx"))
+  txt_path <- testthat::test_path("testdata", paste0(file_stub, "_control.txt"))
   list(
     excel = convertFRExcelFiles(
       xlsx_path,
