@@ -61,6 +61,7 @@ utils::globalVariables(c(
   "state_run",
   "status",
   "subject",
+  "subjects",
   "time_sec",
   "type",
   "value",

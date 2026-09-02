@@ -171,107 +171,73 @@ build_synchrony_episode_table <- function(inputs) {
     return(empty_episode_result)
   }
 
-  coding_by_id <- split(coding, by = "id", keep.by = TRUE)
-  episodes_by_id <- split(episodes, by = "id", keep.by = TRUE)
-
-  results <- list()
-  singleton_ids <- character()
-
-  for (id_name in names(coding_by_id)) {
-    id_coding <- coding_by_id[[id_name]]
-    current_id <- id_coding$id[[1L]]
-    id_episodes <- episodes_by_id[[id_name]]
-    id_subjects <- unique(id_coding$subject)
-
-    if (length(id_subjects) < 2L) {
-      if (length(id_subjects) == 1L) {
-        singleton_ids <- c(
-          singleton_ids,
-          sprintf("id %s: %s", current_id, id_subjects[[1L]])
-        )
-      }
-      next
-    }
-
-    subject_coding <- split(id_coding, by = "subject", keep.by = FALSE)
-
-    denominator_frames <- lapply(subject_coding, function(x) {
-      x[in_state == TRUE, .(emotion, video_time, denom_run_id = run_id)]
-    })
-
-    comparison_frames <- lapply(subject_coding, function(x) {
-      out <- x[, .(
-        emotion,
-        video_time,
-        comparison_value = value,
-        comparison_in_state = in_state
-      )]
-      data.table::setkey(out, emotion, video_time)
-      out
-    })
-
-    for (denominator_subject in id_subjects) {
-      denominator_subject_frames <- denominator_frames[[denominator_subject]]
-      if (nrow(denominator_subject_frames) == 0L) {
-        next
-      }
-
-      for (numerator_subject in id_subjects[
-        id_subjects != denominator_subject
-      ]) {
-        per_episode <- comparison_frames[[numerator_subject]][
-          denominator_subject_frames,
-          on = .(emotion, video_time)
-        ][,
-          .(
-            present_prop = mean(!is.na(comparison_value)),
-            synchrony = as.logical(any(
-              comparison_in_state == TRUE,
-              na.rm = TRUE
-            ))
-          ),
-          by = .(emotion, run_id = denom_run_id)
-        ]
-
-        per_episode <- per_episode[present_prop >= missing_threshold]
-        if (nrow(per_episode) == 0L) {
-          next
-        }
-
-        per_episode[, `:=`(
-          id = current_id,
-          denominator = denominator_subject,
-          numerator = numerator_subject
-        )]
-
-        results[[length(results) + 1L]] <- per_episode[, .(
-          id,
-          denominator,
-          numerator,
-          emotion,
-          run_id,
-          present_prop,
-          synchrony
-        )]
-      }
-    }
-  }
-
+  subject_counts <- coding[, .(subjects = uniqueN(subject)), by = id]
+  singleton_ids <- subject_counts[subjects < 2L, id]
   if (length(singleton_ids) > 0L) {
+    singleton_labels <- coding[
+      id %in% singleton_ids,
+      .(
+        label = sprintf("id %s: %s", first(id), first(subject))
+      ),
+      by = id
+    ]$label
     warning(
       sprintf(
         "Skipping id(s) with fewer than two subjects after filtering: %s.",
-        paste(unique(singleton_ids), collapse = ", ")
+        paste(singleton_labels, collapse = ", ")
       ),
       call. = FALSE
     )
   }
 
-  if (length(results) == 0L) {
+  denominator_frames <- coding[
+    in_state == TRUE & !id %in% singleton_ids,
+    .(
+      id,
+      denominator = subject,
+      emotion,
+      video_time,
+      run_id
+    )
+  ]
+  if (nrow(denominator_frames) == 0L) {
     return(empty_episode_result)
   }
 
-  out <- data.table::rbindlist(results, fill = TRUE)
+  comparison_frames <- coding[
+    !id %in% singleton_ids,
+    .(
+      id,
+      numerator = subject,
+      emotion,
+      video_time,
+      comparison_value = value,
+      comparison_in_state = in_state
+    )
+  ]
+
+  out <- comparison_frames[
+    denominator_frames,
+    on = .(id, emotion, video_time),
+    allow.cartesian = TRUE,
+    nomatch = 0L
+  ][
+    numerator != denominator,
+    .(
+      present_prop = mean(!is.na(comparison_value)),
+      synchrony = as.logical(any(
+        comparison_in_state == TRUE,
+        na.rm = TRUE
+      ))
+    ),
+    by = .(id, denominator, numerator, emotion, run_id)
+  ]
+
+  out <- out[present_prop >= missing_threshold]
+  if (nrow(out) == 0L) {
+    return(empty_episode_result)
+  }
+
   data.table::setorder(out, id, denominator, numerator, emotion, run_id)
   out
 }
