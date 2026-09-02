@@ -204,6 +204,17 @@ build_synchrony_episode_table <- function(inputs) {
     return(empty_episode_result)
   }
 
+  numerator_grid <- unique(coding[
+    !id %in% singleton_ids,
+    .(id, numerator = subject)
+  ])
+  expected_frames <- numerator_grid[
+    denominator_frames,
+    on = "id",
+    allow.cartesian = TRUE,
+    nomatch = 0L
+  ][numerator != denominator]
+
   comparison_frames <- coding[
     !id %in% singleton_ids,
     .(
@@ -217,12 +228,9 @@ build_synchrony_episode_table <- function(inputs) {
   ]
 
   out <- comparison_frames[
-    denominator_frames,
-    on = .(id, emotion, video_time),
-    allow.cartesian = TRUE,
-    nomatch = 0L
-  ][
-    numerator != denominator,
+    expected_frames,
+    on = .(id, numerator, emotion, video_time)
+  ][,
     .(
       present_prop = mean(!is.na(comparison_value)),
       synchrony = as.logical(any(
