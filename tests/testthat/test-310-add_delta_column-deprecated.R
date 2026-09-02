@@ -5,14 +5,16 @@ load(file.path(TEST_DATA, "test_data.RDa"))
 library(testthat)
 
 test_that("add_delta_column is deprecated and still computes delta", {
-  expect_snapshot({
+  expect_warning(
     result <- add_delta_column(
       test_coding,
       delta_window = 0.1,
       delta = 0.1,
       fps = 30
-    )
-  })
+    ),
+    "deprecated",
+    fixed = TRUE
+  )
 
   expect_true("delta" %in% names(result))
   expect_true(all(c(0, 1) %in% result$delta, na.rm = TRUE))
