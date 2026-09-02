@@ -15,15 +15,8 @@ LogicalVector hysteresis_state(NumericVector v,
   int n = v.size();
   LogicalVector state(n, false);
 
-  // k-step delta (NA-safe: dv[i] is NA if v[i] or v[i-k] is NA)
-  NumericVector dv(n, NA_REAL);
-  if (k >= 1 && n > k) {
-    for (int i = k; i < n; ++i) {
-      double a = v[i];
-      double b = v[i - k];
-      if (!is_na(a) && !is_na(b)) dv[i] = a - b;
-    }
-  }
+  (void) k;
+  (void) delta;
 
   bool in_state = false;
   int start_idx = -1;
@@ -77,7 +70,7 @@ LogicalVector hysteresis_state(NumericVector v,
           last_non_na = i;
         } else {
           consec_na = 1;
-          // last_non_na stays whatever it was; but start_evt with NA is unlikely due to NA-safe dv
+          // last_non_na stays whatever it was.
         }
       } else {
         state[i] = false;

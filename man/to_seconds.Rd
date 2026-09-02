@@ -4,10 +4,14 @@
 \alias{to_seconds}
 \title{Convert FaceReader time strings to seconds}
 \usage{
-to_seconds(x)
+to_seconds(x, digits = 3L)
 }
 \arguments{
 \item{x}{Character vector of time strings.}
+
+\item{digits}{Number of fractional digits required after the decimal point.
+Set to \code{0} to allow whole-second timestamps without a decimal part. Default
+is \code{3}.}
 }
 \value{
 A numeric vector of seconds.
@@ -17,5 +21,7 @@ Parses time values formatted as \code{hh:mm:ss} or \code{hh:mm:ss.mmm} and retur
 equivalent number of seconds.
 }
 \examples{
+\dontrun{
 to_seconds(c("00:00:10", "00:00:10.500"))
+}
 }
