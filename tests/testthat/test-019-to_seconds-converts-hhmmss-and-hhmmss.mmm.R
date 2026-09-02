@@ -11,5 +11,4 @@ test_that("to_seconds converts hh:mm:ss and hh:mm:ss.mmm to seconds", {
 
 test_that("to_seconds returns NA for malformed input", {
   expect_equal(to_seconds("00:00:10."), NA_real_)
-  expect_equal(to_seconds("00:00:10.5"), NA_real_)
 })

@@ -9,19 +9,19 @@ to_seconds(x, digits = 3L)
 \arguments{
 \item{x}{Character vector of time strings.}
 
-\item{digits}{Number of fractional digits required after the decimal point.
-Set to \code{0} to allow whole-second timestamps without a decimal part. Default
-is \code{3}.}
+\item{digits}{Number of fractional digits to retain after the decimal point.
+Set to \code{0} to discard fractional seconds. Default is \code{3}.}
 }
 \value{
 A numeric vector of seconds.
 }
 \description{
-Parses time values formatted as \code{hh:mm:ss} or \code{hh:mm:ss.mmm} and returns the
-equivalent number of seconds.
+Parses time values formatted as \code{hh:mm:ss} or \code{hh:mm:ss.s} and returns the
+equivalent number of seconds. Fractional seconds are truncated or padded to
+the number of digits specified by \code{digits}.
 }
 \examples{
 \dontrun{
-to_seconds(c("00:00:10", "00:00:10.500"))
+to_seconds(c("00:00:10.000", "00:00:10.500"))
 }
 }

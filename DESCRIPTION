@@ -1,6 +1,6 @@
 Package: facereaderconverter
 Title: Process of FaceReader outputs and emotional episodes
-Version: 0.3.0
+Version: 0.3.1
 Authors@R: 
     person("Seb", "Bate", , "s.bate@mmu.ac.uk", role = c("aut", "cre"))
 Description: Tools to convert FaceReader outputs; Markup of emotional episodes.
