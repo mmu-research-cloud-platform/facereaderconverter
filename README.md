@@ -7,8 +7,12 @@
 
 <!-- badges: end -->
 
-The goal of facereaderconverter is to convert FaceReader txt files to
-usable csv files that preserve the timings.
+The package is a series of functions for converting FaceReader output
+files into a more analysis-friendly format, and for detecting episodes
+of emotion from the time series data. It also includes some utilities
+for downstream analysis.
+
+Tested to work with FaceReader 9.1.
 
 ## Installation
 
@@ -28,6 +32,25 @@ devtools::install_github("mmu-research-cloud-platform/facereaderconverter")
 ```
 
 ## File conversion
+
+### `loadFRfile()`
+
+`loadFRfile()` loads a FaceReader export into memory without writing an
+output file. It dispatches to the TXT, Excel, or CSV reader based on the
+file extension.
+
+``` r
+library(facereaderconverter)
+
+loadFRfile(
+  inpath = "testdata/testdata_detailed.txt",
+  values_as_numeric = TRUE,
+  clean_names = TRUE
+)
+```
+
+Use this when you want a parsed data frame directly from a FaceReader
+export.
 
 ### `convertFRFiles()`
 
@@ -50,6 +73,26 @@ When `values_as_numeric = TRUE`, the `Video Time` column is converted to
 possible. When `clean_names = TRUE`, the output names are converted with
 `janitor::clean_names()`.
 
+### `convertFRExcelFiles()`
+
+`convertFRExcelFiles()` reads a single FaceReader `.xlsx` file, detects
+the header row automatically, and returns the parsed data unless
+`return_data = FALSE`.
+
+``` r
+library(facereaderconverter)
+
+convertFRExcelFiles(
+  inpath = "FaceReaderOutput.xlsx",
+  return_data = TRUE,
+  values_as_numeric = TRUE,
+  clean_names = TRUE
+)
+```
+
+When `return_data = FALSE`, the function returns metadata about the
+workbook import.
+
 ### `convertFRDirectory()`
 
 `convertFRDirectory()` processes all `.txt` files in a directory and
@@ -69,21 +112,24 @@ convertFRDirectory(
 Useful arguments include `recursive` for searching subdirectories,
 `pattern` for filtering file names, `metadata_filename` for the output
 metadata file, and `duplicate_timecodes_as_error` for handling repeated
-time codes.
+time codes. The metadata output includes success and failure status
+columns.
 
 ## Episode coding
 
 ### `convert_to_episodes()`
 
-`convert_to_episodes()` detects episodes using hysteresis thresholds, a
-delta rule, and a minimum duration filter. It accepts either long data
-with `id`, `subject`, `video_time`, `emotion`, and `value`, or wide data
-with one column per emotion.
+`convert_to_episodes()` converts FaceReader coding data into detected
+episodes using hysteresis thresholds, a delta-based reaction signal, and
+a minimum duration filter. It accepts long data with `id`, `subject`,
+and either `video_time` or `frame`, plus `emotion` and `value`; if
+`emotion` and `value` are missing, wide data are reshaped to long format
+internally.
 
-If `emotion` and `value` are not already present, the function reshapes
-wide data to long format internally. If `id` or `subject` is missing,
-they are added with defaults. If `frame` is missing, it is created from
-`video_time` using `fps`.
+The function requires `id` and `subject`. If `frame` is not supplied, it
+is derived from `video_time` using `fps`. `T_up` and `T_down` control
+episode entry and exit, while `delta` and `delta_window` define the
+returned delta-up signal rather than episode boundaries.
 
 Important arguments:
 
@@ -95,9 +141,13 @@ Important arguments:
 - `min_dur_sec`: minimum episode duration in seconds
 - `consecutive_missing`: maximum allowed run of missing values while an
   episode is active
+- `cores`: number of threads used by `data.table`
 
-The function returns an `fr_coding` object with `episodes`, `coding`,
-and `metadata`.
+The function returns an `fr_coding` object with four components:
+`episodes`, `deltas`, `coding`, and `metadata`. `episodes` contains the
+detected episode spans, `deltas` contains delta-up reaction events, and
+`coding` contains the annotated frame-level data with episode and delta
+markers.
 
 ``` r
 library(facereaderconverter)
@@ -124,20 +174,121 @@ res <- convert_to_episodes(
 )
 
 res$episodes
+res$deltas
 res$coding
 ```
 
 Episodes are grouped within each `id`, `subject`, and `emotion`
 combination. Episode end frames are adjusted to the last in-state frame
 with a non-missing `value`, and episodes shorter than the minimum
-duration are removed.
+duration are removed. Delta rows are tracked separately for downstream
+functions such as `reaction_rate()`.
 
-### `add_delta_column()`
+## Downstream analysis
 
-`add_delta_column()` appends a `delta` column to a coding data frame
-using a windowed delta rule within each `id`, `subject`, and `emotion`
-group. If the input is an `fr_coding` object, the coding data and `fps`
-are taken from that object.
+### `synchrony()`
+
+`synchrony()` compares the episode coding for one subject against
+another subject within each `id` and emotion. The `missing_threshold`
+argument controls how much missing comparison data is tolerated within a
+denominator episode before that episode is dropped.
+
+``` r
+library(facereaderconverter)
+
+coding <- data.table::data.table(
+  id = rep(1L, 6),
+  subject = rep(c("teen", "parent"), each = 3),
+  emotion = "happy",
+  video_time = rep(1:3, 2),
+  value = c(0.1, 0.2, 0.3, 0.1, 0.2, 0.3),
+  in_state = c(FALSE, TRUE, FALSE, FALSE, FALSE, TRUE),
+  run_id = c(1L, 1L, 1L, 2L, 2L, 2L)
+)
+
+episodes <- data.table::data.table(
+  id = 1L,
+  subject = c("teen", "parent"),
+  emotion = "happy",
+  run_id = c(1L, 2L),
+  start_frame = c(2L, 3L),
+  end_frame = c(2L, 3L)
+)
+
+coded_data <- structure(
+  list(coding = coding, episodes = episodes),
+  class = c("fr_coding", "list")
+)
+
+synchrony(coded_data, missing_threshold = 0.5)
+```
+
+The result reports denominator and numerator subjects, the emotion, the
+number of episodes, and synchrony. The `id` column keeps the same type
+as the input data.
+
+### `synchrony_by_episode()`
+
+`synchrony_by_episode()` returns the episode-level comparison table used
+by `synchrony()`. It includes one row per denominator episode, the
+numerator subject matched to that episode, and a logical `synchrony`
+flag indicating whether the comparison subject was present during the
+denominator episode.
+
+``` r
+library(facereaderconverter)
+
+synchrony_by_episode(coded_data, missing_threshold = 0.5)
+```
+
+Use this when you need the underlying episode-level matches rather than
+the aggregated synchrony summary.
+
+### `reaction_rate()`
+
+`reaction_rate()` estimates the proportion of eligible episodes that
+contain at least one delta reaction after an initial exclusion window.
+
+``` r
+library(facereaderconverter)
+
+coded_data <- data.table::data.table(
+  id = rep(1L, 8),
+  subject = rep(c("teen", "parent"), each = 4),
+  emotion = "happy",
+  frame = rep(1:4, 2),
+  delta = c(1L, 1L, 0L, 1L, 0L, 1L, 1L, 0L),
+  in_state = rep(c(TRUE, TRUE, FALSE, FALSE), 2),
+  run_id = c(1L, 1L, NA, NA, 2L, 2L, NA, NA)
+)
+
+reaction_rate(coded_data, fps = 30)
+```
+
+This is useful when you want a simple summary of reaction frequency by
+subject and emotion.
+
+### `reaction_rate_by_episode()`
+
+`reaction_rate_by_episode()` returns the episode-level table used by
+`reaction_rate()`. It includes one row per denominator episode with the
+matched numerator subject, the episode window, the number of valid
+frames, and a logical `reaction` flag.
+
+``` r
+library(facereaderconverter)
+
+reaction_rate_by_episode(coded_data, fps = 30)
+```
+
+Use this when you need to inspect which specific episodes contributed to
+the aggregated reaction-rate summary.
+
+### `locf()`
+
+`locf()` applies last-observation-carried-forward logic to an
+`fr_coding` object and returns the imputed coding table plus episode
+summaries.
 
 ``` r
 library(facereaderconverter)
@@ -152,42 +303,90 @@ coding_df2 <- coding_df |>
     values_to = "value"
   )
 
-coding_with_delta <- add_delta_column(
-  coding_df2,
-  delta_window = 0.1,
-  delta = 0.1,
-  fps = 30L
+fr <- convert_to_episodes(coding_df2, fps = 30L)
+locf(fr)
+```
+
+Use this when short missing stretches should inherit the most recent
+non-missing run assignment.
+
+## Utilities
+
+### `to_seconds()`
+
+`to_seconds()` converts FaceReader-style timestamps such as `hh:mm:ss`
+or `hh:mm:ss.mmm` into numeric seconds.
+
+``` r
+library(facereaderconverter)
+
+c(
+  to_seconds("00:00:10", digits = 0L),
+  to_seconds("00:00:10.500"),
+  to_seconds("00:01:00", digits = 0L)
+)
+#> [1] 10.0 10.5 60.0
+```
+
+Use this when you need a numeric time variable for plotting or joining.
+
+### `parse_time_to_frame()`
+
+`parse_time_to_frame()` converts timestamps to frame indices at a given
+sampling rate. It accepts `HH:MM:SS`, `MM:SS`, or plain seconds.
+
+``` r
+library(facereaderconverter)
+
+parse_time_to_frame(c("00:00:10.5", "1:23.5", "83.5"), fps = 30)
+#> [1]  315 2505 2505
+```
+
+This is the helper used internally when `video_time` is present but
+`frame` is not.
+
+### `map_paths()`
+
+`map_paths()` remaps files from one root directory to another while
+preserving the relative folder structure.
+
+``` r
+library(facereaderconverter)
+
+map_paths(
+  input_dir = "data/raw",
+  output_dir = "data/converted",
+  files = c(
+    "data/raw/session1/a.txt",
+    "data/raw/session2/b.txt"
+  )
 )
 ```
 
-The resulting `delta` column contains `1` for upward events, `0` for
-downward events, and `NA` otherwise.
+This is useful when converting a directory of files into a parallel
+output tree.
 
-### `delta_episodes()`
+## Exported function dependencies
 
-`delta_episodes()` converts a coding data frame with a `delta` column
-into episode summaries.
+Most exported functions are independent helpers, but several depend on
+other exported functions or on custom structures produced by other
+functions. A direct call is not always the same as a workflow
+dependency, so both are listed separately.
 
-``` r
-library(facereaderconverter)
-
-coding_df <- read.csv("testdata/testdata_detailed.csv") |>
-  dplyr::mutate(id = 1, subject = "parent")
-
-coding_df2 <- coding_df |>
-  tidyr::pivot_longer(
-    cols = c(neutral, happy, sad, angry, surprised, scared, disgusted),
-    names_to = "emotion",
-    values_to = "value"
-  )
-
-episodes <- coding_df2 |>
-  add_delta_column(delta = 0.1, delta_window = 0.1, fps = 30L) |>
-  delta_episodes(fps = 30L)
-
-episodes
-```
-
-The output includes `start_frame`, `end_frame`, `start_time`,
-`end_time`, `n_frames`, `duration_s`, `id`, `subject`, `emotion`, and
-`run_id`.
+| Exported function | Direct exported-function dependencies | Required structure/class or input shape | Common upstream producer(s) |
+|----|----|----|----|
+| `loadFRfile()` | `convertFRFiles()`, `convertFRExcelFiles()` | none | none |
+| `convertFRDirectory()` | `convertFRFiles()`, `map_paths()` | none | none |
+| `convert_to_episodes()` | `parse_time_to_frame()` | creates `fr_coding` | none |
+| `add_delta_column()` | `parse_time_to_frame()` | accepts `fr_coding`; otherwise needs a coding table with `id`, `subject`, `emotion`, `frame` or `video_time`, and `value` | `convert_to_episodes()` |
+| `delta_episodes()` | none | needs `delta` plus `id`, `subject`, `emotion`, `frame` (and optionally `video_time`, `value`) | `add_delta_column()` |
+| `locf()` | none | accepts `fr_coding`; otherwise needs a coding table with `id`, `subject`, `emotion`, `video_time`, `value`, and `run_id` | `convert_to_episodes()` |
+| `reaction_rate()` | none | accepts `fr_coding`; otherwise needs a delta-coded table with `id`, `subject`, `emotion`, `frame`, `delta`, `run_id`, and `in_state` | `add_delta_column()` |
+| `reaction_rate_by_episode()` | none | accepts `fr_coding`; otherwise needs a delta-coded table with `id`, `subject`, `emotion`, `frame`, `delta`, `run_id`, and `in_state` | `add_delta_column()` |
+| `synchrony()` | none | requires `fr_coding` returned by `convert_to_episodes()` | `convert_to_episodes()` |
+| `synchrony_by_episode()` | none | requires `fr_coding` returned by `convert_to_episodes()` | `convert_to_episodes()` |
+| `convertFRFiles()` | none | none | none |
+| `convertFRExcelFiles()` | none | none | none |
+| `to_seconds()` | none | none | none |
+| `parse_time_to_frame()` | none | none | none |
+| `map_paths()` | none | none | none |

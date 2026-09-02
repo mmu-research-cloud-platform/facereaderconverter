@@ -3,20 +3,30 @@
 #' @param coding_df a dataframe or otherwise from a FaceReader output. id and subject should be present.
 #' @param T_up numeric Upper threshold for entering an episode. Default: 0.2.
 #' @param T_down numeric Lower threshold for exiting an episode. Default: 0.1.
-#' @param delta numeric Minimum k-step change required, computed as the current value minus the value \code{k} frames earlier. Default: 0.1.
-#' @param delta_window numeric Time window (in seconds) used to derive \code{k}, the lag for the k-step difference rule. Default: 0.1.
+#' @param delta numeric Threshold used when computing the returned
+#'   \code{delta} column, as the minimum k-step change required. It no longer
+#'   controls episode boundaries. Default: 0.1.
+#' @param delta_window numeric Time window (in seconds) used to derive
+#'   \code{k}, the lag for the returned k-step difference \code{delta}
+#'   column. It no longer controls episode boundaries. Default: 0.1.
 #' @param min_dur_sec numeric Minimum episode duration (in seconds). Default: 0.1.
 #' @param consecutive_missing integer Maximum allowed consecutive missing (NA) frames while in-state before forcing episode end. Default: 150L.
 #' @param fps integer Frames per second (sampling rate of the data). Default: 30L.
 #' @param cores integer Number of threads to use. Default 0 is auto.
-#' @return A list with two elements:
+#' @return A list with four elements:
 #' \describe{
-#'   \item{episodes}{data.table of detected episodes with columns \code{start_frame}, \code{end_frame}, \code{n_frames}, \code{duration_s}, \code{id}, \code{subject}, \code{emotion},\code{start_time}, \code{end_time}, and \code{run_id}.}
-#'   \item{coding}{Annotated data.table containing the original columns plus \code{id}, \code{subject}, \code{emotion}, \code{value}, \code{run_id}, \code{status}, and \code{in_state}. \code{status} marks episode boundaries with \code{1L} at the start frame and \code{0L} at the end frame; \code{in_state} is \code{TRUE} for frames inside detected episodes.}
-#'   \item{fps}{Frames per second (sampling rate of the data).}
+#'   \item{episodes}{data.table of detected episodes with columns \code{start_frame}, \code{end_frame}, \code{n_frames}, \code{duration_s}, \code{id}, \code{subject}, \code{emotion}, \code{start_time}, \code{end_time}, and \code{run_id}.}
+#'   \item{deltas}{data.table of delta-up reaction events with the same columns as \code{episodes}, except \code{delta_id} replaces \code{run_id}.}
+#'   \item{coding}{Annotated data.table containing the original columns plus \code{id}, \code{subject}, \code{emotion}, \code{value}, \code{delta}, \code{delta_id}, \code{run_id}, \code{status}, and \code{in_state}. \code{status} marks episode boundaries with \code{1L} at the start frame and \code{0L} at the end frame; \code{in_state} is \code{TRUE} for frames inside detected episodes.}
+#'   \item{metadata}{Metadata used to create the returned object.}
 #' }
-#' @details The function uses the exported native binding \code{hysteresis_state} if available; otherwise it will error.
-#' It relies on \pkg{data.table} for fast grouping and joins.
+#' @details Episode boundaries are determined only by \code{T_up} and
+#'   \code{T_down}. The returned \code{delta} column is computed separately and
+#'   delta-up rows are also returned in \code{deltas} for downstream functions
+#'   such as \code{reaction_rate()}.
+#'   The function uses the exported native binding \code{hysteresis_state} if
+#'   available; otherwise it will error. It relies on \pkg{data.table} for fast
+#'   grouping and joins.
 #' @examples
 #' \dontrun{
 #' coding_df = read.csv("testdata_detailed.csv")
@@ -85,10 +95,10 @@ convert_to_episodes <- function(
   }
 
   if (!"id" %in% names(coding_df)) {
-    coding_df <- dplyr::mutate(coding_df, id = 1L)
+    stop("`id` column required.", call. = FALSE)
   }
   if (!"subject" %in% names(coding_df)) {
-    coding_df <- dplyr::mutate(coding_df, subject = "unknown")
+    stop("`subject` column required.", call. = FALSE)
   }
   if (!"video_time" %in% names(coding_df) && !"frame" %in% names(coding_df)) {
     stop(
@@ -108,6 +118,7 @@ convert_to_episodes <- function(
 
   stopifnot(requireNamespace("data.table"))
   dt <- data.table::as.data.table(coding_df)
+  delta_threshold <- delta
   k <- as.integer(round(delta_window * fps))
   min_len <- as.integer(ceiling(min_dur_sec * fps))
 
@@ -151,6 +162,13 @@ convert_to_episodes <- function(
   }
 
   data.table::setkey(dt, id, subject, emotion, frame)
+  if ("delta" %in% names(dt)) {
+    dt[, delta := NULL]
+  }
+  dt[,
+    delta := all_deltas(value, k, delta_threshold),
+    by = .(id, subject, emotion)
+  ]
 
   if (!exists("hysteresis_state", mode = "function")) {
     stop("Cpp not found")
@@ -162,7 +180,7 @@ convert_to_episodes <- function(
       k,
       T_up,
       T_down,
-      delta,
+      delta_threshold,
       min_len,
       consecutive_missing
     ),
@@ -171,101 +189,163 @@ convert_to_episodes <- function(
 
   dt[, state_run := data.table::rleid(state), by = .(id, subject, emotion)]
 
-  episodes <- dt[
-    state == TRUE,
-    .(
-      start_frame = first(frame),
-      end_frame = last(frame),
-      start_time = first(video_time),
-      end_time = last(video_time),
-      duration_s = .N / fps
-    ),
-    by = .(id, subject, emotion, state_run)
-  ]
-  data.table::setorder(episodes, id, subject, emotion, start_frame)
-  episodes[, run_id := as.integer(.I)]
-
-  valid_in_state <- dt[
-    state == TRUE & !is.na(value),
-    .(id, subject, emotion, state_run, frame)
-  ]
-
-  if (nrow(valid_in_state) > 0L && nrow(episodes) > 0L) {
-    data.table::setkey(valid_in_state, id, subject, emotion, state_run, frame)
-
-    end_map <- valid_in_state[
-      episodes,
-      on = .(
-        id,
-        subject,
-        emotion,
-        state_run,
-        frame >= start_frame,
-        frame <= end_frame
-      ),
-      mult = "last",
-      .(run_id = i.run_id, end_frame_nonNA = frame),
-      by = .EACHI
+  if ("video_time" %in% names(dt)) {
+    episodes <- dt[
+      state == TRUE,
+      {
+        non_missing <- which(!is.na(value))
+        if (length(non_missing) == 0L) {
+          NULL
+        } else {
+          end_idx <- non_missing[[length(non_missing)]]
+          .(
+            start_frame = first(frame),
+            end_frame = frame[[end_idx]],
+            start_time = first(video_time),
+            end_time = last(video_time)
+          )
+        }
+      },
+      by = .(id, subject, emotion, state_run)
     ]
-
-    episodes[end_map, on = "run_id", end_frame := i.end_frame_nonNA]
-    episodes <- episodes[!is.na(end_frame)]
-
-    n_map <- dt[state == TRUE][
-      episodes,
-      on = .(
-        id,
-        subject,
-        emotion,
-        state_run,
-        frame >= start_frame,
-        frame <= end_frame
-      ),
-      .(run_id = i.run_id, n = .N),
-      by = .EACHI
+  } else {
+    episodes <- dt[
+      state == TRUE,
+      {
+        non_missing <- which(!is.na(value))
+        if (length(non_missing) == 0L) {
+          NULL
+        } else {
+          end_idx <- non_missing[[length(non_missing)]]
+          .(
+            start_frame = first(frame),
+            end_frame = frame[[end_idx]],
+            start_time = NA,
+            end_time = NA
+          )
+        }
+      },
+      by = .(id, subject, emotion, state_run)
     ]
-
-    episodes[n_map, on = "run_id", n := i.n]
-    episodes[, duration_s := n / fps]
   }
 
-  episodes[, `:=`(
-    n_frames = as.integer(end_frame - start_frame + 1L)
-  )]
+  data.table::setorder(episodes, id, subject, emotion, start_frame)
+  episodes[, run_id := as.integer(.I)]
+  episodes[, n_frames := as.integer(end_frame - start_frame + 1L)]
   episodes[, duration_s := n_frames / fps]
 
   if (nrow(episodes) > 0L) {
     episodes <- episodes[n_frames >= min_len]
   }
-  if ("n" %in% names(episodes)) {
-    episodes[, n := NULL]
-  }
-  if ("state_run" %in% names(episodes)) {
-    episodes[, state_run := NULL]
-  }
 
-  dt[, `:=`(status = NA_integer_, in_state = FALSE, run_id = NA_integer_)]
+  dt[,
+    delta_run := data.table::rleid(delta == 1L),
+    by = .(id, subject, emotion)
+  ]
+
+  if ("video_time" %in% names(dt)) {
+    deltas <- dt[
+      delta == 1L,
+      .(
+        start_frame = first(frame),
+        end_frame = last(frame),
+        start_time = first(video_time),
+        end_time = last(video_time)
+      ),
+      by = .(id, subject, emotion, delta_run)
+    ]
+  } else {
+    deltas <- dt[
+      delta == 1L,
+      .(
+        start_frame = first(frame),
+        end_frame = last(frame),
+        start_time = NA,
+        end_time = NA
+      ),
+      by = .(id, subject, emotion, delta_run)
+    ]
+  }
+  data.table::setorder(deltas, id, subject, emotion, start_frame)
+  deltas[, delta_id := as.integer(.I)]
+  deltas[, n_frames := as.integer(end_frame - start_frame + 1L)]
+  deltas[, duration_s := n_frames / fps]
+
+  dt[, `:=`(
+    status = NA_integer_,
+    in_state = FALSE,
+    run_id = NA_integer_,
+    delta_id = NA_integer_
+  )]
 
   if (nrow(episodes) > 0L) {
     dt[
       episodes,
-      on = .(id, subject, emotion, frame = start_frame),
-      status := 1L
+      on = .(id, subject, emotion, state_run),
+      `:=`(
+        run_id = i.run_id,
+        start_frame_episode = i.start_frame,
+        end_frame_episode = i.end_frame
+      )
     ]
+
     dt[
-      episodes,
-      on = .(id, subject, emotion, frame = end_frame),
-      status := 0L
+      state == TRUE & frame >= start_frame_episode & frame <= end_frame_episode,
+      in_state := TRUE
     ]
+    dt[state == TRUE & frame == start_frame_episode, status := 1L]
+    dt[state == TRUE & frame == end_frame_episode, status := 0L]
+    dt[in_state == FALSE, run_id := NA_integer_]
+    dt[, c("start_frame_episode", "end_frame_episode") := NULL]
+  }
+
+  if (nrow(deltas) > 0L) {
     dt[
-      episodes,
-      on = .(id, subject, emotion, frame >= start_frame, frame <= end_frame),
-      `:=`(in_state = TRUE, run_id = i.run_id)
+      deltas,
+      on = .(
+        id,
+        subject,
+        emotion,
+        delta_run,
+        frame >= start_frame,
+        frame <= end_frame
+      ),
+      delta_id := i.delta_id
     ]
   }
 
-  dt[in_state == FALSE, run_id := NA_integer_]
-  dt[, state_run := NULL]
+  dt[, c("state", "state_run", "delta_run") := NULL]
+  if ("state_run" %in% names(episodes)) {
+    episodes[, state_run := NULL]
+  }
+  if ("delta_run" %in% names(deltas)) {
+    deltas[, delta_run := NULL]
+  }
+  episodes <- episodes[, .(
+    id,
+    subject,
+    emotion,
+    start_frame,
+    end_frame,
+    start_time,
+    end_time,
+    duration_s,
+    run_id,
+    n_frames
+  )]
+
+  deltas <- deltas[, .(
+    id,
+    subject,
+    emotion,
+    start_frame,
+    end_frame,
+    start_time,
+    end_time,
+    duration_s,
+    delta_id,
+    n_frames
+  )]
 
   coding_cols <- unique(c(
     intersect(original_cols, names(dt)),
@@ -273,6 +353,9 @@ convert_to_episodes <- function(
     "subject",
     "emotion",
     "value",
+    "frame",
+    "delta",
+    "delta_id",
     "run_id",
     "status",
     "in_state"
@@ -280,11 +363,12 @@ convert_to_episodes <- function(
   structure(
     list(
       episodes = episodes,
+      deltas = deltas,
       coding = dt[, .SD, .SDcols = coding_cols],
       metadata = list(
-        fps = fps,
+        fps = as.integer(fps),
         consecutive_missing = consecutive_missing,
-        delta = delta,
+        delta = delta_threshold,
         delta_window = delta_window,
         min_dur_sec = min_dur_sec,
         T_down = T_down,

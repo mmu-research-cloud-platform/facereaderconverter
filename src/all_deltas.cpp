@@ -1,46 +1,60 @@
 #include <Rcpp.h>
+#include <deque>
 using namespace Rcpp;
-
 
 // [[Rcpp::export]]
 IntegerVector all_deltas(NumericVector value, int k, double delta) {
-  int n = value.size();
+  const int n = value.size();
   IntegerVector out(n, NA_INTEGER);
 
-  for (int i = k; i < n; ++i) {
-    double window_max = NA_REAL;
-    double window_min = NA_REAL;
-    int max_pos = -1;
-    int min_pos = -1;
-    bool any_valid = false;
+  if (n == 0 || k < 0) {
+    return out;
+  }
 
-    for (int j = i - k; j <= i; ++j) {
-      double vj = value[j];
-      if (NumericVector::is_na(vj)) {
-        continue;
-      }
+  std::deque<int> max_deque;
+  std::deque<int> min_deque;
+  int valid_in_window = 0;
 
-      if (!any_valid) {
-        window_max = window_min = vj;
-        max_pos = min_pos = j;
-        any_valid = true;
-      } else {
-        if (vj > window_max) {
-          window_max = vj;
-          max_pos = j;
-        }
-        if (vj < window_min) {
-          window_min = vj;
-          min_pos = j;
-        }
+  for (int i = 0; i < n; ++i) {
+    const int window_start = i - k;
+
+    if (window_start > 0) {
+      const double leaving = value[window_start - 1];
+      if (!NumericVector::is_na(leaving)) {
+        --valid_in_window;
       }
     }
 
-    if (!any_valid) {
+    while (!max_deque.empty() && max_deque.front() < window_start) {
+      max_deque.pop_front();
+    }
+    while (!min_deque.empty() && min_deque.front() < window_start) {
+      min_deque.pop_front();
+    }
+
+    const double vi = value[i];
+    if (!NumericVector::is_na(vi)) {
+      ++valid_in_window;
+
+      while (!max_deque.empty() && value[max_deque.back()] < vi) {
+        max_deque.pop_back();
+      }
+      max_deque.push_back(i);
+
+      while (!min_deque.empty() && value[min_deque.back()] > vi) {
+        min_deque.pop_back();
+      }
+      min_deque.push_back(i);
+    }
+
+    if (i < k || valid_in_window == 0) {
       continue;
     }
 
-    double d = window_max - window_min;
+    const int max_pos = max_deque.front();
+    const int min_pos = min_deque.front();
+    const double d = value[max_pos] - value[min_pos];
+
     if (d >= delta) {
       out[i] = (max_pos > min_pos) ? 1 : 0;
     }

@@ -23,9 +23,13 @@ convert_to_episodes(
 
 \item{T_down}{numeric Lower threshold for exiting an episode. Default: 0.1.}
 
-\item{delta}{numeric Minimum k-step change required, computed as the current value minus the value \code{k} frames earlier. Default: 0.1.}
+\item{delta}{numeric Threshold used when computing the returned
+\code{delta} column, as the minimum k-step change required. It no longer
+controls episode boundaries. Default: 0.1.}
 
-\item{delta_window}{numeric Time window (in seconds) used to derive \code{k}, the lag for the k-step difference rule. Default: 0.1.}
+\item{delta_window}{numeric Time window (in seconds) used to derive
+\code{k}, the lag for the returned k-step difference \code{delta}
+column. It no longer controls episode boundaries. Default: 0.1.}
 
 \item{min_dur_sec}{numeric Minimum episode duration (in seconds). Default: 0.1.}
 
@@ -36,19 +40,25 @@ convert_to_episodes(
 \item{cores}{integer Number of threads to use. Default 0 is auto.}
 }
 \value{
-A list with two elements:
+A list with four elements:
 \describe{
-\item{episodes}{data.table of detected episodes with columns \code{start_frame}, \code{end_frame}, \code{n_frames}, \code{duration_s}, \code{id}, \code{subject}, \code{emotion},\code{start_time}, \code{end_time}, and \code{run_id}.}
-\item{coding}{Annotated data.table containing the original columns plus \code{id}, \code{subject}, \code{emotion}, \code{value}, \code{run_id}, \code{status}, and \code{in_state}. \code{status} marks episode boundaries with \code{1L} at the start frame and \code{0L} at the end frame; \code{in_state} is \code{TRUE} for frames inside detected episodes.}
-\item{fps}{Frames per second (sampling rate of the data).}
+\item{episodes}{data.table of detected episodes with columns \code{start_frame}, \code{end_frame}, \code{n_frames}, \code{duration_s}, \code{id}, \code{subject}, \code{emotion}, \code{start_time}, \code{end_time}, and \code{run_id}.}
+\item{deltas}{data.table of delta-up reaction events with the same columns as \code{episodes}, except \code{delta_id} replaces \code{run_id}.}
+\item{coding}{Annotated data.table containing the original columns plus \code{id}, \code{subject}, \code{emotion}, \code{value}, \code{delta}, \code{delta_id}, \code{run_id}, \code{status}, and \code{in_state}. \code{status} marks episode boundaries with \code{1L} at the start frame and \code{0L} at the end frame; \code{in_state} is \code{TRUE} for frames inside detected episodes.}
+\item{metadata}{Metadata used to create the returned object.}
 }
 }
 \description{
 Convert coding_df to episodes
 }
 \details{
-The function uses the exported native binding \code{hysteresis_state} if available; otherwise it will error.
-It relies on \pkg{data.table} for fast grouping and joins.
+Episode boundaries are determined only by \code{T_up} and
+\code{T_down}. The returned \code{delta} column is computed separately and
+delta-up rows are also returned in \code{deltas} for downstream functions
+such as \code{reaction_rate()}.
+The function uses the exported native binding \code{hysteresis_state} if
+available; otherwise it will error. It relies on \pkg{data.table} for fast
+grouping and joins.
 }
 \examples{
 \dontrun{

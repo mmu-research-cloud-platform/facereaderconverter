@@ -23,7 +23,11 @@ parse_time_to_frame <- function(video_time, fps) {
   has_no_colon <- !grepl(":", video_time_chr, fixed = TRUE)
 
   if (any(has_two_colons)) {
-    parts <- data.table::tstrsplit(video_time_chr[has_two_colons], ":", fixed = TRUE)
+    parts <- data.table::tstrsplit(
+      video_time_chr[has_two_colons],
+      ":",
+      fixed = TRUE
+    )
     hh <- as.integer(parts[[1L]])
     mm <- as.integer(parts[[2L]])
     ss <- as.numeric(parts[[3L]])
@@ -31,7 +35,11 @@ parse_time_to_frame <- function(video_time, fps) {
   }
 
   if (any(has_one_colon)) {
-    parts <- data.table::tstrsplit(video_time_chr[has_one_colon], ":", fixed = TRUE)
+    parts <- data.table::tstrsplit(
+      video_time_chr[has_one_colon],
+      ":",
+      fixed = TRUE
+    )
     mm <- as.integer(parts[[1L]])
     ss <- as.numeric(parts[[2L]])
     sec[has_one_colon] <- mm * 60 + ss
