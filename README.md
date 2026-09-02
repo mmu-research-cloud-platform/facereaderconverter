@@ -381,8 +381,8 @@ dependency, so both are listed separately.
 | `add_delta_column()` | `parse_time_to_frame()` | accepts `fr_coding`; otherwise needs a coding table with `id`, `subject`, `emotion`, `frame` or `video_time`, and `value` | `convert_to_episodes()` |
 | `delta_episodes()` | none | needs `delta` plus `id`, `subject`, `emotion`, `frame` (and optionally `video_time`, `value`) | `add_delta_column()` |
 | `locf()` | none | accepts `fr_coding`; otherwise needs a coding table with `id`, `subject`, `emotion`, `video_time`, `value`, and `run_id` | `convert_to_episodes()` |
-| `reaction_rate()` | none | accepts `fr_coding`; otherwise needs a delta-coded table with `id`, `subject`, `emotion`, `frame`, and `delta` | `add_delta_column()` |
-| `reaction_rate_by_episode()` | none | accepts `fr_coding`; otherwise needs a delta-coded table with `id`, `subject`, `emotion`, `frame`, and `delta` | `add_delta_column()` |
+| `reaction_rate()` | none | accepts `fr_coding`; otherwise needs a delta-coded table with `id`, `subject`, `emotion`, `frame`, `delta`, `run_id`, and `in_state` | `add_delta_column()` |
+| `reaction_rate_by_episode()` | none | accepts `fr_coding`; otherwise needs a delta-coded table with `id`, `subject`, `emotion`, `frame`, `delta`, `run_id`, and `in_state` | `add_delta_column()` |
 | `synchrony()` | none | requires `fr_coding` returned by `convert_to_episodes()` | `convert_to_episodes()` |
 | `synchrony_by_episode()` | none | requires `fr_coding` returned by `convert_to_episodes()` | `convert_to_episodes()` |
 | `convertFRFiles()` | none | none | none |
