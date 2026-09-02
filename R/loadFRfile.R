@@ -86,7 +86,7 @@ loadFRfile <- function(
     if (clean_names) {
       df <- janitor::clean_names(df)
     }
-    df
+    invisible(df)
   } else {
     stop("Unsupported file extension: .", ext)
   }
