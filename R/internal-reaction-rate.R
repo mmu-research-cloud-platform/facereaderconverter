@@ -124,9 +124,9 @@ prepare_reaction_rate_inputs <- function(
   }
 
   if (is_fr_coding) {
-    coding <- data.table::as.data.table(coded_data$coding)
-    episodes <- data.table::as.data.table(coded_data$episodes)
-    deltas <- data.table::as.data.table(coded_data$deltas)
+    coding <- data.table::copy(data.table::as.data.table(coded_data$coding))
+    episodes <- data.table::copy(data.table::as.data.table(coded_data$episodes))
+    deltas <- data.table::copy(data.table::as.data.table(coded_data$deltas))
 
     required_coding <- c("id", "subject", "emotion", "frame", "delta")
     missing_coding <- setdiff(required_coding, names(coding))
