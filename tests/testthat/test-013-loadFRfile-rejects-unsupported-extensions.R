@@ -8,7 +8,8 @@ test_that("loadFRfile rejects unsupported extensions", {
   file.copy(file.path("testdata", "testdata_detailed.txt"), tmp)
   on.exit(unlink(tmp), add = TRUE)
 
-  expect_snapshot(error = TRUE, {
-    loadFRfile(tmp)
-  })
+  expect_error(
+    loadFRfile(tmp),
+    "Unsupported file extension: \\.rds"
+  )
 })
