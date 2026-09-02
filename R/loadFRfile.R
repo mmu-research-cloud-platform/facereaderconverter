@@ -84,7 +84,7 @@ loadFRfile <- function(
   } else if (ext == "csv") {
     df <- readr::read_csv(inpath, show_col_types = FALSE, ...)
     if (clean_names) {
-      df <- janitor::clean_names(df, ...)
+      df <- janitor::clean_names(df)
     }
     df
   } else {
