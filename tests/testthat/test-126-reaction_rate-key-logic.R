@@ -12,7 +12,7 @@ test_that("reaction_rate doesn't break with incomplete structure", {
   expect_no_error({
     react1 <- reaction_rate(
       test_data_reaction,
-      episode_limit_frames = 90L,
+      time_limit_frames = 90L,
       exclude_start_frames = 0L,
       constraint_method = "frames",
       exclude_emotions = NULL
@@ -22,7 +22,7 @@ test_that("reaction_rate doesn't break with incomplete structure", {
   expect_no_error({
     react2 <- reaction_rate(
       test_data_reaction[["coding"]],
-      episode_limit_frames = 90L,
+      time_limit_frames = 90L,
       exclude_start_frames = 0L,
       constraint_method = "frames",
       exclude_emotions = NULL

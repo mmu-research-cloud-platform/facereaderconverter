@@ -9,7 +9,7 @@ test_that("reaction_rate_by_episode frames constraint uses inclusive frame windo
     test_data_reaction <- test_coding |>
       convert_to_episodes(delta_window = 0.2, delta = 0.1, fps = 30) |>
       reaction_rate_by_episode(
-        episode_limit_frames = 90L,
+        time_limit_frames = 90L,
         exclude_start_frames = 0L,
         constraint_method = "frames",
         exclude_emotions = NULL

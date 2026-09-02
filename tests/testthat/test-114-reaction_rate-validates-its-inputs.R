@@ -8,14 +8,16 @@ test_data_delta <- test_coding |>
 
 test_that("reaction_rate validates its inputs", {
   expect_error(
-    reaction_rate(test_data_delta$coding[, !names(test_data_delta$coding) %in% "delta"]),
+    reaction_rate(test_data_delta$coding[,
+      !names(test_data_delta$coding) %in% "delta"
+    ]),
     "`coded_data` is missing required column(s): delta.",
     fixed = TRUE
   )
 
   expect_error(
-    reaction_rate(test_data_delta, episode_limit = 0),
-    "`episode_limit` must be a numeric scalar > 0.",
+    reaction_rate(test_data_delta, time_limit = 0),
+    "`time_limit` must be a numeric scalar > 0.",
     fixed = TRUE
   )
   expect_error(

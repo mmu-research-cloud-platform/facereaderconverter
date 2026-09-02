@@ -10,8 +10,8 @@ is_reaction_rate_whole <- function(x) {
 
 prepare_reaction_rate_inputs <- function(
   coded_data,
-  episode_limit = 3,
-  episode_limit_frames = NULL,
+  time_limit = 3,
+  time_limit_frames = NULL,
   exclude_start = 0.1,
   exclude_start_frames = NULL,
   fps = 30L,
@@ -36,23 +36,23 @@ prepare_reaction_rate_inputs <- function(
     stop("`fps` must be a positive integer scalar.", call. = FALSE)
   }
   if (
-    !is.numeric(episode_limit) ||
-      !is_reaction_rate_scalar(episode_limit) ||
-      episode_limit <= 0
+    !is.numeric(time_limit) ||
+      !is_reaction_rate_scalar(time_limit) ||
+      time_limit <= 0
   ) {
-    stop("`episode_limit` must be a numeric scalar > 0.", call. = FALSE)
+    stop("`time_limit` must be a numeric scalar > 0.", call. = FALSE)
   }
   if (
-    !is.null(episode_limit_frames) &&
-      !(is_reaction_rate_scalar(episode_limit_frames) &&
-        is.numeric(episode_limit_frames) &&
-        (is.infinite(episode_limit_frames) ||
-          (is_reaction_rate_whole(episode_limit_frames) &&
-            episode_limit_frames > 0)))
+    !is.null(time_limit_frames) &&
+      !(is_reaction_rate_scalar(time_limit_frames) &&
+        is.numeric(time_limit_frames) &&
+        (is.infinite(time_limit_frames) ||
+          (is_reaction_rate_whole(time_limit_frames) &&
+            time_limit_frames > 0)))
   ) {
     stop(
       paste0(
-        "`episode_limit_frames` must be a positive integer scalar, `Inf`, ",
+        "`time_limit_frames` must be a positive integer scalar, `Inf`, ",
         "or `NULL`."
       ),
       call. = FALSE
@@ -323,16 +323,16 @@ prepare_reaction_rate_inputs <- function(
     reaction = logical()
   )
 
-  limit_frames <- if (!is.null(episode_limit_frames)) {
-    if (is.infinite(episode_limit_frames)) {
+  limit_frames <- if (!is.null(time_limit_frames)) {
+    if (is.infinite(time_limit_frames)) {
       Inf
     } else {
-      as.integer(episode_limit_frames)
+      as.integer(time_limit_frames)
     }
-  } else if (is.infinite(episode_limit)) {
+  } else if (is.infinite(time_limit)) {
     Inf
   } else {
-    as.integer(round(episode_limit * fps))
+    as.integer(round(time_limit * fps))
   }
   start_frames <- if (!is.null(exclude_start_frames)) {
     as.integer(exclude_start_frames)
@@ -345,7 +345,7 @@ prepare_reaction_rate_inputs <- function(
   ) {
     stop(
       paste0(
-        "`episode_limit` or `episode_limit_frames` cannot be infinite when ",
+        "`time_limit` or `time_limit_frames` cannot be infinite when ",
         '`constraint_method` is "loose" or "frames".'
       ),
       call. = FALSE

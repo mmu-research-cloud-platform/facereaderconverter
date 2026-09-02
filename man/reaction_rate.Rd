@@ -6,8 +6,8 @@
 \usage{
 reaction_rate(
   coded_data,
-  episode_limit = 3,
-  episode_limit_frames = NULL,
+  time_limit = 3,
+  time_limit_frames = NULL,
   constraint_method = "episode",
   exclude_start = 0.1,
   exclude_start_frames = NULL,
@@ -22,18 +22,18 @@ reaction_rate(
 frame-level \code{delta} values in \code{coded_data$coding} and a reaction-event
 table in \code{coded_data$deltas}.}
 
-\item{episode_limit}{Maximum episode-window length in seconds when a frame
+\item{time_limit}{Maximum episode-window length in seconds when a frame
 constraint is applied.}
 
-\item{episode_limit_frames}{Optional maximum episode-window length in frames.
-If supplied, this takes precedence over \code{episode_limit}.}
+\item{time_limit_frames}{Optional maximum episode-window length in frames.
+If supplied, this takes precedence over \code{time_limit}.}
 
 \item{constraint_method}{Character scalar controlling how the reaction
 window ends. \code{"strict"} uses the earlier of the observed episode end and
-the requested episode limit. \code{"episode"} uses the observed episode end and
-ignores \code{episode_limit}. \code{"loose"} uses the later of the observed episode
-end and the requested episode limit. \code{"frames"} uses only the requested
-episode limit and ignores the observed episode end. Default is
+the requested time limit. \code{"episode"} uses the observed episode end and
+ignores \code{time_limit}. \code{"loose"} uses the later of the observed episode
+end and the requested time limit. \code{"frames"} uses only the requested
+time limit and ignores the observed episode end. Default is
 \code{"episode"}.}
 
 \item{exclude_start}{Minimum delay, in seconds from the denominator episode

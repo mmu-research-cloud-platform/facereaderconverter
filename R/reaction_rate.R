@@ -9,16 +9,16 @@
 #' @param coded_data Output from `convert_to_episodes()`, which includes
 #'   frame-level `delta` values in `coded_data$coding` and a reaction-event
 #'   table in `coded_data$deltas`.
-#' @param episode_limit Maximum episode-window length in seconds when a frame
+#' @param time_limit Maximum episode-window length in seconds when a frame
 #'   constraint is applied.
-#' @param episode_limit_frames Optional maximum episode-window length in frames.
-#'   If supplied, this takes precedence over `episode_limit`.
+#' @param time_limit_frames Optional maximum episode-window length in frames.
+#'   If supplied, this takes precedence over `time_limit`.
 #' @param constraint_method Character scalar controlling how the reaction
 #'   window ends. `"strict"` uses the earlier of the observed episode end and
-#'   the requested episode limit. `"episode"` uses the observed episode end and
-#'   ignores `episode_limit`. `"loose"` uses the later of the observed episode
-#'   end and the requested episode limit. `"frames"` uses only the requested
-#'   episode limit and ignores the observed episode end. Default is
+#'   the requested time limit. `"episode"` uses the observed episode end and
+#'   ignores `time_limit`. `"loose"` uses the later of the observed episode
+#'   end and the requested time limit. `"frames"` uses only the requested
+#'   time limit and ignores the observed episode end. Default is
 #'   `"episode"`.
 #' @param exclude_start Minimum delay, in seconds from the denominator episode
 #'   start, before numerator `delta == 1` values count as a reaction.
@@ -45,8 +45,8 @@
 #' @export
 reaction_rate <- function(
   coded_data,
-  episode_limit = 3,
-  episode_limit_frames = NULL,
+  time_limit = 3,
+  time_limit_frames = NULL,
   constraint_method = "episode",
   exclude_start = 0.1,
   exclude_start_frames = NULL,
@@ -57,8 +57,8 @@ reaction_rate <- function(
 ) {
   inputs <- prepare_reaction_rate_inputs(
     coded_data = coded_data,
-    episode_limit = episode_limit,
-    episode_limit_frames = episode_limit_frames,
+    time_limit = time_limit,
+    time_limit_frames = time_limit_frames,
     exclude_start = exclude_start,
     exclude_start_frames = exclude_start_frames,
     fps = fps,
@@ -122,8 +122,8 @@ reaction_rate <- function(
 #' @export
 reaction_rate_by_episode <- function(
   coded_data,
-  episode_limit = 3,
-  episode_limit_frames = NULL,
+  time_limit = 3,
+  time_limit_frames = NULL,
   constraint_method = "episode",
   exclude_start = 0.1,
   exclude_start_frames = NULL,
@@ -134,8 +134,8 @@ reaction_rate_by_episode <- function(
 ) {
   inputs <- prepare_reaction_rate_inputs(
     coded_data = coded_data,
-    episode_limit = episode_limit,
-    episode_limit_frames = episode_limit_frames,
+    time_limit = time_limit,
+    time_limit_frames = time_limit_frames,
     exclude_start = exclude_start,
     exclude_start_frames = exclude_start_frames,
     fps = fps,

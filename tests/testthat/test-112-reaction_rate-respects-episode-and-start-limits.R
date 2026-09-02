@@ -10,17 +10,17 @@ test_data_delta <- test_coding |>
 test_that("reaction_rate respects episode and start limits", {
   long_window <- reaction_rate(
     test_data_delta,
-    episode_limit = 3,
+    time_limit = 3,
     exclude_start = 0.1
   )
   short_window <- reaction_rate(
     test_data_delta,
-    episode_limit = 1,
+    time_limit = 1,
     exclude_start = 0.1
   )
   delayed_window <- reaction_rate(
     test_data_delta,
-    episode_limit = 3,
+    time_limit = 3,
     exclude_start_frames = 30L
   )
 

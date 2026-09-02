@@ -9,12 +9,12 @@ test_data_delta <- test_coding |>
 test_that("reaction_rate supports frame-based limits", {
   seconds_limit <- reaction_rate(
     test_data_delta,
-    episode_limit = 3,
+    time_limit = 3,
     exclude_start = 0.1
   )
   frames_limit <- reaction_rate(
     test_data_delta,
-    episode_limit_frames = 90,
+    time_limit_frames = 90,
     exclude_start_frames = 3
   )
 

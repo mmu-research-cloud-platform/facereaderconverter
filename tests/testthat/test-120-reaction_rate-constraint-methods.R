@@ -11,14 +11,14 @@ test_that("episode matches strict when the episode limit is infinite", {
 
   strict_result <- reaction_rate_by_episode(
     test_data_delta,
-    episode_limit = Inf,
+    time_limit = Inf,
     exclude_start_frames = 3,
     constraint_method = "strict",
     exclude_emotions = NULL
   )
   episode_result <- reaction_rate_by_episode(
     test_data_delta,
-    episode_limit = Inf,
+    time_limit = Inf,
     exclude_start_frames = 3,
     constraint_method = "episode",
     exclude_emotions = NULL

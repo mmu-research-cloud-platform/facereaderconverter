@@ -17,11 +17,11 @@ test_that("reaction_rate validates constraint_method and infinite limits", {
   expect_error(
     reaction_rate(
       test_data_delta,
-      episode_limit = Inf,
+      time_limit = Inf,
       constraint_method = "loose"
     ),
     paste0(
-      "`episode_limit` or `episode_limit_frames` cannot be infinite when ",
+      "`time_limit` or `time_limit_frames` cannot be infinite when ",
       '`constraint_method` is "loose" or "frames".'
     ),
     fixed = TRUE
@@ -30,11 +30,11 @@ test_that("reaction_rate validates constraint_method and infinite limits", {
   expect_error(
     reaction_rate(
       test_data_delta,
-      episode_limit_frames = Inf,
+      time_limit_frames = Inf,
       constraint_method = "frames"
     ),
     paste0(
-      "`episode_limit` or `episode_limit_frames` cannot be infinite when ",
+      "`time_limit` or `time_limit_frames` cannot be infinite when ",
       '`constraint_method` is "loose" or "frames".'
     ),
     fixed = TRUE
