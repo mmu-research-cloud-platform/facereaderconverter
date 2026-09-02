@@ -105,9 +105,6 @@ convertFRExcelFiles <- function(
     TRUE ~ "other"
   )
 
-  if (!has_metadata) {
-    duplicate_timecodes_as_error <- FALSE
-  }
   check_duplicate_timecodes(df, duplicate_timecodes_as_error)
 
   if (md_type == "detailed" && fail_codes) {
