@@ -222,7 +222,9 @@ coded_data <- data.table::data.table(
   subject = rep(c("teen", "parent"), each = 4),
   emotion = "happy",
   frame = rep(1:4, 2),
-  delta = c(1L, 1L, 0L, 1L, 0L, 1L, 1L, 0L)
+  delta = c(1L, 1L, 0L, 1L, 0L, 1L, 1L, 0L),
+  in_state = rep(c(TRUE, TRUE, FALSE, FALSE), 2),
+  run_id = c(1L, 1L, NA, NA, 2L, 2L, NA, NA)
 )
 
 reaction_rate(coded_data, fps = 30)
