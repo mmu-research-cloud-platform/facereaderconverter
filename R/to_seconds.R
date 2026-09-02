@@ -12,7 +12,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' to_seconds(c("00:00:10", "00:00:10.500"))
+#' to_seconds(c("00:00:10.000", "00:00:10.500"))
 #' }
 #' @export
 to_seconds <- \(x, digits = 3L) {
