@@ -152,11 +152,10 @@ convertFRDirectory <- function(
       {
         cl <- parallel::makeCluster(worker_count)
         on.exit(parallel::stopCluster(cl), add = TRUE)
-        parallel::clusterExport(
-          cl,
-          varlist = c("convertFRFiles", "detect_fr_header_row"),
-          envir = asNamespace("facereaderconverter")
-        )
+        parallel::clusterEvalQ(cl, {
+          library(facereaderconverter)
+          NULL
+        })
         dplyr::bind_rows(parallel::parLapplyLB(
           cl,
           seq_along(ls),
