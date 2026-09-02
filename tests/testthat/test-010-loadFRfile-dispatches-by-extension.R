@@ -5,7 +5,7 @@ skip_if_not_installed("readxl")
 
 test_that("loadFRfile dispatches by extension", {
   txt <- loadFRfile(
-    file.path("testdata", "testdata_detailed.txt"),
+    testthat::test_path("testdata", "testdata_detailed.txt"),
     clean_names = TRUE,
     values_as_numeric = TRUE
   )
