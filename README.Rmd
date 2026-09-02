@@ -277,7 +277,11 @@ Use this when short missing stretches should inherit the most recent non-missing
 ```{r to-seconds-example}
 library(facereaderconverter)
 
-to_seconds(c("00:00:10", "00:00:10.500", "00:01:00"))
+c(
+  to_seconds("00:00:10", digits = 0L),
+  to_seconds("00:00:10.500"),
+  to_seconds("00:01:00", digits = 0L)
+)
 ```
 
 Use this when you need a numeric time variable for plotting or joining.
