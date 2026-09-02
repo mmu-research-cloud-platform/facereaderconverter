@@ -6,7 +6,7 @@
 #' @param id Character scalar giving the column in `coded_data$coding` and
 #'   `coded_data$episodes` that identifies the case or dyad. Default is `"id"`.
 #' @param missing_threshold Numeric scalar in `[0, 1]`. Denominator and numerator episodes are
-#'   dropped when the comparison subject is missing for less than this
+#'   kept only when the comparison subject is present for at least this
 #'   proportion of frames within the episode. Default is `0`.
 #' @param exclude_emotions Character vector of emotions to exclude from the
 #'   denominator calculation. Default is `"neutral"`.
