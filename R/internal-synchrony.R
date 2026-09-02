@@ -143,8 +143,8 @@ prepare_synchrony_inputs <- function(
 
   if (length(keep_emotions) == 0L) {
     return(list(
-      coding = coding,
-      episodes = episodes,
+      coding = coding[0],
+      episodes = episodes[0],
       empty_episode_result = empty_episode_result,
       missing_threshold = missing_threshold
     ))
