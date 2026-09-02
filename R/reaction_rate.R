@@ -1,13 +1,14 @@
 #' Calculate reaction rate from converted episodes
 #'
 #' Reaction rate mirrors `synchrony()` but uses the numerator subject's
-#' `delta` column as the reaction signal. Denominator episodes come from
+#' delta-up events as the reaction signal. Denominator episodes come from
 #' `convert_to_episodes()`, and a reaction is counted when the numerator subject
-#' has at least one `delta == 1` within the constrained denominator episode
+#' has at least one delta event within the constrained denominator episode
 #' window.
 #'
-#' @param coded_data Output from `convert_to_episodes()` with a `delta` column
-#'   added to `coded_data$coding`.
+#' @param coded_data Output from `convert_to_episodes()`, which includes
+#'   frame-level `delta` values in `coded_data$coding` and a reaction-event
+#'   table in `coded_data$deltas`.
 #' @param episode_limit Maximum episode-window length in seconds when a frame
 #'   constraint is applied.
 #' @param episode_limit_frames Optional maximum episode-window length in frames.
@@ -38,7 +39,6 @@
 #' @examples
 #' \dontrun{
 #' coded_data <- convert_to_episodes(coding_df)
-#' coded_data$coding <- add_delta_column(coded_data)
 #' reaction_rate(coded_data)
 #' }
 #' @seealso [reaction_rate_by_episode()]
@@ -73,16 +73,21 @@ reaction_rate <- function(
     return(inputs$empty_summary_result)
   }
 
-  out <- episode_table[, .(
-    n_episodes = .N,
-    n_reactions = sum(reaction)
-  ), by = .(id, denominator, numerator, emotion)]
+  out <- episode_table[,
+    .(
+      n_episodes = .N,
+      n_reactions = sum(reaction)
+    ),
+    by = .(id, denominator, numerator, emotion)
+  ]
 
-  out[, reaction_rate := ifelse(
-    n_episodes > 0L,
-    n_reactions / n_episodes,
-    NA_real_
-  )]
+  out[,
+    reaction_rate := ifelse(
+      n_episodes > 0L,
+      n_reactions / n_episodes,
+      NA_real_
+    )
+  ]
   out[, `:=`(
     n_episodes = as.integer(n_episodes),
     n_reactions = as.integer(n_reactions),
@@ -111,7 +116,6 @@ reaction_rate <- function(
 #' @examples
 #' \dontrun{
 #' coded_data <- convert_to_episodes(coding_df)
-#' coded_data$coding <- add_delta_column(coded_data)
 #' reaction_rate_by_episode(coded_data)
 #' }
 #' @seealso [reaction_rate()]

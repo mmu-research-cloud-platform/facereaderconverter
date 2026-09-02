@@ -5,9 +5,10 @@
 #' @param coding A datatable, dataframe or fr_coding object as returned by `convert_to_episodes`, containing columns: `id`, `subject`, `emotion`, `video_time`, `value`, and `run_id`.
 #' @param fps Frames per second (sampling rate of the data). Default: 30L or inherited from an fr_coding object
 #' @param consecutive_missing Maximum allowed consecutive missing (NA) frames while in-state before forcing episode end. Default: 150L or inherited from an fr_coding object
-#' @return A list with three elements:
+#' @return A list with four elements:
 #'   \describe{
 #'     \item{episodes}{data.table of contiguous episodes after LOCF, with columns \code{start_frame}, \code{end_frame}, \code{n_frames}, \code{duration_s}, \code{id}, \code{subject}, \code{emotion}, and \code{run_id}.}
+#'     \item{deltas}{data.table of delta-up events, passed through unchanged when the input is an \code{fr_coding} object.}
 #'     \item{coding}{Annotated data.table with LOCF-imputed \code{run_id}.}
 #'     \item{metadata}{Metadata from fr_coding object.}
 #'   }
@@ -22,8 +23,10 @@ locf <- function(coding, fps = 30, consecutive_missing = NULL) {
       consecutive_missing <- coding$metadata$consecutive_missing
     }
     metadata <- coding$metadata
+    deltas <- coding$deltas
   } else {
     table <- coding
+    deltas <- NULL
   }
   dt_sensitivity <- data.table::copy(table)
 
@@ -83,6 +86,7 @@ locf <- function(coding, fps = 30, consecutive_missing = NULL) {
   structure(
     list(
       episodes = episodes,
+      deltas = deltas,
       coding = dt_sensitivity[],
       metadata = metadata
     ),

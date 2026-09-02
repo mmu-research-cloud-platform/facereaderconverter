@@ -14,9 +14,10 @@ locf(coding, fps = 30, consecutive_missing = NULL)
 \item{consecutive_missing}{Maximum allowed consecutive missing (NA) frames while in-state before forcing episode end. Default: 150L or inherited from an fr_coding object}
 }
 \value{
-A list with three elements:
+A list with four elements:
 \describe{
 \item{episodes}{data.table of contiguous episodes after LOCF, with columns \code{start_frame}, \code{end_frame}, \code{n_frames}, \code{duration_s}, \code{id}, \code{subject}, \code{emotion}, and \code{run_id}.}
+\item{deltas}{data.table of delta-up events, passed through unchanged when the input is an \code{fr_coding} object.}
 \item{coding}{Annotated data.table with LOCF-imputed \code{run_id}.}
 \item{metadata}{Metadata from fr_coding object.}
 }

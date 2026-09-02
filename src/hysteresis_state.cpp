@@ -61,11 +61,8 @@ LogicalVector hysteresis_state(NumericVector v,
     double vi  = v[i];
     bool have_vi = !is_na(vi);
 
-    double dvi = dv[i];
-    bool have_dv = !is_na(dvi);
-
-    bool start_evt = (have_vi && vi >= T_up) || (have_dv && dvi >=  delta);
-    bool end_evt   = (have_vi && vi <= T_down) || (have_dv && dvi <= -delta);
+    bool start_evt = have_vi && vi >= T_up;
+    bool end_evt   = have_vi && vi <= T_down;
 
     if (!in_state) {
       // not currently in an episode

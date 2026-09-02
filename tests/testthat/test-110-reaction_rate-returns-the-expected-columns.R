@@ -5,8 +5,7 @@ library(testthat)
 library(data.table)
 
 test_data_delta <- test_coding |>
-  convert_to_episodes() |>
-  add_delta_column(delta_window = 0.2, delta = 0.1, fps = 30)
+  convert_to_episodes(delta_window = 0.2, delta = 0.1, fps = 30)
 
 test_that("reaction_rate returns synchrony-shaped summary columns", {
   expect_no_error({
@@ -33,11 +32,5 @@ test_that("reaction_rate returns synchrony-shaped summary columns", {
   expect_true(all(
     test_reaction_rate$reaction_rate >= 0 |
       is.na(test_reaction_rate$reaction_rate)
-  ))
-  expect_true(all(test_data_delta$denominator != test_data_delta$numerator))
-  expect_true(all(test_data_delta$n_episodes >= 0L))
-  expect_true(all(test_data_delta$n_reactions >= 0L))
-  expect_true(all(
-    test_data_delta$reaction_rate >= 0 | is.na(test_data_delta$reaction_rate)
   ))
 })

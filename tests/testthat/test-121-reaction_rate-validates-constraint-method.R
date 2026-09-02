@@ -6,8 +6,7 @@ library(data.table)
 
 test_that("reaction_rate validates constraint_method and infinite limits", {
   test_data_delta <- test_coding |>
-    convert_to_episodes() |>
-    add_delta_column(delta_window = 0.2, delta = 0.1, fps = 30)
+    convert_to_episodes(delta_window = 0.2, delta = 0.1, fps = 30)
 
   expect_error(
     reaction_rate(test_data_delta, constraint_method = "bad"),

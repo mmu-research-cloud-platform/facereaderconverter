@@ -18,8 +18,9 @@ reaction_rate(
 )
 }
 \arguments{
-\item{coded_data}{Output from \code{convert_to_episodes()} with a \code{delta} column
-added to \code{coded_data$coding}.}
+\item{coded_data}{Output from \code{convert_to_episodes()}, which includes
+frame-level \code{delta} values in \code{coded_data$coding} and a reaction-event
+table in \code{coded_data$deltas}.}
 
 \item{episode_limit}{Maximum episode-window length in seconds when a frame
 constraint is applied.}
@@ -60,15 +61,14 @@ A data.table with columns \code{id}, \code{denominator}, \code{numerator},
 }
 \description{
 Reaction rate mirrors \code{synchrony()} but uses the numerator subject's
-\code{delta} column as the reaction signal. Denominator episodes come from
+delta-up events as the reaction signal. Denominator episodes come from
 \code{convert_to_episodes()}, and a reaction is counted when the numerator subject
-has at least one \code{delta == 1} within the constrained denominator episode
+has at least one delta event within the constrained denominator episode
 window.
 }
 \examples{
 \dontrun{
 coded_data <- convert_to_episodes(coding_df)
-coded_data$coding <- add_delta_column(coded_data)
 reaction_rate(coded_data)
 }
 }

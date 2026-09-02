@@ -12,8 +12,12 @@ make_multi_subject <- function(x) {
   sibling_episodes <- out$episodes[id == 1]
   sibling_episodes[, subject := "sibling"]
 
+  sibling_deltas <- out$deltas[id == 1]
+  sibling_deltas[, subject := "sibling"]
+
   out$coding <- rbind(out$coding, sibling_coding, fill = TRUE)
   out$episodes <- rbind(out$episodes, sibling_episodes, fill = TRUE)
+  out$deltas <- rbind(out$deltas, sibling_deltas, fill = TRUE)
   out
 }
 
@@ -25,7 +29,11 @@ make_singleton_id <- function(x) {
 
 sort_coded_data <- function(x) {
   out <- copy(x)
-  data.table::setorder(out$coding, id, subject, emotion, video_time, run_id)
+  coding_order_cols <- intersect(
+    c("id", "subject", "emotion", "video_time", "run_id", "delta_id", "delta"),
+    names(out$coding)
+  )
+  data.table::setorderv(out$coding, coding_order_cols)
   data.table::setorder(
     out$episodes,
     id,
@@ -76,5 +84,19 @@ test_that("convert_to_episodes matches the stored synchrony fixture", {
       )
   )
   expect_equal(converted$episodes, expected$episodes)
-  expect_equal(converted, expected)
+  expect_equal(
+    converted$coding[, .(
+      id,
+      subject,
+      video_time,
+      emotion,
+      value,
+      run_id,
+      status,
+      in_state
+    )],
+    expected$coding
+  )
+  expect_equal(converted$metadata, expected$metadata)
+  expect_true("delta" %in% names(converted$coding))
 })

@@ -7,12 +7,7 @@ library(data.table)
 test_that("reaction_rate_by_episode frames constraint uses inclusive frame window", {
   expect_no_error({
     test_data_reaction <- test_coding |>
-      convert_to_episodes() |>
-      add_delta_column(
-        delta_window = 0.2,
-        delta = 0.075,
-        fps = 30,
-      ) |>
+      convert_to_episodes(delta_window = 0.2, delta = 0.075, fps = 30) |>
       reaction_rate_by_episode(
         episode_limit_frames = 90L,
         exclude_start_frames = 0L,
@@ -32,8 +27,13 @@ test_that("reaction_rate_by_episode frames constraint uses inclusive frame windo
 test_that("reaction_rate constraint methods keep episode counts stable on test data", {
   methods <- c("strict", "episode", "frames", "loose")
   test_reaction <- test_coding |>
-    convert_to_episodes(T_up = 0.15, T_down = 0.05, delta = 1) |>
-    add_delta_column(delta = 0.75, fps = 30, delta_window = 0.2)
+    convert_to_episodes(
+      T_up = 0.15,
+      T_down = 0.05,
+      delta = 1,
+      fps = 30,
+      delta_window = 0.2
+    )
 
   results <- lapply(methods, function(method) {
     reaction_rate(

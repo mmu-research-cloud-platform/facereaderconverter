@@ -12,18 +12,30 @@ test_that("delta_episodes, csv", {
       names_to = "emotion",
       values_to = "value"
     )
-  coding <- coding_df2 |>
-    add_delta_column(delta = 0.1, delta_window = 0.1, fps = 30)
+  coding <- suppressWarnings(add_delta_column(
+    coding_df2,
+    delta = 0.1,
+    delta_window = 0.1,
+    fps = 30
+  ))
 
   expect_no_error(delta_episodes(coding))
 
-  x1 <- coding_df2 |>
-    add_delta_column(delta = 0.1, delta_window = 0.1, fps = 30) |>
+  x1 <- suppressWarnings(add_delta_column(
+    coding_df2,
+    delta = 0.1,
+    delta_window = 0.1,
+    fps = 30
+  )) |>
     delta_episodes() |>
     nrow()
 
-  x2 <- coding_df2 |>
-    add_delta_column(delta = 0.05, delta_window = 0.2, fps = 30) |>
+  x2 <- suppressWarnings(add_delta_column(
+    coding_df2,
+    delta = 0.05,
+    delta_window = 0.2,
+    fps = 30
+  )) |>
     delta_episodes() |>
     nrow()
 
@@ -42,8 +54,12 @@ test_that("delta_episodes, csv", {
     "n_frames"
   )
 
-  x <- coding_df2 |>
-    add_delta_column(delta = 0.05, delta_window = 0.2, fps = 30) |>
+  x <- suppressWarnings(add_delta_column(
+    coding_df2,
+    delta = 0.05,
+    delta_window = 0.2,
+    fps = 30
+  )) |>
     delta_episodes()
   expect_true(all(
     expected_cols %in%
@@ -56,18 +72,30 @@ test_that("delta_episodes, rda", {
   coding_df <- test_coding
 
   coding_df2 <- test_coding_wide
-  coding <- coding_df2 |>
-    add_delta_column(delta = 0.1, delta_window = 0.1, fps = 30)
+  coding <- suppressWarnings(add_delta_column(
+    coding_df2,
+    delta = 0.1,
+    delta_window = 0.1,
+    fps = 30
+  ))
 
   expect_no_error(delta_episodes(coding))
 
-  x1 <- coding_df2 |>
-    add_delta_column(delta = 0.1, delta_window = 0.1, fps = 30) |>
+  x1 <- suppressWarnings(add_delta_column(
+    coding_df2,
+    delta = 0.1,
+    delta_window = 0.1,
+    fps = 30
+  )) |>
     delta_episodes() |>
     nrow()
 
-  x2 <- coding_df2 |>
-    add_delta_column(delta = 0.05, delta_window = 0.2, fps = 30) |>
+  x2 <- suppressWarnings(add_delta_column(
+    coding_df2,
+    delta = 0.05,
+    delta_window = 0.2,
+    fps = 30
+  )) |>
     delta_episodes() |>
     nrow()
 
@@ -86,8 +114,12 @@ test_that("delta_episodes, rda", {
     "n_frames"
   )
 
-  x <- coding_df2 |>
-    add_delta_column(delta = 0.05, delta_window = 0.2, fps = 30) |>
+  x <- suppressWarnings(add_delta_column(
+    coding_df2,
+    delta = 0.05,
+    delta_window = 0.2,
+    fps = 30
+  )) |>
     delta_episodes()
   expect_true(all(
     expected_cols %in%

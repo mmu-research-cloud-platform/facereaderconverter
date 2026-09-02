@@ -1,11 +1,15 @@
 #' Add delta column to coding_df
 #'
-#' @param coding Data frame with columns: id, subject, emotion, frame (or video_time), value, or an `fr_coding` object
-#' @param delta Threshold for both up and down
-#' @param delta_window Window size in seconds
-#' @param fps Frames per second
+#' `add_delta_column()` is deprecated because `convert_to_episodes()` now
+#' computes and returns `delta` automatically.
+#'
+#' @param coding Data frame with columns: id, subject, emotion, frame (or
+#'   video_time), value, or an `fr_coding` object.
+#' @param delta Threshold for both up and down.
+#' @param delta_window Window size in seconds.
+#' @param fps Frames per second.
 #' @param cores integer Number of threads to use. Default 0 is auto.
-#' @return coding_df with extra column 'delta' where 1 means up and 0 means down
+#' @return coding_df with a `delta` column where 1 means up and 0 means down.
 #' @examples
 #' \dontrun{
 #' coding_df = read.csv("testdata_detailed.csv")
@@ -26,6 +30,7 @@ add_delta_column <- function(
   fps = 30L,
   cores = 0L
 ) {
+  .Deprecated("convert_to_episodes", package = "facereaderconverter")
   # --- Multithreading ---
   old_threads <- data.table::getDTthreads()
   on.exit(data.table::setDTthreads(old_threads), add = TRUE)
@@ -100,11 +105,17 @@ add_delta_column <- function(
     }
   }
   k <- as.integer(round(delta_window * fps))
+  if ("delta" %in% names(dt)) {
+    dt[, delta := NULL]
+  }
   dt[, delta := all_deltas(value, k, delta), by = .(id, subject, emotion)]
   return(dt)
 }
 
 #' Add delta column alias
+#'
+#' `delta()` is deprecated because `convert_to_episodes()` now computes and
+#' returns `delta` automatically.
 #'
 #' @inheritParams add_delta_column
 #' @inherit add_delta_column return
@@ -127,6 +138,7 @@ delta <- function(
   fps = 30L,
   cores = 0L
 ) {
+  .Deprecated("convert_to_episodes", package = "facereaderconverter")
   add_delta_column(
     coding = coding,
     delta = delta,

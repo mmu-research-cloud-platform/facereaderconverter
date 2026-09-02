@@ -3,6 +3,8 @@ load(file.path(TEST_DATA, "test_data.RDa"))
 
 library(testthat)
 library(data.table)
+test_data_sync <- test_coding |>
+  convert_to_episodes()
 test_that("synchrony missing threshold is applied", {
   test_data_sync1 <- synchrony(test_data_sync, missing_threshold = 1)
   test_data_sync0 <- synchrony(test_data_sync, missing_threshold = 0)

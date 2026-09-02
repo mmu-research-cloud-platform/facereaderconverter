@@ -18,8 +18,9 @@ reaction_rate_by_episode(
 )
 }
 \arguments{
-\item{coded_data}{Output from \code{convert_to_episodes()} with a \code{delta} column
-added to \code{coded_data$coding}.}
+\item{coded_data}{Output from \code{convert_to_episodes()}, which includes
+frame-level \code{delta} values in \code{coded_data$coding} and a reaction-event
+table in \code{coded_data$deltas}.}
 
 \item{episode_limit}{Maximum episode-window length in seconds when a frame
 constraint is applied.}
@@ -65,7 +66,6 @@ Calculate reaction rate by denominator episode
 \examples{
 \dontrun{
 coded_data <- convert_to_episodes(coding_df)
-coded_data$coding <- add_delta_column(coded_data)
 reaction_rate_by_episode(coded_data)
 }
 }

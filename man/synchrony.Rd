@@ -22,7 +22,7 @@ synchrony(
 \code{coded_data$episodes} that identifies the case or dyad. Default is \code{"id"}.}
 
 \item{missing_threshold}{Numeric scalar in \verb{[0, 1]}. Denominator and numerator episodes are
-dropped when the comparison subject is missing for more than this
+dropped when the comparison subject is missing for less than this
 proportion of frames within the episode. Default is \code{0}.}
 
 \item{exclude_emotions}{Character vector of emotions to exclude from the

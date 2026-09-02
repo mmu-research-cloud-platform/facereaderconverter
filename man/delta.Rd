@@ -7,21 +7,23 @@
 delta(coding, delta = 0.1, delta_window = 0.2, fps = 30L, cores = 0L)
 }
 \arguments{
-\item{coding}{Data frame with columns: id, subject, emotion, frame (or video_time), value, or an \code{fr_coding} object}
+\item{coding}{Data frame with columns: id, subject, emotion, frame (or
+video_time), value, or an \code{fr_coding} object.}
 
-\item{delta}{Threshold for both up and down}
+\item{delta}{Threshold for both up and down.}
 
-\item{delta_window}{Window size in seconds}
+\item{delta_window}{Window size in seconds.}
 
-\item{fps}{Frames per second}
+\item{fps}{Frames per second.}
 
 \item{cores}{integer Number of threads to use. Default 0 is auto.}
 }
 \value{
-coding_df with extra column 'delta' where 1 means up and 0 means down
+coding_df with a \code{delta} column where 1 means up and 0 means down.
 }
 \description{
-Add delta column alias
+\code{delta()} is deprecated because \code{convert_to_episodes()} now computes and
+returns \code{delta} automatically.
 }
 \examples{
 \dontrun{

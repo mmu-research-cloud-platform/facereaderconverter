@@ -28,6 +28,10 @@ prepare_reaction_rate_inputs <- function(
     fps <- coded_data$metadata$fps
   }
 
+  if (is.null(coded_data)) {
+    stop("`coded_data` is missing required column(s): delta.", call. = FALSE)
+  }
+
   if (!is_reaction_rate_whole(fps) || fps <= 0) {
     stop("`fps` must be a positive integer scalar.", call. = FALSE)
   }
@@ -122,9 +126,16 @@ prepare_reaction_rate_inputs <- function(
   if (is_fr_coding) {
     coding <- data.table::as.data.table(coded_data$coding)
     episodes <- data.table::as.data.table(coded_data$episodes)
+    deltas <- data.table::as.data.table(coded_data$deltas)
 
     required_coding <- c("id", "subject", "emotion", "frame", "delta")
     missing_coding <- setdiff(required_coding, names(coding))
+    if ("delta" %in% missing_coding) {
+      stop(
+        "`coded_data$coding` is missing required columns: delta.",
+        call. = FALSE
+      )
+    }
     if (length(missing_coding) > 0L) {
       stop(
         sprintf(
@@ -153,6 +164,25 @@ prepare_reaction_rate_inputs <- function(
         call. = FALSE
       )
     }
+
+    required_deltas <- c(
+      "id",
+      "subject",
+      "emotion",
+      "delta_id",
+      "start_frame",
+      "end_frame"
+    )
+    missing_deltas <- setdiff(required_deltas, names(deltas))
+    if (length(missing_deltas) > 0L) {
+      stop(
+        sprintf(
+          "`coded_data$deltas` is missing required columns: %s.",
+          paste(missing_deltas, collapse = ", ")
+        ),
+        call. = FALSE
+      )
+    }
   } else {
     coding <- data.table::as.data.table(coded_data)
 
@@ -166,6 +196,9 @@ prepare_reaction_rate_inputs <- function(
       "in_state"
     )
     missing_coding <- setdiff(required_coding, names(coding))
+    if ("delta" %in% missing_coding) {
+      stop("`coded_data` is missing required column(s): delta.", call. = FALSE)
+    }
     if (length(missing_coding) > 0L) {
       stop(
         sprintf(
@@ -185,14 +218,53 @@ prepare_reaction_rate_inputs <- function(
       ),
       by = .(id, subject, emotion, run_id)
     ]
+    delta_rows <- coding[delta == 1L]
+    if (nrow(delta_rows) == 0L) {
+      deltas <- delta_rows[, .(
+        id,
+        subject,
+        emotion,
+        start_frame = integer(),
+        end_frame = integer(),
+        delta_id = integer()
+      )]
+    } else {
+      data.table::setorder(delta_rows, id, subject, emotion, frame)
+      delta_rows[,
+        delta_run := cumsum(
+          c(
+            TRUE,
+            id[-1L] != id[-.N] |
+              subject[-1L] != subject[-.N] |
+              emotion[-1L] != emotion[-.N] |
+              frame[-1L] != frame[-.N] + 1L
+          )
+        )
+      ]
+      deltas <- delta_rows[,
+        .(
+          start_frame = min(frame),
+          end_frame = max(frame)
+        ),
+        by = .(id, subject, emotion, delta_run)
+      ][,
+        delta_id := seq_len(.N),
+        by = .(id, subject, emotion)
+      ][,
+        delta_run := NULL
+      ]
+    }
   }
 
   coding[, subject := as.character(subject)]
   coding[, emotion := as.character(emotion)]
   episodes[, subject := as.character(subject)]
   episodes[, emotion := as.character(emotion)]
+  deltas[, subject := as.character(subject)]
+  deltas[, emotion := as.character(emotion)]
   coding[is.na(delta), delta := 0L]
   coding[, delta := as.integer(delta)]
+  deltas[, delta_id := as.integer(delta_id)]
 
   if (nrow(coding) < 1L) {
     stop(
@@ -219,11 +291,13 @@ prepare_reaction_rate_inputs <- function(
     }
     coding <- coding[subject %chin% subject_names]
     episodes <- episodes[subject %chin% subject_names]
+    deltas <- deltas[subject %chin% subject_names]
   }
 
   if (!is.null(exclude_emotions)) {
     coding <- coding[!emotion %chin% exclude_emotions]
     episodes <- episodes[!emotion %chin% exclude_emotions]
+    deltas <- deltas[!emotion %chin% exclude_emotions]
   }
 
   empty_summary_result <- data.table::data.table(
@@ -282,6 +356,7 @@ prepare_reaction_rate_inputs <- function(
     return(list(
       coding = coding,
       episodes = episodes,
+      deltas = deltas,
       limit_frames = limit_frames,
       start_frames = start_frames,
       minimum_threshold = minimum_threshold,
@@ -296,6 +371,7 @@ prepare_reaction_rate_inputs <- function(
   list(
     coding = coding,
     episodes = episodes,
+    deltas = deltas,
     limit_frames = limit_frames,
     start_frames = start_frames,
     minimum_threshold = minimum_threshold,
@@ -310,6 +386,7 @@ prepare_reaction_rate_inputs <- function(
 build_reaction_rate_episode_table <- function(inputs) {
   coding <- inputs$coding
   episodes <- inputs$episodes
+  deltas <- inputs$deltas
   empty_episode_result <- inputs$empty_episode_result
 
   if (nrow(coding) < 1L || nrow(episodes) < 1L) {
@@ -318,6 +395,7 @@ build_reaction_rate_episode_table <- function(inputs) {
 
   coding_by_id <- split(coding, by = "id", keep.by = TRUE)
   episodes_by_id <- split(episodes, by = "id", keep.by = TRUE)
+  deltas_by_id <- split(deltas, by = "id", keep.by = TRUE)
 
   results <- list()
   singleton_ids <- character()
@@ -325,6 +403,7 @@ build_reaction_rate_episode_table <- function(inputs) {
   for (id_name in names(coding_by_id)) {
     id_coding <- coding_by_id[[id_name]]
     id_episodes <- episodes_by_id[[id_name]]
+    id_deltas <- deltas_by_id[[id_name]]
     current_id <- id_coding$id[[1L]]
 
     if (is.null(id_episodes) || nrow(id_episodes) == 0L) {
@@ -342,6 +421,11 @@ build_reaction_rate_episode_table <- function(inputs) {
 
     subject_coding <- split(id_coding, by = "subject", keep.by = FALSE)
     subject_episodes <- split(id_episodes, by = "subject", keep.by = FALSE)
+    subject_deltas <- if (is.null(id_deltas) || nrow(id_deltas) == 0L) {
+      list()
+    } else {
+      split(id_deltas, by = "subject", keep.by = FALSE)
+    }
 
     for (denominator_subject in names(subject_episodes)) {
       denominator_episodes <- data.table::copy(subject_episodes[[
@@ -379,9 +463,10 @@ build_reaction_rate_episode_table <- function(inputs) {
         id_subjects != denominator_subject
       ]) {
         numerator_coding <- subject_coding[[numerator_subject]]
+        numerator_deltas <- subject_deltas[[numerator_subject]]
         has_value <- "value" %in% names(numerator_coding)
 
-        per_episode <- numerator_coding[
+        present_table <- numerator_coding[
           denominator_episodes,
           on = .(
             emotion,
@@ -398,14 +483,31 @@ build_reaction_rate_episode_table <- function(inputs) {
             start_frame = i.start_frame,
             end_frame = i.constraint_end,
             n_frames = i.constraint_end - i.start_frame + 1L,
-            present_prop = if (has_value) mean(!is.na(value)) else 1,
-            reaction = any(
-              delta == 1L & frame >= i.eligible_start_frame,
-              na.rm = TRUE
-            )
+            present_prop = if (has_value) mean(!is.na(value)) else 1
           ),
           by = .EACHI
         ]
+
+        if (is.null(numerator_deltas) || nrow(numerator_deltas) == 0L) {
+          per_episode <- data.table::copy(present_table)
+          per_episode[, reaction := FALSE]
+        } else {
+          reaction_table <- numerator_deltas[
+            denominator_episodes,
+            on = .(
+              emotion,
+              start_frame >= eligible_start_frame,
+              start_frame <= constraint_end
+            ),
+            allow.cartesian = TRUE,
+            .(
+              reaction = .N > 0L
+            ),
+            by = .EACHI
+          ]
+          per_episode <- present_table
+          per_episode[, reaction := reaction_table$reaction]
+        }
 
         per_episode[is.nan(present_prop), present_prop := 0]
         per_episode <- per_episode[present_prop >= inputs$minimum_threshold]

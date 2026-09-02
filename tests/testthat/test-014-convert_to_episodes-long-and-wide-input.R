@@ -14,15 +14,12 @@ test_that("convert_to_episodes; from csv conversion", {
       values_to = "value"
     )
 
-  # long data
   expect_no_error({
     convert_to_episodes(coding_df2)
   })
 
   expect_equal(
-    {
-      class(convert_to_episodes(coding_df2))
-    },
+    class(convert_to_episodes(coding_df2)),
     c("fr_coding", "list")
   )
 
@@ -37,9 +34,7 @@ test_that("convert_to_episodes; from csv conversion", {
     convert_to_episodes(coding_df2, consecutive_missing = 1e4)
   })
   expect_error(
-    {
-      convert_to_episodes(coding_df2, consecutive_missing = Inf)
-    },
+    convert_to_episodes(coding_df2, consecutive_missing = Inf),
     "`consecutive_missing` cannot be infinite."
   )
 
@@ -52,14 +47,13 @@ test_that("convert_to_episodes; from csv conversion", {
     "Duplicate `video_time` values found within `id`/`subject` groups: id=1, subject=parent"
   )
 
-  # wide data
   expect_no_error({
     convert_to_episodes(coding_df)
   })
 
   x <- convert_to_episodes(coding_df)
 
-  expect_true(all(names(x) %in% c("episodes", "coding", "metadata")))
+  expect_true(all(names(x) %in% c("episodes", "deltas", "coding", "metadata")))
 
   expected_cols <- c(
     "id",
@@ -74,14 +68,16 @@ test_that("convert_to_episodes; from csv conversion", {
     "n_frames"
   )
   expect_true(all(expected_cols %in% names(x$episodes)))
+  expect_true("delta" %in% names(x$coding))
+  expect_true(all(c(0, 1) %in% x$coding$delta, na.rm = TRUE))
+  expect_gt(sum(x$coding$delta == 0, na.rm = TRUE), 0)
+  expect_gt(sum(x$coding$delta == 1, na.rm = TRUE), 0)
 
-  # checking that all there is 1 episode per status row
-  expect_true(sum(x$coding$status, na.rm = TRUE) == nrow(x$episodes))
-
-  expect_true({
+  expect_equal(sum(x$coding$status, na.rm = TRUE), nrow(x$episodes))
+  expect_true(
     sum(x$coding$status == 1, na.rm = TRUE) ==
       sum(x$coding$status == 0, na.rm = TRUE)
-  })
+  )
 
   expect_all_true(
     sort(unique(x$coding$run_id)) == sort(unique(x$episodes$run_id))
@@ -180,15 +176,12 @@ test_that("convert_to_episodes; from test_data", {
 
   coding_df2 <- test_coding_wide
 
-  # long data
   expect_no_error({
     convert_to_episodes(coding_df2)
   })
 
   expect_equal(
-    {
-      class(convert_to_episodes(coding_df2))
-    },
+    class(convert_to_episodes(coding_df2)),
     c("fr_coding", "list")
   )
 
@@ -203,9 +196,7 @@ test_that("convert_to_episodes; from test_data", {
     convert_to_episodes(coding_df2, consecutive_missing = 1e4)
   })
   expect_error(
-    {
-      convert_to_episodes(coding_df2, consecutive_missing = Inf)
-    },
+    convert_to_episodes(coding_df2, consecutive_missing = Inf),
     "`consecutive_missing` cannot be infinite."
   )
 
@@ -218,14 +209,13 @@ test_that("convert_to_episodes; from test_data", {
     "Duplicate `video_time` values found within `id`/`subject` groups: id=1, subject=parent"
   )
 
-  # wide data
   expect_no_error({
     convert_to_episodes(coding_df)
   })
 
   x <- convert_to_episodes(coding_df)
 
-  expect_true(all(names(x) %in% c("episodes", "coding", "metadata")))
+  expect_true(all(names(x) %in% c("episodes", "deltas", "coding", "metadata")))
 
   expected_cols <- c(
     "id",
@@ -240,14 +230,13 @@ test_that("convert_to_episodes; from test_data", {
     "n_frames"
   )
   expect_true(all(expected_cols %in% names(x$episodes)))
+  expect_true("delta" %in% names(x$coding))
 
-  # checking that all there is 1 episode per status row
-  expect_true(sum(x$coding$status, na.rm = TRUE) == nrow(x$episodes))
-
-  expect_true({
+  expect_equal(sum(x$coding$status, na.rm = TRUE), nrow(x$episodes))
+  expect_true(
     sum(x$coding$status == 1, na.rm = TRUE) ==
       sum(x$coding$status == 0, na.rm = TRUE)
-  })
+  )
 
   expect_all_true(
     sort(unique(x$coding$run_id)) == sort(unique(x$episodes$run_id))
@@ -341,7 +330,7 @@ test_that("convert_to_episodes; from test_data", {
   )
 })
 
-test_that("convert_to_episodes logic", {
+test_that("convert_to_episodes logic depends on thresholds, not delta starts", {
   coding_df <- test_coding
   c2e1 <- convert_to_episodes(coding_df, T_up = 0.2)
   c2e2 <- convert_to_episodes(coding_df, T_up = 0.15)
@@ -353,4 +342,21 @@ test_that("convert_to_episodes logic", {
   c2e4 <- convert_to_episodes(coding_df, T_up = 0.2, T_down = 0.15)
 
   expect_lte(nrow(c2e3$episodes), nrow(c2e4$episodes))
+
+  c2e5 <- convert_to_episodes(coding_df, T_up = 0.2, delta = 0.05)
+  c2e6 <- convert_to_episodes(coding_df, T_up = 0.2, delta = 0.4)
+
+  expect_equal(c2e5$episodes, c2e6$episodes, ignore_attr = TRUE)
+  expect_false(identical(c2e5$coding$delta, c2e6$coding$delta))
+})
+
+test_that("convert_to_episodes overwrites an existing delta column", {
+  coding_df <- test_coding |>
+    dplyr::mutate(delta = 999L)
+
+  result <- convert_to_episodes(coding_df, delta = 0.1, delta_window = 0.2)
+
+  expect_true("delta" %in% names(result$coding))
+  expect_false(any(result$coding$delta == 999L, na.rm = TRUE))
+  expect_true(all(c(0, 1) %in% result$coding$delta, na.rm = TRUE))
 })
