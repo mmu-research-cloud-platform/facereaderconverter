@@ -5,17 +5,12 @@ test_that("convertFRDirectory converts all supported file types", {
 
   test_data <- Sys.getenv("TEST_DATA")
   input_dir <- file.path(test_data, "FR9")
-  output_dir <- file.path(test_data, "FR9_converted")
+  output_dir <- file.path(test_data, "converted", "FR9")
   skip_if(
     !dir.exists(input_dir),
     "The FR9 directory fixture is not available"
   )
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-  unlink(
-    list.files(output_dir, full.names = TRUE),
-    recursive = TRUE,
-    force = TRUE
-  )
   input_files <- list.files(
     input_dir,
     pattern = "\\.(txt|xlsx|csv)$",
@@ -30,6 +25,17 @@ test_that("convertFRDirectory converts all supported file types", {
     output_dir,
     cores = 1L
   ))
+  output_paths <- file.path(
+    output_dir,
+    paste0(tools::file_path_sans_ext(basename(input_files)), ".csv")
+  )
+  writeLines("stale output", output_paths[[1]])
+  expect_no_error(convertFRDirectory(
+    input_dir,
+    output_dir,
+    cores = 1L
+  ))
+  expect_false("stale output" %in% readLines(output_paths[[1]]))
 
   expected_outputs <- c(
     paste0(tools::file_path_sans_ext(basename(input_files)), ".csv"),
@@ -55,10 +61,13 @@ test_that("convertFRDirectory converts FR10 supported file types", {
   )
   skip_if(length(files) == 0L, "The FR10 directory contains no supported files")
 
-  output <- tempfile("fr10_types_")
-  on.exit(unlink(output, recursive = TRUE, force = TRUE), add = TRUE)
+  output <- file.path(TEST_DATA, "converted", "FR10_all_file_types")
+  dir.create(output, recursive = TRUE, showWarnings = FALSE)
+  result <- convertFRDirectory(path, output, cores = 1L)
+  writeLines("stale output", result$outpath[[1]])
   result <- convertFRDirectory(path, output, cores = 1L)
 
   expect_true(all(result$status == "Success"))
   expect_true(all(file.exists(result$outpath)))
+  expect_false("stale output" %in% readLines(result$outpath[[1]]))
 })

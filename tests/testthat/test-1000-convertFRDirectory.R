@@ -1,3 +1,5 @@
+TEST_DATA <- Sys.getenv("TEST_DATA")
+
 test_that("convertFRDirectory", {
   make_fr_txt <- function(
     path,
@@ -217,10 +219,14 @@ test_that("convertFRDirectory converts the FR10 fixture directory", {
   )
   skip_if(length(files) == 0L, "The FR10 directory contains no supported files")
 
-  output <- tempfile("fr10_directory_")
-  on.exit(unlink(output, recursive = TRUE, force = TRUE), add = TRUE)
+  output <- file.path(TEST_DATA, "converted", "FR10_fixture")
+  dir.create(output, recursive = TRUE, showWarnings = FALSE)
+  result <- convertFRDirectory(path, output, cores = 1L)
+  writeLines("stale output", result$outpath[[1]])
   result <- convertFRDirectory(path, output, cores = 1L)
 
   expect_true(all(result$status == "Success"))
+  expect_true(all(file.exists(result$outpath)))
+  expect_false("stale output" %in% readLines(result$outpath[[1]]))
   expect_length(result$outpath, length(files))
 })

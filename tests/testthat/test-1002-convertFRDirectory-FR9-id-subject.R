@@ -5,7 +5,7 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
   skip_if_not_installed("readxl")
 
   input_dir <- file.path(TEST_DATA, "FR9")
-  output_dir <- file.path(TEST_DATA, "FR9_id_subject")
+  output_dir <- file.path(TEST_DATA, "converted", "FR9_id_subject")
   skip_if(
     !dir.exists(input_dir),
     "The FR9 directory fixture is not available"
@@ -62,11 +62,6 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
   )
 
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-  unlink(
-    list.files(output_dir, full.names = TRUE),
-    recursive = TRUE,
-    force = TRUE
-  )
 
   result <- convertFRDirectory(
     input_dir,
@@ -78,7 +73,20 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
     save_metadata = NULL
   )
 
+  writeLines("stale output", result$outpath[[1]])
+  result <- convertFRDirectory(
+    input_dir,
+    output_dir,
+    pattern = "8895.*(detailed|state)\\.xlsx$",
+    id = function(path) extract_subject_id_metadata(path)$id,
+    subject = function(path) extract_subject_id_metadata(path)$subject,
+    cores = 1L,
+    save_metadata = NULL
+  )
+
   expect_true(all(result$status == "Success"))
+  expect_true(all(file.exists(result$outpath)))
+  expect_false("stale output" %in% readLines(result$outpath[[1]]))
   expect_setequal(
     basename(result$inpath),
     basename(selected)
@@ -145,8 +153,18 @@ test_that("FR10 directory conversion supports explicit id and subject metadata",
   )
   skip_if(length(files) == 0L, "The FR10 directory contains no state TXT files")
 
-  output <- tempfile("fr10_id_subject_")
-  on.exit(unlink(output, recursive = TRUE, force = TRUE), add = TRUE)
+  output <- file.path(TEST_DATA, "converted", "FR10_id_subject")
+  dir.create(output, recursive = TRUE, showWarnings = FALSE)
+  result <- convertFRDirectory(
+    path,
+    output,
+    pattern = "_state\\.txt$",
+    id = "fr10",
+    subject = "fixture",
+    cores = 1L,
+    save_metadata = NULL
+  )
+  writeLines("stale output", result$outpath[[1]])
   result <- convertFRDirectory(
     path,
     output,
@@ -158,6 +176,7 @@ test_that("FR10 directory conversion supports explicit id and subject metadata",
   )
 
   expect_true(all(result$status == "Success"))
+  expect_true(all(file.exists(result$outpath)))
   converted <- readr::read_csv(result$outpath[[1]], show_col_types = FALSE)
   expect_true(all(converted$id == "fr10"))
   expect_true(all(converted$subject == "fixture"))
