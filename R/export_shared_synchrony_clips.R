@@ -173,11 +173,13 @@ export_shared_synchrony_clips <- function(
       "-t",
       sprintf("%.9f", manifest$duration_seconds[[i]]),
       "-map",
-      "0",
+      "0:v:0",
+      "-map",
+      "0:a:0?",
       "-c:v",
       "libx264",
       "-c:a",
-      "aac",
+      "aac"
       shQuote(clip_path)
     )
     executable <- if (nzchar(ffmpeg_path)) ffmpeg_path else ffmpeg
