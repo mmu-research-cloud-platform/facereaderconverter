@@ -1,5 +1,6 @@
 is_fr_coding <- function(x) {
   is.list(x) &&
+    !is.data.frame(x) &&
     !is.null(x$coding) &&
     !is.null(x$episodes)
 }

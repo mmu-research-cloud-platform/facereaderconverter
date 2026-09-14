@@ -41,3 +41,23 @@ test_that("convertFRExcelFiles handles shifted metadata lines", {
   )
   expect_equal(excel_line_change, excel_original, tolerance = 1e-4)
 })
+
+test_that("convertFRExcelFiles handles FR10 metadata layouts", {
+  skip_if_not_installed("readxl")
+  path <- file.path(Sys.getenv("TEST_DATA"), "FR10")
+  skip_if(!dir.exists(path), "The FR10 directory fixture is not available")
+  files <- list.files(
+    path,
+    pattern = "detailed\\.xlsx$",
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  skip_if(
+    length(files) == 0L,
+    "The FR10 directory contains no detailed Excel files"
+  )
+
+  data <- convertFRExcelFiles(files[[1]], return_data = TRUE)
+  expect_gt(nrow(data), 0L)
+  expect_true("video_time" %in% names(data))
+})

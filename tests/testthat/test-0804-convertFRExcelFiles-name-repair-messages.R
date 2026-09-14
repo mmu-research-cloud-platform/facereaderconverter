@@ -36,3 +36,21 @@ test_that("convertFRExcelFiles silences name repair messages", {
     )
   )
 })
+
+test_that("convertFRExcelFiles silently repairs names for FR10", {
+  skip_if_not_installed("readxl")
+  path <- file.path(Sys.getenv("TEST_DATA"), "FR10")
+  skip_if(!dir.exists(path), "The FR10 directory fixture is not available")
+  files <- list.files(
+    path,
+    pattern = "detailed\\.xlsx$",
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  skip_if(
+    length(files) == 0L,
+    "The FR10 directory contains no detailed Excel files"
+  )
+
+  expect_silent(convertFRExcelFiles(files[[1]], return_data = TRUE))
+})

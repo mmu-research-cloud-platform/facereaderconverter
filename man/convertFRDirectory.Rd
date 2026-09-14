@@ -2,7 +2,7 @@
 % Please edit documentation in R/convertFRdirectory.R
 \name{convertFRDirectory}
 \alias{convertFRDirectory}
-\title{Convert a directory of Facereader TXT to CSV}
+\title{Convert a directory of Facereader files to CSV}
 \usage{
 convertFRDirectory(
   inpath,
@@ -15,18 +15,20 @@ convertFRDirectory(
   metadata_filename = "metadata.csv",
   fail_codes = FALSE,
   duplicate_timecodes_as_error = TRUE,
+  id = NULL,
+  subject = NULL,
   cores = 0L,
   ...
 )
 }
 \arguments{
-\item{inpath}{Path to an existing .txt file.}
+\item{inpath}{Path to an existing directory.}
 
 \item{outpath}{Path to save the csvs to defaults to the inpath}
 
 \item{recursive}{Bool as to whether to look for all files in directory (\code{TRUE}) or just the root folder (\code{FALSE})}
 
-\item{pattern}{a regex pattern of files to test, if \code{NULL} then will look for all txt files}
+\item{pattern}{a regex pattern of files to test, if \code{NULL} then will look for TXT, XLSX, and CSV files}
 
 \item{values_as_numeric}{Save values as numeric, where applicable}
 
@@ -40,6 +42,10 @@ convertFRDirectory(
 
 \item{duplicate_timecodes_as_error}{throws an error if there are duplicate timecodes, if FALSE then throws warning}
 
+\item{id}{Optional scalar ID or function of each input path returning one.}
+
+\item{subject}{Optional scalar subject or function of each input path returning one.}
+
 \item{cores}{integer Number of threads to use. Default 0 is auto.}
 
 \item{...}{arguments passed as necessary}
@@ -48,7 +54,7 @@ convertFRDirectory(
 Invisibly returns the metadata.
 }
 \description{
-Reads all Txt files in a folder and sends them through convertFRFiles.
+Reads TXT, XLSX, and CSV files in a folder and converts them to CSV.
 }
 \examples{
 \dontrun{

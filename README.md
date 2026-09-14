@@ -12,7 +12,7 @@ files into a more analysis-friendly format, and for detecting episodes
 of emotion from the time series data. It also includes some utilities
 for downstream analysis.
 
-Tested to work with FaceReader 9.1.
+Tested to work with FaceReader 9.1 and 10
 
 ## Installation
 
