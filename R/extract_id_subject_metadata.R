@@ -30,8 +30,8 @@ extract_subject_id_metadata <- function(
   id <- stringr::str_extract(filename, id_pattern) |>
     stringr::str_trim()
   subject <- stringr::str_extract(
-    tolower(filename),
-    subject_pattern
+    filename,
+    stringr::regex(subject_pattern, ignore_case = TRUE)
   )
 
   list(id = id, subject = subject)
