@@ -295,11 +295,12 @@ prepare_shared_synchrony_clips <- function(
       call. = FALSE
     )
   }
-  if (
-    !is.numeric(n) || length(n) != 1L || is.na(n) || n < 0 || n != as.integer(n)
-  ) {
-    stop("`n` must be a non-negative whole number.", call. = FALSE)
-  }
+if (
+  !is.numeric(n) || length(n) != 1L || is.na(n) || !is.finite(n) ||
+    n < 0 || n != floor(n) || n > .Machine$integer.max
+) {
+  stop("`n` must be a non-negative whole number.", call. = FALSE)
+}
   if (
     !is.character(optimised_subject) ||
       length(optimised_subject) != 1L ||
