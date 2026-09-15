@@ -42,7 +42,7 @@ extract_subject_id_metadata <- function(
 #' Compatibility alias for `extract_subject_id_metadata()`.
 #'
 #' @inheritParams extract_subject_id_metadata
-#' @return @inherit extract_subject_id_metadata return
+#' @inherit extract_subject_id_metadata return
 #' @examples
 #' \dontrun{
 #' extract_id_subject_metadata("FR9 1218 mum_Analysis_detailed.xlsx")
