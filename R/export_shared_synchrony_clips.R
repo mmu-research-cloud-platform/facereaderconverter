@@ -134,13 +134,6 @@ export_shared_synchrony_clips <- function(
       call. = FALSE
     )
   }
-  if (output == "zip" && !grepl("\\.zip$", output_path, ignore.case = TRUE)) {
-    stop(
-      "`output_path` must end in `.zip` when `output = \"zip\"`.",
-      call. = FALSE
-    )
-  }
-
   destination <- normalizePath(output_path, winslash = "/", mustWork = FALSE)
   if (output == "zip" && file.exists(destination) && !overwrite) {
     stop(
@@ -174,6 +167,41 @@ export_shared_synchrony_clips <- function(
       )
     }
   }
+  ffprobe_path <- Sys.which("ffprobe")
+  if (!nzchar(ffprobe_path)) {
+    stop(
+      "FFprobe was not found; it is required to determine source video durations.",
+      call. = FALSE
+    )
+  }
+  source_durations <- vapply(
+    unique(manifest$video_path),
+    probe_shared_synchrony_video_duration,
+    numeric(1),
+    ffprobe = ffprobe_path
+  )
+  names(source_durations) <- unique(manifest$video_path)
+  manifest <- prepare_shared_synchrony_clips(
+    coded_data = coded_data,
+    shared_synchrony = shared_synchrony,
+    video_paths = video_paths,
+    n = n,
+    emotion = emotion,
+    optimised_subject = optimised_subject,
+    only_synchronies = only_synchronies,
+    buffer = buffer,
+    buffer_units = buffer_units,
+    buffer_frames = buffer_frames,
+    buffer_seconds = buffer_seconds,
+    video_durations = source_durations
+  )
+  if (output == "zip" && !grepl("\\.zip$", output_path, ignore.case = TRUE)) {
+    stop(
+      "`output_path` must end in `.zip` when `output = \"zip\"`.",
+      call. = FALSE
+    )
+  }
+
   staging_dir <- if (output == "folder") {
     destination
   } else {
@@ -252,6 +280,35 @@ export_shared_synchrony_clips <- function(
   manifest
 }
 
+probe_shared_synchrony_video_duration <- function(path, ffprobe) {
+  duration <- suppressWarnings(as.numeric(system2(
+    ffprobe,
+    args = c(
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
+      shQuote(path)
+    ),
+    stdout = TRUE,
+    stderr = FALSE
+  )))
+  if (
+    length(duration) != 1L ||
+      is.na(duration) ||
+      !is.finite(duration) ||
+      duration <= 0
+  ) {
+    stop(
+      sprintf("Could not determine the duration of source video `%s`.", path),
+      call. = FALSE
+    )
+  }
+  duration
+}
+
 prepare_shared_synchrony_clips <- function(
   coded_data,
   shared_synchrony,
@@ -263,7 +320,8 @@ prepare_shared_synchrony_clips <- function(
   buffer = 0,
   buffer_units = c("seconds", "frames"),
   buffer_frames = 0L,
-  buffer_seconds = 0
+  buffer_seconds = 0,
+  video_durations = NULL
 ) {
   if (!inherits(coded_data, "fr_coding") || is.null(coded_data$metadata$fps)) {
     stop(
@@ -295,12 +353,17 @@ prepare_shared_synchrony_clips <- function(
       call. = FALSE
     )
   }
-if (
-  !is.numeric(n) || length(n) != 1L || is.na(n) || !is.finite(n) ||
-    n < 0 || n != floor(n) || n > .Machine$integer.max
-) {
-  stop("`n` must be a non-negative whole number.", call. = FALSE)
-}
+  if (
+    !is.numeric(n) ||
+      length(n) != 1L ||
+      is.na(n) ||
+      !is.finite(n) ||
+      n < 0 ||
+      n != floor(n) ||
+      n > .Machine$integer.max
+  ) {
+    stop("`n` must be a non-negative whole number.", call. = FALSE)
+  }
   if (
     !is.character(optimised_subject) ||
       length(optimised_subject) != 1L ||
@@ -400,6 +463,24 @@ if (
       "Every `video_paths` entry must name an existing video file.",
       call. = FALSE
     )
+  }
+  if (!is.null(video_durations)) {
+    if (
+      !is.numeric(video_durations) ||
+        is.null(names(video_durations)) ||
+        anyNA(video_durations) ||
+        any(!is.finite(video_durations)) ||
+        any(video_durations <= 0) ||
+        !all(
+          normalizePath(video_paths, winslash = "/", mustWork = TRUE) %in%
+            names(video_durations)
+        )
+    ) {
+      stop(
+        "`video_durations` must contain positive durations for every video.",
+        call. = FALSE
+      )
+    }
   }
 
   shared_clips <- data.table::as.data.table(data.table::copy(shared_synchrony))
@@ -536,6 +617,26 @@ if (
     end_frame = as.integer(end_frame) + frame_buffers[["after"]],
     fps = as.numeric(fps)
   )]
+  if (!is.null(video_durations)) {
+    clips[,
+      end_frame := pmin(
+        end_frame,
+        as.integer(
+          ceiling(
+            video_durations[
+              normalizePath(
+                unname(video_paths[as.character(id)]),
+                winslash = "/",
+                mustWork = TRUE
+              )
+            ] *
+              fps
+          ) -
+            1L
+        )
+      )
+    ]
+  }
   clips[, `:=`(
     start_seconds = start_frame / fps,
     duration_seconds = (end_frame - start_frame + 1) / fps,

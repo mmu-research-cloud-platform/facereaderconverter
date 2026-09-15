@@ -215,6 +215,9 @@ synchrony_by_episode <- function(
 #' episode of the other subject.
 #'
 #' @inheritParams synchrony
+#' @param episodes Optional replacement episode data frame. It must contain the
+#'   selected ID and subject columns plus `emotion`, `run_id`, `start_frame`,
+#'   `end_frame`, and `max_value`. Frame bounds are inclusive.
 #'
 #' @return A data.table with episode-pair identifiers, their inclusive shared
 #'   frame interval, each source episode's maximum value, the larger maximum,

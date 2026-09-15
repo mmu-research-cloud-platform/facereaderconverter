@@ -20,7 +20,8 @@ to a four-digit identifier with optional surrounding whitespace.}
 to \code{mum} or \code{teen} as a standalone word.}
 }
 \value{
-@inherit extract_subject_id_metadata return
+A list with character elements \code{id} and \code{subject}. Each element is
+\code{NA} when its pattern does not match.
 }
 \description{
 Compatibility alias for \code{extract_subject_id_metadata()}.

@@ -21,9 +21,8 @@ shared_synchronous_episodes(
 \item{coded_data}{Output from \code{convert_to_episodes()}.}
 
 \item{episodes}{Optional replacement episode data frame. It must contain the
-selected ID and subject columns plus \code{emotion}, \code{run_id}, \code{start_frame}, and
-\code{end_frame}. Frame bounds are inclusive. A \code{synchrony_by_episode()} result
-is also accepted, using its \code{denominator} column as the episode subject.}
+selected ID and subject columns plus \code{emotion}, \code{run_id}, \code{start_frame},
+\code{end_frame}, and \code{max_value}. Frame bounds are inclusive.}
 
 \item{subject}{Character scalar giving the column in \code{coded_data$coding} and
 \code{coded_data$episodes} that identifies the subject. Default is \code{"subject"}.}

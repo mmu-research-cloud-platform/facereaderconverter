@@ -113,40 +113,42 @@ convertFRDirectory <- function(
   converter <- convertFRFiles
   loader <- loadFRfile
 
-preflight_indices <- seq_along(ls)
-  preflight_output_paths <- function() {
-    vapply(
-      preflight_indices,
-      function(i) {
-        data <- tryCatch(
-          suppressWarnings(loader(
-            ls[i],
-            values_as_numeric = values_as_numeric,
-            clean_names = clean_names,
-            fail_codes = fail_codes,
-            duplicate_timecodes_as_error = duplicate_timecodes_as_error,
-            id = id,
-            subject = subject,
-            ...
-          )),
-          error = function(e) NULL
-        )
-        if (is.null(data)) {
-          return(NA_character_)
-        }
-        fr_output_path(
-          ls_out[i],
-          resolve_conversion_metadata(id, subject, ls[i]),
-          fr_conversion_type(data)
-        )
-      },
-      character(1)
-    )
-  }
-
-  output_paths <- preflight_output_paths()
+  preflight_indices <- seq_along(ls)
+  preflight_data <- lapply(
+    preflight_indices,
+    function(i) {
+      tryCatch(
+        suppressWarnings(loader(
+          ls[i],
+          values_as_numeric = values_as_numeric,
+          clean_names = clean_names,
+          fail_codes = fail_codes,
+          duplicate_timecodes_as_error = duplicate_timecodes_as_error,
+          id = id,
+          subject = subject,
+          ...
+        )),
+        error = identity
+      )
+    }
+  )
+  preflight_output_paths <- vapply(
+    preflight_indices,
+    function(i) {
+      data <- preflight_data[[i]]
+      if (inherits(data, "condition") || is.null(data)) {
+        return(NA_character_)
+      }
+      fr_output_path(
+        ls_out[i],
+        resolve_conversion_metadata(id, subject, ls[i]),
+        fr_conversion_type(data)
+      )
+    },
+    character(1)
+  )
   comparable_paths <- normalizePath(
-    output_paths,
+    preflight_output_paths,
     winslash = "/",
     mustWork = FALSE
   )
@@ -155,21 +157,15 @@ preflight_indices <- seq_along(ls)
   }
   duplicate_paths <- comparable_paths[!is.na(comparable_paths)]
   duplicate_paths <- unique(duplicate_paths[duplicated(duplicate_paths)])
-  if (length(duplicate_paths) > 0L) {
-    conflicts <- vapply(
-      duplicate_paths,
-      function(path) {
-        paste(
-          basename(ls[preflight_indices][comparable_paths == path]),
-          collapse = ", "
-        )
-      },
-      character(1)
-    )
-    stop(
-      "Multiple inputs resolve to the same output destination: ",
-      paste(conflicts, collapse = "; ")
-    )
+  for (duplicate_path in duplicate_paths) {
+    duplicate_indices <- preflight_indices[comparable_paths == duplicate_path]
+    duplicate_extensions <- tolower(tools::file_ext(ls[duplicate_indices]))
+    if (!all(duplicate_extensions == "txt")) {
+      stop(
+        "Multiple inputs resolve to the same output destination: ",
+        paste(basename(ls[duplicate_indices]), collapse = ", ")
+      )
+    }
   }
 
   process_file <- function(i) {
@@ -179,16 +175,10 @@ preflight_indices <- seq_along(ls)
       withCallingHandlers(
         {
           if (tolower(tools::file_ext(ls[i])) == "xlsx") {
-            data <- loader(
-              ls[i],
-              values_as_numeric = values_as_numeric,
-              clean_names = clean_names,
-              fail_codes = fail_codes,
-              duplicate_timecodes_as_error = duplicate_timecodes_as_error,
-              id = id,
-              subject = subject,
-              ...
-            )
+            data <- preflight_data[[i]]
+            if (inherits(data, "condition") || is.null(data)) {
+              stop(data)
+            }
             csv_path <- fr_output_path(
               ls_out[i],
               resolve_conversion_metadata(id, subject, ls[i]),
@@ -203,16 +193,10 @@ preflight_indices <- seq_along(ls)
               outpath = csv_path
             )
           } else if (tolower(tools::file_ext(ls[i])) == "csv") {
-            data <- loader(
-              ls[i],
-              values_as_numeric = values_as_numeric,
-              clean_names = clean_names,
-              fail_codes = fail_codes,
-              duplicate_timecodes_as_error = duplicate_timecodes_as_error,
-              id = id,
-              subject = subject,
-              ...
-            )
+            data <- preflight_data[[i]]
+            if (inherits(data, "condition") || is.null(data)) {
+              stop(data)
+            }
             csv_path <- fr_output_path(
               ls_out[i],
               resolve_conversion_metadata(id, subject, ls[i]),
@@ -301,7 +285,8 @@ preflight_indices <- seq_along(ls)
             "fr_conversion_type",
             "fr_output_path",
             "converter",
-            "loader"
+            "loader",
+            "preflight_data"
           ),
           envir = environment()
         )
@@ -323,5 +308,11 @@ preflight_indices <- seq_along(ls)
     dir.create(save_metadata, showWarnings = FALSE, recursive = TRUE)
     utils::write.csv(metadata, file.path(save_metadata, metadata_filename))
   }
+
+  message(
+    "Successfully converted ",
+    sum(metadata$status == "Success"),
+    " files."
+  )
   invisible(metadata)
 }
