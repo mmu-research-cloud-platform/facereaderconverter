@@ -124,8 +124,9 @@ cleaned.
 
 ### `convertFRDirectory()`
 
-`convertFRDirectory()` processes all `.txt` files in a directory and
-returns metadata invisibly.
+`convertFRDirectory()` processes supported `.txt`, `.xlsx`, and `.csv`
+FaceReader exports in a directory, writes converted CSV files, and
+returns conversion metadata invisibly.
 
 ``` r
 library(facereaderconverter)
@@ -142,17 +143,27 @@ convertFRDirectory(
 destination directory and defaults to `inpath`; when different, the
 input folder structure is reproduced below it. `recursive` controls
 whether nested directories are searched. `pattern` optionally restricts
-file names using a regular expression; `NULL` processes all lowercase
-`.txt` files. `values_as_numeric`, `clean_names`, `fail_codes`, and
-`duplicate_timecodes_as_error` are passed to `convertFRFiles()`.
-`save_metadata` is the directory in which the metadata CSV is saved, or
-`NULL` to skip saving it. `metadata_filename` sets that CSV’s filename.
-`cores` controls parallel workers; `0` automatically selects a worker
-count. Additional arguments in `...` are passed to `convertFRFiles()`.
+input **basenames** using a case-sensitive regular expression; it is
+applied in addition to the supported-extension filter. `NULL` processes
+all supported `.txt`, `.xlsx`, and `.csv` inputs. `values_as_numeric`,
+`clean_names`, `fail_codes`, and `duplicate_timecodes_as_error` are
+passed to the file readers. `save_metadata` is the directory in which
+the metadata CSV is saved, or `NULL` to skip saving it.
+`metadata_filename` sets that CSV’s filename. `cores` controls parallel
+workers; `0` automatically selects a worker count. Additional arguments
+in `...` are passed to the relevant file importer.
 
-The returned metadata contains `status` (`"Success"` or `"Fail"`) and an
-`error` message column. Files that fail are recorded rather than
-stopping the whole directory conversion.
+For example, use `pattern = "detailed\\.xlsx$"` for detailed Excel
+exports, `pattern = "_state\\.txt$"` for state text exports, or
+`pattern = "8895.*(detailed|state)\\.xlsx$"` to select a participant’s
+detailed and state workbooks. Generated CSVs and metadata CSVs are
+excluded from subsequent input discovery.
+
+The returned metadata contains `inpath`, `outpath`, `video_filename`,
+`time`, `type`, `status` (`"Success"` or `"Fail"`), and `error`. Files
+that fail are recorded rather than stopping the whole directory
+conversion. By default this metadata is also written as `metadata.csv`
+in `outpath`; set `save_metadata = NULL` to omit it.
 
 ## Episode coding
 
