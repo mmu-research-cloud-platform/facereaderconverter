@@ -30,3 +30,22 @@ test_that("convertFRExcelFiles matches state control output", {
   res <- read_excel_control("testdata_excel_state")
   expect_identical(res$excel, res$control)
 })
+
+test_that("convertFRExcelFiles converts an FR10 state export", {
+  skip_if_not_installed("readxl")
+  path <- file.path(Sys.getenv("TEST_DATA"), "FR10")
+  skip_if(!dir.exists(path), "The FR10 directory fixture is not available")
+  files <- list.files(
+    path,
+    pattern = "state\\.xlsx$",
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  skip_if(
+    length(files) == 0L,
+    "The FR10 directory contains no state Excel files"
+  )
+
+  data <- convertFRExcelFiles(files[[1]], return_data = TRUE)
+  expect_setequal(names(data), c("video_time", "dominant_expression"))
+})

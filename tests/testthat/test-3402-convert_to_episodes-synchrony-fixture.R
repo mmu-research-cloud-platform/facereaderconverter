@@ -83,7 +83,10 @@ test_that("convert_to_episodes matches the stored synchrony fixture", {
         n_frames
       )
   )
-  expect_equal(converted$episodes, expected$episodes)
+  expect_equal(
+    converted$episodes[, names(expected$episodes), with = FALSE],
+    expected$episodes
+  )
   expect_equal(
     converted$coding[, .(
       id,
@@ -97,6 +100,14 @@ test_that("convert_to_episodes matches the stored synchrony fixture", {
     )],
     expected$coding
   )
-  expect_equal(converted$metadata, expected$metadata)
+  expect_true(all(
+    vapply(
+      names(expected$metadata),
+      function(name) {
+        identical(converted$metadata[[name]], expected$metadata[[name]])
+      },
+      logical(1)
+    )
+  ))
   expect_true("delta" %in% names(converted$coding))
 })

@@ -12,7 +12,7 @@ files into a more analysis-friendly format, and for detecting episodes
 of emotion from the time series data. It also includes some utilities
 for downstream analysis.
 
-Tested to work with FaceReader 9.1.
+Tested to work with FaceReader 9.1 and 10
 
 ## Installation
 
@@ -124,8 +124,9 @@ cleaned.
 
 ### `convertFRDirectory()`
 
-`convertFRDirectory()` processes all `.txt` files in a directory and
-returns metadata invisibly.
+`convertFRDirectory()` processes supported `.txt`, `.xlsx`, and `.csv`
+FaceReader exports in a directory, writes converted CSV files, and
+returns conversion metadata invisibly.
 
 ``` r
 library(facereaderconverter)
@@ -142,17 +143,27 @@ convertFRDirectory(
 destination directory and defaults to `inpath`; when different, the
 input folder structure is reproduced below it. `recursive` controls
 whether nested directories are searched. `pattern` optionally restricts
-file names using a regular expression; `NULL` processes all lowercase
-`.txt` files. `values_as_numeric`, `clean_names`, `fail_codes`, and
-`duplicate_timecodes_as_error` are passed to `convertFRFiles()`.
-`save_metadata` is the directory in which the metadata CSV is saved, or
-`NULL` to skip saving it. `metadata_filename` sets that CSV’s filename.
-`cores` controls parallel workers; `0` automatically selects a worker
-count. Additional arguments in `...` are passed to `convertFRFiles()`.
+input **basenames** using a case-sensitive regular expression; it is
+applied in addition to the supported-extension filter. `NULL` processes
+all supported `.txt`, `.xlsx`, and `.csv` inputs. `values_as_numeric`,
+`clean_names`, `fail_codes`, and `duplicate_timecodes_as_error` are
+passed to the file readers. `save_metadata` is the directory in which
+the metadata CSV is saved, or `NULL` to skip saving it.
+`metadata_filename` sets that CSV’s filename. `cores` controls parallel
+workers; `0` automatically selects a worker count. Additional arguments
+in `...` are passed to the relevant file importer.
 
-The returned metadata contains `status` (`"Success"` or `"Fail"`) and an
-`error` message column. Files that fail are recorded rather than
-stopping the whole directory conversion.
+For example, use `pattern = "detailed\\.xlsx$"` for detailed Excel
+exports, `pattern = "_state\\.txt$"` for state text exports, or
+`pattern = "8895.*(detailed|state)\\.xlsx$"` to select a participant’s
+detailed and state workbooks. Generated CSVs and metadata CSVs are
+excluded from subsequent input discovery.
+
+The returned metadata contains `inpath`, `outpath`, `video_filename`,
+`time`, `type`, `status` (`"Success"` or `"Fail"`), and `error`. Files
+that fail are recorded rather than stopping the whole directory
+conversion. By default this metadata is also written as `metadata.csv`
+in `outpath`; set `save_metadata = NULL` to omit it.
 
 ## Episode coding
 
@@ -331,6 +342,91 @@ the aggregated synchrony summary.
 function returns the unaggregated comparison rows, including the matched
 subjects, `run_id`, presence proportion, and logical synchrony result.
 
+### `shared_synchronous_episodes()`
+
+`shared_synchronous_episodes()` identifies overlapping, same-emotion
+episode pairs that are synchronous. Each unordered subject pair is
+returned once for each overlapping pair of source episodes. The result
+includes the inclusive shared frame interval, source episode
+identifiers, each subject’s maximum emotion value, the larger maximum,
+and their combined value.
+
+``` r
+library(facereaderconverter)
+
+shared <- shared_synchronous_episodes(
+  coded_data,
+  exclude_emotions = "neutral"
+)
+
+head(shared)
+```
+
+This function is useful when synchrony needs to be linked back to
+specific episode intervals, for example when selecting video clips.
+`coded_data` must be the `fr_coding` object returned by
+`convert_to_episodes()` and its episode table must contain `max_value`.
+`subject` and `id` select the subject and case/dyad columns.
+`time_limit`, `time_limit_frames`, and `constraint_method` control the
+comparison window in the same way as `synchrony()`. `fps` converts a
+time limit to frames, `missing_threshold` controls the required
+comparison-subject presence, and `exclude_emotions` removes emotions
+before matching.
+
+The returned table contains `id`, `emotion`, `subject1`, `subject2`,
+`subject1_run_id`, `subject2_run_id`, `start_frame`, `end_frame`,
+`subject1_max_value`, `subject2_max_value`, `max_value`, and
+`combined_value`. Rows are ordered by case, emotion, subject pair, and
+source episode identifiers.
+
+### `export_shared_synchrony_clips()`
+
+`export_shared_synchrony_clips()` ranks shared synchronous intervals by
+`combined_value` and uses FFmpeg to export the corresponding video
+segments. It returns a clip manifest invisibly and, for ZIP output,
+includes the manifest as `manifest.csv` in the archive.
+
+``` r
+library(facereaderconverter)
+
+shared <- shared_synchronous_episodes(coded_data)
+
+export_shared_synchrony_clips(
+  coded_data,
+  shared,
+  video_paths = c("1" = "recording.mp4"),
+  n = 10L,
+  emotion = "happy",
+  buffer = c(before = 2, after = 1),
+  buffer_units = "seconds",
+  output_path = "recording-shared-clips.zip"
+)
+```
+
+`coded_data` must be an `fr_coding` object with `metadata$fps`.
+`shared_synchrony` is the result from `shared_synchronous_episodes()`.
+`video_paths` is a named character vector of existing video files; its
+names must match the `id` values in the shared-synchrony table. `n`
+selects the highest-ranked intervals, and `emotion` optionally filters
+them before ranking.
+
+`buffer` can be one non-negative value for a symmetric buffer or a named
+vector such as `c(before = 2, after = 1)` for asymmetric buffering. Set
+`buffer_units` to `"seconds"` or `"frames"`. The legacy `buffer_frames`
+and `buffer_seconds` arguments remain available, but should not be
+supplied together with `buffer`.
+
+`output` can be `"zip"` or `"folder"`; ZIP output requires an `.zip`
+`output_path`. If `output_path` is `NULL`, the output is placed beside
+the selected source video, which requires all selected videos to be in
+the same directory. `overwrite = TRUE` permits replacing an existing
+archive or non-empty output folder. `ffmpeg` is either the FFmpeg
+command available on `PATH` or an executable path.
+
+The manifest records the selected intervals, frame and time boundaries,
+source video paths, generated clip filenames, and output paths. Frame
+ranges are inclusive, so a one-frame interval has duration `1 / fps`.
+
 ### `reaction_rate()`
 
 `reaction_rate()` estimates the proportion of eligible episodes that
@@ -505,6 +601,8 @@ dependency, so both are listed separately.
 | `reaction_rate_by_episode()` | none | accepts `fr_coding`; otherwise needs a delta-coded table with `id`, `subject`, `emotion`, `frame`, `delta`, `run_id`, and `in_state` | `add_delta_column()` |
 | `synchrony()` | none | requires `fr_coding` returned by `convert_to_episodes()` | `convert_to_episodes()` |
 | `synchrony_by_episode()` | none | requires `fr_coding` returned by `convert_to_episodes()` | `convert_to_episodes()` |
+| `shared_synchronous_episodes()` | none | requires `fr_coding` with episode `max_value` | `convert_to_episodes()` |
+| `export_shared_synchrony_clips()` | none | requires `fr_coding` with `metadata$fps`, shared-synchrony table, named video paths, and FFmpeg | `shared_synchronous_episodes()` |
 | `convertFRFiles()` | none | none | none |
 | `convertFRExcelFiles()` | none | none | none |
 | `to_seconds()` | none | none | none |

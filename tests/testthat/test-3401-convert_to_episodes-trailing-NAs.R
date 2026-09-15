@@ -33,6 +33,7 @@ test_that("convert_to_episodes trims end_frame but not end_time after trailing N
   expect_equal(x$episodes$end_time[[1]], "00:00:00.133")
   expect_equal(x$episodes$n_frames[[1]], 2L)
   expect_equal(x$episodes$duration_s[[1]], 2 / 30)
+  expect_equal(x$episodes$max_value[[1]], 0.4)
 
   expect_equal(x$coding$in_state, c(FALSE, TRUE, TRUE, FALSE, FALSE, FALSE))
   expect_equal(

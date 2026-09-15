@@ -25,7 +25,8 @@ test_that("convert_to_episodes returns deltas and delta_id links", {
       "end_time",
       "duration_s",
       "delta_id",
-      "n_frames"
+      "n_frames",
+      "max_delta"
     ) %in%
       names(converted$deltas)
   ))
@@ -54,7 +55,9 @@ test_that("convert_to_episodes returns deltas and delta_id links", {
       min_frame = min(frame),
       max_frame = max(frame),
       n_frames_coding = .N,
-      delta_values = list(unique(delta))
+      delta_values = list(unique(delta)),
+      min_value = min(value, na.rm = TRUE),
+      max_value = max(value, na.rm = TRUE)
     ),
     by = .(id, subject, emotion, delta_id)
   ]
@@ -68,8 +71,16 @@ test_that("convert_to_episodes returns deltas and delta_id links", {
   )
 
   expect_equal(nrow(comparison), nrow(converted$deltas))
-  expect_equal(comparison$start_frame, comparison$min_frame)
+  expect_true(all(comparison$start_frame <= comparison$min_frame))
   expect_equal(comparison$end_frame, comparison$max_frame)
-  expect_equal(comparison$n_frames, comparison$n_frames_coding)
+  expect_equal(
+    comparison$n_frames_coding,
+    comparison$end_frame - comparison$min_frame + 1L
+  )
+  expect_equal(
+    comparison$n_frames,
+    comparison$end_frame - comparison$start_frame + 1L
+  )
+  expect_true(all(comparison$n_frames > 1L))
   expect_equal(unique(unlist(comparison$delta_values)), 1L)
 })

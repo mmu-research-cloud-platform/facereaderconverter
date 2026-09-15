@@ -27,6 +27,11 @@ delta_episodes <- function(
   old_threads <- data.table::getDTthreads()
   on.exit(data.table::setDTthreads(old_threads), add = TRUE)
   data.table::setDTthreads(threads = cores)
+  metadata <- get_fr_metadata(coding)
+  fps <- resolve_fr_metadata(fps, coding, "fps", default = 30L)
+if (is_fr_coding(coding)) {
+  coding <- data.table::copy(coding$coding)
+}
   if (!"delta" %in% names(coding)) {
     stop("`delta` column required")
   }

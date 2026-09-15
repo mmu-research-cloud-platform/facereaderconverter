@@ -9,3 +9,7 @@ hysteresis_state <- function(v, k, T_up, T_down, delta, min_len, consecutive_mis
     .Call(`_facereaderconverter_hysteresis_state`, v, k, T_up, T_down, delta, min_len, consecutive_missing)
 }
 
+max_delta_ranges <- function(value, start_row, end_row, group_start_row, k) {
+    .Call(`_facereaderconverter_max_delta_ranges`, value, start_row, end_row, group_start_row, k)
+}
+

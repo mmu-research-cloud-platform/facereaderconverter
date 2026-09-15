@@ -1,3 +1,5 @@
+TEST_DATA <- Sys.getenv("TEST_DATA")
+
 test_that("convertFRDirectory", {
   make_fr_txt <- function(
     path,
@@ -203,4 +205,28 @@ test_that("convertFRDirectory", {
   expect_true(sum(x$status == "Fail") == 1)
   expect_true(x$error[x$status == "Fail"] == "FaceReader metadata missing")
   expect_true(sum(x$status == "Success" & !is.na(x$error)) == 0)
+})
+
+test_that("convertFRDirectory converts the FR10 fixture directory", {
+  skip_if_not_installed("readxl")
+  path <- file.path(Sys.getenv("TEST_DATA"), "FR10")
+  skip_if(!dir.exists(path), "The FR10 directory fixture is not available")
+  files <- list.files(
+    path,
+    pattern = "\\.(txt|xlsx)$",
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  skip_if(length(files) == 0L, "The FR10 directory contains no supported files")
+
+  output <- file.path(TEST_DATA, "converted", "FR10_fixture")
+  dir.create(output, recursive = TRUE, showWarnings = FALSE)
+  result <- convertFRDirectory(path, output, cores = 1L)
+  writeLines("stale output", result$outpath[[1]])
+  result <- convertFRDirectory(path, output, cores = 1L)
+
+  expect_true(all(result$status == "Success"))
+  expect_true(all(file.exists(result$outpath)))
+  expect_false("stale output" %in% readLines(result$outpath[[1]]))
+  expect_length(result$outpath, length(files))
 })

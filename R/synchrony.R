@@ -1,6 +1,10 @@
 #' Calculate synchrony from converted episodes
 #'
 #' @param coded_data Output from `convert_to_episodes()`.
+#' @param episodes Optional replacement episode data frame. It must contain the
+#'   selected ID and subject columns plus `emotion`, `run_id`, `start_frame`, and
+#'   `end_frame`. Frame bounds are inclusive. A `synchrony_by_episode()` result
+#'   is also accepted, using its `denominator` column as the episode subject.
 #' @param subject Character scalar giving the column in `coded_data$coding` and
 #'   `coded_data$episodes` that identifies the subject. Default is `"subject"`.
 #' @param id Character scalar giving the column in `coded_data$coding` and
@@ -52,6 +56,7 @@
 #' @export
 synchrony <- function(
   coded_data,
+  episodes = NULL,
   subject = "subject",
   id = "id",
   time_limit = 3,
@@ -63,6 +68,7 @@ synchrony <- function(
 ) {
   inputs <- prepare_synchrony_inputs(
     coded_data = coded_data,
+    episodes = episodes,
     subject = subject,
     id = id,
     time_limit = time_limit,
@@ -138,6 +144,8 @@ synchrony <- function(
 #' Calculate synchrony by denominator episode
 #'
 #' @inheritParams synchrony
+#' @details When `coded_data` contains metadata, its `metadata$fps` value is
+#' used by the synchrony calculations, including when `fps` is supplied.
 #'
 #' @return A data.table with columns `id`, `denominator`, `numerator`,
 #'   `emotion`, `run_id`, `start_frame`, `end_frame`, `present_prop`, and
@@ -171,6 +179,7 @@ synchrony <- function(
 #' @export
 synchrony_by_episode <- function(
   coded_data,
+  episodes = NULL,
   subject = "subject",
   id = "id",
   time_limit = 3,
@@ -182,6 +191,7 @@ synchrony_by_episode <- function(
 ) {
   inputs <- prepare_synchrony_inputs(
     coded_data = coded_data,
+    episodes = episodes,
     subject = subject,
     id = id,
     time_limit = time_limit,
@@ -191,5 +201,199 @@ synchrony_by_episode <- function(
     missing_threshold = missing_threshold,
     exclude_emotions = exclude_emotions
   )
-  build_synchrony_episode_table(inputs)
+  attach_fr_metadata(
+    build_synchrony_episode_table(inputs),
+    inputs$metadata
+  )
+}
+
+#' Map shared synchronous episodes
+#'
+#' Maps pairs of same-emotion episodes that overlap while both subjects are in
+#' state. Each unordered pair of source episodes is returned once. A source
+#' episode may therefore occur in multiple rows when it overlaps more than one
+#' episode of the other subject.
+#'
+#' @inheritParams synchrony
+#' @param episodes Optional replacement episode data frame. It must contain the
+#'   selected ID and subject columns plus `emotion`, `run_id`, `start_frame`,
+#'   `end_frame`, and `max_value`. Frame bounds are inclusive.
+#'
+#' @return A data.table with episode-pair identifiers, their inclusive shared
+#'   frame interval, each source episode's maximum value, the larger maximum,
+#'   and their combined value.
+#' @examples
+#' \dontrun{
+#' coded_data <- convert_to_episodes(coding_data)
+#' shared_synchronous_episodes(coded_data)
+#' }
+#' @seealso [synchrony_by_episode()]
+#' @export
+shared_synchronous_episodes <- function(
+  coded_data,
+  episodes = NULL,
+  subject = "subject",
+  id = "id",
+  time_limit = 3,
+  time_limit_frames = NULL,
+  constraint_method = "episode",
+  fps = 30L,
+  missing_threshold = 0,
+  exclude_emotions = "neutral"
+) {
+  inputs <- prepare_synchrony_inputs(
+    coded_data = coded_data,
+    episodes = episodes,
+    subject = subject,
+    id = id,
+    time_limit = time_limit,
+    time_limit_frames = time_limit_frames,
+    constraint_method = constraint_method,
+    fps = fps,
+    missing_threshold = missing_threshold,
+    exclude_emotions = exclude_emotions
+  )
+  if (!"max_value" %in% names(inputs$episodes)) {
+    stop(
+      "`coded_data$episodes` is missing required column: max_value.",
+      call. = FALSE
+    )
+  }
+
+  empty_result <- data.table::data.table(
+    id = inputs$coding$id[0],
+    emotion = character(),
+    subject1 = character(),
+    subject2 = character(),
+    subject1_run_id = integer(),
+    subject2_run_id = integer(),
+    start_frame = integer(),
+    end_frame = integer(),
+    subject1_max_value = numeric(),
+    subject2_max_value = numeric(),
+    max_value = numeric(),
+    combined_value = numeric()
+  )
+  synchrony_table <- build_synchrony_episode_table(inputs)[synchrony == TRUE]
+  if (nrow(synchrony_table) == 0L || nrow(inputs$episodes) == 0L) {
+    return(empty_result)
+  }
+
+  episodes <- inputs$episodes[, .(
+    id,
+    emotion,
+    subject,
+    run_id,
+    start_frame,
+    end_frame,
+    max_value
+  )]
+  episode_pairs <- merge(
+    episodes[, .(
+      id,
+      emotion,
+      subject1 = subject,
+      subject1_run_id = run_id,
+      subject1_start_frame = start_frame,
+      subject1_end_frame = end_frame,
+      subject1_max_value = max_value
+    )],
+    episodes[, .(
+      id,
+      emotion,
+      subject2 = subject,
+      subject2_run_id = run_id,
+      subject2_start_frame = start_frame,
+      subject2_end_frame = end_frame,
+      subject2_max_value = max_value
+    )],
+    by = c("id", "emotion"),
+    allow.cartesian = TRUE,
+    sort = FALSE
+  )[
+    subject1 < subject2 &
+      subject1_start_frame <= subject2_end_frame &
+      subject2_start_frame <= subject1_end_frame
+  ]
+  if (nrow(episode_pairs) == 0L) {
+    return(empty_result)
+  }
+
+  synchronous_as_subject1 <- merge(
+    episode_pairs,
+    synchrony_table[, .(
+      id,
+      emotion,
+      subject1 = denominator,
+      subject2 = numerator,
+      subject1_run_id = run_id,
+      comparison_start_frame = start_frame,
+      comparison_end_frame = end_frame
+    )],
+    by = c("id", "emotion", "subject1", "subject2", "subject1_run_id"),
+    allow.cartesian = TRUE,
+    sort = FALSE
+  )[
+    subject2_start_frame <= comparison_end_frame &
+      subject2_end_frame >= comparison_start_frame
+  ]
+  synchronous_as_subject2 <- merge(
+    episode_pairs,
+    synchrony_table[, .(
+      id,
+      emotion,
+      subject1 = numerator,
+      subject2 = denominator,
+      subject2_run_id = run_id,
+      comparison_start_frame = start_frame,
+      comparison_end_frame = end_frame
+    )],
+    by = c("id", "emotion", "subject1", "subject2", "subject2_run_id"),
+    allow.cartesian = TRUE,
+    sort = FALSE
+  )[
+    subject1_start_frame <= comparison_end_frame &
+      subject1_end_frame >= comparison_start_frame
+  ]
+
+  out <- unique(data.table::rbindlist(
+    list(
+      synchronous_as_subject1,
+      synchronous_as_subject2
+    ),
+    fill = TRUE
+  ))
+  if (nrow(out) == 0L) {
+    return(empty_result)
+  }
+  out[, `:=`(
+    start_frame = pmax(subject1_start_frame, subject2_start_frame),
+    end_frame = pmin(subject1_end_frame, subject2_end_frame),
+    max_value = pmax(subject1_max_value, subject2_max_value),
+    combined_value = subject1_max_value + subject2_max_value
+  )]
+  out <- unique(out[, .(
+    id,
+    emotion,
+    subject1,
+    subject2,
+    subject1_run_id,
+    subject2_run_id,
+    start_frame,
+    end_frame,
+    subject1_max_value,
+    subject2_max_value,
+    max_value,
+    combined_value
+  )])
+  data.table::setorder(
+    out,
+    id,
+    emotion,
+    subject1,
+    subject2,
+    subject1_run_id,
+    subject2_run_id
+  )
+  attach_fr_metadata(out, inputs$metadata)
 }

@@ -65,7 +65,8 @@ test_that("convert_to_episodes; from csv conversion", {
     "end_time",
     "duration_s",
     "run_id",
-    "n_frames"
+    "n_frames",
+    "max_value"
   )
   expect_true(all(expected_cols %in% names(x$episodes)))
   expect_true("delta" %in% names(x$coding))
@@ -227,7 +228,8 @@ test_that("convert_to_episodes; from test_data", {
     "end_time",
     "duration_s",
     "run_id",
-    "n_frames"
+    "n_frames",
+    "max_value"
   )
   expect_true(all(expected_cols %in% names(x$episodes)))
   expect_true("delta" %in% names(x$coding))

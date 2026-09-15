@@ -1,5 +1,6 @@
 prepare_synchrony_inputs <- function(
   coded_data,
+  episodes = NULL,
   subject = "subject",
   id = "id",
   time_limit = 3,
@@ -12,6 +13,8 @@ prepare_synchrony_inputs <- function(
   is_scalar <- function(x) {
     length(x) == 1L && !is.na(x)
   }
+
+  fps <- resolve_fr_metadata(fps, coded_data, "fps", default = 30L)
 
   if (
     !is.list(coded_data) ||
@@ -116,7 +119,11 @@ prepare_synchrony_inputs <- function(
   }
 
   coding <- data.table::as.data.table(coded_data$coding)
-  episodes <- data.table::as.data.table(coded_data$episodes)
+  episodes <- if (is.null(episodes)) {
+    data.table::as.data.table(coded_data$episodes)
+  } else {
+    data.table::as.data.table(episodes)
+  }
   if (!"frame" %in% names(coding)) {
     coding[,
       frame := if (is.numeric(video_time)) {
@@ -147,6 +154,9 @@ prepare_synchrony_inputs <- function(
     )
   }
 
+  if (!subject %in% names(episodes) && "denominator" %in% names(episodes)) {
+    data.table::setnames(episodes, "denominator", subject)
+  }
   required_episodes <- c(
     id,
     subject,
@@ -159,12 +169,47 @@ prepare_synchrony_inputs <- function(
   if (length(missing_episodes) > 0L) {
     stop(
       sprintf(
-        "`coded_data$episodes` is missing required columns: %s.",
+        "`episodes` is missing required columns: %s.",
         paste(missing_episodes, collapse = ", ")
       ),
       call. = FALSE
     )
   }
+  if (
+    !is.numeric(episodes$start_frame) ||
+      !is.numeric(episodes$end_frame) ||
+      any(!is.finite(episodes$start_frame)) ||
+      any(!is.finite(episodes$end_frame)) ||
+      any(
+        abs(episodes$start_frame - round(episodes$start_frame)) >
+          .Machine$double.eps^0.5
+      ) ||
+      any(
+        abs(episodes$end_frame - round(episodes$end_frame)) >
+          .Machine$double.eps^0.5
+      ) ||
+      any(episodes$start_frame > episodes$end_frame)
+  ) {
+    stop(
+      "`episodes` must have finite integer-like inclusive frame bounds with `start_frame <= end_frame`.",
+      call. = FALSE
+    )
+  }
+  if (
+    anyNA(episodes[[id]]) ||
+      anyNA(episodes[[subject]]) ||
+      anyNA(episodes$emotion) ||
+      anyNA(episodes$run_id)
+  ) {
+    stop(
+      "`episodes` identifiers must not contain missing values.",
+      call. = FALSE
+    )
+  }
+  episodes[, `:=`(
+    start_frame = as.integer(start_frame),
+    end_frame = as.integer(end_frame)
+  )]
 
   if (subject != "subject") {
     data.table::setnames(coding, subject, "subject")
@@ -187,6 +232,7 @@ prepare_synchrony_inputs <- function(
     )
   }
 
+  known_episodes <- data.table::copy(episodes)
   keep_emotions <- if (is.null(exclude_emotions)) {
     unique(episodes$emotion)
   } else {
@@ -224,27 +270,33 @@ prepare_synchrony_inputs <- function(
     )
   }
 
+  metadata <- get_fr_metadata(coded_data)
+  empty_episode_result <- attach_fr_metadata(empty_episode_result, metadata)
+
   if (length(keep_emotions) == 0L) {
     return(list(
       coding = coding[0],
       episodes = episodes[0],
+      known_episodes = known_episodes,
       empty_episode_result = empty_episode_result,
       missing_threshold = missing_threshold,
       limit_frames = limit_frames,
-      constraint_method = constraint_method
+      constraint_method = constraint_method,
+      metadata = metadata
     ))
   }
 
   coding <- coding[emotion %chin% keep_emotions]
   episodes <- episodes[emotion %chin% keep_emotions]
-
   list(
     coding = coding,
     episodes = episodes,
-    empty_episode_result = empty_episode_result,
+    known_episodes = known_episodes,
+    empty_episode_result = attach_fr_metadata(empty_episode_result, metadata),
     missing_threshold = missing_threshold,
     limit_frames = limit_frames,
-    constraint_method = constraint_method
+    constraint_method = constraint_method,
+    metadata = metadata
   )
 }
 

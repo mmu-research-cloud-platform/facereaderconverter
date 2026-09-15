@@ -55,3 +55,24 @@ test_that("convertFRExcelFiles preserves extra detailed columns", {
   expect_equal(class(x$age), "numeric")
   expect_true(all(x$participant_name == "Rebecca"))
 })
+
+test_that("convertFRExcelFiles retains FR10 extra text columns", {
+  skip_if_not_installed("readxl")
+  path <- file.path(Sys.getenv("TEST_DATA"), "FR10")
+  skip_if(!dir.exists(path), "The FR10 directory fixture is not available")
+  files <- list.files(
+    path,
+    pattern = "detailed\\.xlsx$",
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  skip_if(
+    length(files) == 0L,
+    "The FR10 directory contains no detailed Excel files"
+  )
+
+  data <- convertFRExcelFiles(files[[1]], return_data = TRUE)
+  expect_true(all(
+    c("stimulus", "event_marker", "speech_rate") %in% names(data)
+  ))
+})

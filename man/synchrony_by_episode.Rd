@@ -6,6 +6,7 @@
 \usage{
 synchrony_by_episode(
   coded_data,
+  episodes = NULL,
   subject = "subject",
   id = "id",
   time_limit = 3,
@@ -18,6 +19,11 @@ synchrony_by_episode(
 }
 \arguments{
 \item{coded_data}{Output from \code{convert_to_episodes()}.}
+
+\item{episodes}{Optional replacement episode data frame. It must contain the
+selected ID and subject columns plus \code{emotion}, \code{run_id}, \code{start_frame}, and
+\code{end_frame}. Frame bounds are inclusive. A \code{synchrony_by_episode()} result
+is also accepted, using its \code{denominator} column as the episode subject.}
 
 \item{subject}{Character scalar giving the column in \code{coded_data$coding} and
 \code{coded_data$episodes} that identifies the subject. Default is \code{"subject"}.}
@@ -53,6 +59,10 @@ A data.table with columns \code{id}, \code{denominator}, \code{numerator},
 }
 \description{
 Calculate synchrony by denominator episode
+}
+\details{
+When \code{coded_data} contains metadata, its \code{metadata$fps} value is
+used by the synchrony calculations, including when \code{fps} is supplied.
 }
 \examples{
 library(data.table)
