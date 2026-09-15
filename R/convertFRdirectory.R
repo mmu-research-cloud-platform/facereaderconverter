@@ -113,9 +113,7 @@ convertFRDirectory <- function(
   converter <- convertFRFiles
   loader <- loadFRfile
 
-  preflight_indices <- which(
-    tolower(tools::file_ext(ls)) %in% c("xlsx", "csv")
-  )
+preflight_indices <- seq_along(ls)
   preflight_output_paths <- function() {
     vapply(
       preflight_indices,
