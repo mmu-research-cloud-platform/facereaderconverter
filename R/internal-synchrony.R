@@ -232,6 +232,7 @@ prepare_synchrony_inputs <- function(
     )
   }
 
+  known_episodes <- data.table::copy(episodes)
   keep_emotions <- if (is.null(exclude_emotions)) {
     unique(episodes$emotion)
   } else {
@@ -276,6 +277,7 @@ prepare_synchrony_inputs <- function(
     return(list(
       coding = coding[0],
       episodes = episodes[0],
+      known_episodes = known_episodes,
       empty_episode_result = empty_episode_result,
       missing_threshold = missing_threshold,
       limit_frames = limit_frames,
@@ -289,6 +291,7 @@ prepare_synchrony_inputs <- function(
   list(
     coding = coding,
     episodes = episodes,
+    known_episodes = known_episodes,
     empty_episode_result = attach_fr_metadata(empty_episode_result, metadata),
     missing_threshold = missing_threshold,
     limit_frames = limit_frames,

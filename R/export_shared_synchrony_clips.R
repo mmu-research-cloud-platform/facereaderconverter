@@ -142,6 +142,38 @@ export_shared_synchrony_clips <- function(
   }
 
   destination <- normalizePath(output_path, winslash = "/", mustWork = FALSE)
+  if (output == "zip" && file.exists(destination) && !overwrite) {
+    stop(
+      "The ZIP archive already exists; use `overwrite = TRUE` to replace it.",
+      call. = FALSE
+    )
+  }
+  if (output == "folder") {
+    source_paths <- normalizePath(
+      manifest$video_path,
+      winslash = "/",
+      mustWork = TRUE
+    )
+    destination_prefix <- paste0(sub("/+$", "", destination), "/")
+    compare_path <- if (.Platform$OS.type == "windows") tolower else identity
+    source_in_destination <- vapply(
+      source_paths,
+      function(source_path) {
+        source_path <- compare_path(source_path)
+        destination_path <- compare_path(destination)
+        destination_prefix_path <- compare_path(destination_prefix)
+        identical(source_path, destination_path) ||
+          startsWith(source_path, destination_prefix_path)
+      },
+      logical(1)
+    )
+    if (any(source_in_destination)) {
+      stop(
+        "The output directory cannot contain a selected source video.",
+        call. = FALSE
+      )
+    }
+  }
   staging_dir <- if (output == "folder") {
     destination
   } else {
@@ -179,7 +211,7 @@ export_shared_synchrony_clips <- function(
       "-c:v",
       "libx264",
       "-c:a",
-      "aac"
+      "aac",
       shQuote(clip_path)
     )
     executable <- if (nzchar(ffmpeg_path)) ffmpeg_path else ffmpeg
@@ -205,12 +237,6 @@ export_shared_synchrony_clips <- function(
     parent <- dirname(destination)
     if (!dir.exists(parent) && !dir.create(parent, recursive = TRUE)) {
       stop("Could not create the ZIP output directory.", call. = FALSE)
-    }
-    if (file.exists(destination) && !overwrite) {
-      stop(
-        "The ZIP archive already exists; use `overwrite = TRUE` to replace it.",
-        call. = FALSE
-      )
     }
     if (file.exists(destination) && unlink(destination) != 0L) {
       stop("Could not replace the existing ZIP archive.", call. = FALSE)

@@ -66,18 +66,21 @@ convertFRDirectory <- function(
   source_files <- ls[
     tolower(tools::file_ext(ls)) %in% c("txt", "xlsx")
   ]
-  source_stems <- file.path(
-    dirname(source_files),
-    tools::file_path_sans_ext(basename(source_files))
-  )
-  csv_stems <- file.path(
-    dirname(ls),
-    tools::file_path_sans_ext(basename(ls))
-  )
+  source_stems <- tools::file_path_sans_ext(basename(source_files))
+  csv_stems <- tools::file_path_sans_ext(basename(ls))
   is_derived_csv <- tolower(tools::file_ext(ls)) == "csv" &
     csv_stems %in% source_stems
   ls <- ls[!is_derived_csv]
   ls <- ls[!grepl("^metadata.*\\.csv$", basename(ls), ignore.case = TRUE)]
+  if (outpath != inpath) {
+    output_dir <- normalizePath(outpath, winslash = "/", mustWork = FALSE)
+    input_files <- normalizePath(ls, winslash = "/", mustWork = FALSE)
+    is_in_output_dir <- startsWith(
+      input_files,
+      paste0(output_dir, "/")
+    )
+    ls <- ls[!is_in_output_dir]
+  }
 
   # initialise metadata with time as POSIXct
   metadata_template <- tibble::tibble(
@@ -109,6 +112,67 @@ convertFRDirectory <- function(
 
   converter <- convertFRFiles
   loader <- loadFRfile
+
+  preflight_indices <- which(
+    tolower(tools::file_ext(ls)) %in% c("xlsx", "csv")
+  )
+  preflight_output_paths <- function() {
+    vapply(
+      preflight_indices,
+      function(i) {
+        data <- tryCatch(
+          suppressWarnings(loader(
+            ls[i],
+            values_as_numeric = values_as_numeric,
+            clean_names = clean_names,
+            fail_codes = fail_codes,
+            duplicate_timecodes_as_error = duplicate_timecodes_as_error,
+            id = id,
+            subject = subject,
+            ...
+          )),
+          error = function(e) NULL
+        )
+        if (is.null(data)) {
+          return(NA_character_)
+        }
+        fr_output_path(
+          ls_out[i],
+          resolve_conversion_metadata(id, subject, ls[i]),
+          fr_conversion_type(data)
+        )
+      },
+      character(1)
+    )
+  }
+
+  output_paths <- preflight_output_paths()
+  comparable_paths <- normalizePath(
+    output_paths,
+    winslash = "/",
+    mustWork = FALSE
+  )
+  if (.Platform$OS.type == "windows") {
+    comparable_paths <- tolower(comparable_paths)
+  }
+  duplicate_paths <- comparable_paths[!is.na(comparable_paths)]
+  duplicate_paths <- unique(duplicate_paths[duplicated(duplicate_paths)])
+  if (length(duplicate_paths) > 0L) {
+    conflicts <- vapply(
+      duplicate_paths,
+      function(path) {
+        paste(
+          basename(ls[preflight_indices][comparable_paths == path]),
+          collapse = ", "
+        )
+      },
+      character(1)
+    )
+    stop(
+      "Multiple inputs resolve to the same output destination: ",
+      paste(conflicts, collapse = "; ")
+    )
+  }
 
   process_file <- function(i) {
     warning_message <- NULL

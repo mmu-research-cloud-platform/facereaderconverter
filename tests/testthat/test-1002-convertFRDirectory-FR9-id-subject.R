@@ -142,6 +142,33 @@ test_that("convertFRDirectory rejects unsafe id-subject output components", {
   expect_false(file.exists(file.path(output_dir, "1001_mum_teen.csv")))
 })
 
+test_that("convertFRDirectory rejects duplicate metadata-derived destinations", {
+  input_dir <- tempfile("fr_duplicate_input_")
+  output_dir <- tempfile("fr_duplicate_output_")
+  dir.create(input_dir)
+  on.exit(
+    unlink(c(input_dir, output_dir), recursive = TRUE, force = TRUE),
+    add = TRUE
+  )
+
+  source <- file.path(TEST_DATA, "testdata_detailed.csv")
+  file.copy(source, file.path(input_dir, "first.csv"))
+  file.copy(source, file.path(input_dir, "second.csv"))
+
+  expect_error(
+    convertFRDirectory(
+      input_dir,
+      output_dir,
+      id = "1001",
+      subject = "mum",
+      cores = 1L,
+      save_metadata = NULL
+    ),
+    "same output destination"
+  )
+  expect_false(file.exists(file.path(output_dir, "1001_mum_detailed.csv")))
+})
+
 test_that("FR10 directory conversion supports explicit id and subject metadata", {
   path <- file.path(Sys.getenv("TEST_DATA"), "FR10")
   skip_if(!dir.exists(path), "The FR10 directory fixture is not available")

@@ -102,7 +102,7 @@ negative_controls <- function(
     control_status = "unmatched"
   )]
 
-  known_ranges <- unique(inputs$episodes[, .(id, start_frame, end_frame)])
+  known_ranges <- unique(inputs$known_episodes[, .(id, start_frame, end_frame)])
   for (row in seq_len(nrow(source_episodes))) {
     source <- source_episodes[row]
     duration <- source$end_frame - source$start_frame + 1L

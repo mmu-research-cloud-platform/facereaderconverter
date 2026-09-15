@@ -100,7 +100,7 @@ test_that("directory conversion applies metadata to supported file types", {
   result <- convertFRDirectory(
     input_dir,
     output_dir,
-    pattern = "detailed\\.xlsx$",
+    pattern = "^8895 mum FR9 Participant 1_00024.*detailed\\.xlsx$",
     id = function(path) 12,
     subject = function(path) "Rebecca",
     cores = 1L
@@ -109,7 +109,7 @@ test_that("directory conversion applies metadata to supported file types", {
   result <- convertFRDirectory(
     input_dir,
     output_dir,
-    pattern = "detailed\\.xlsx$",
+    pattern = "^8895 mum FR9 Participant 1_00024.*detailed\\.xlsx$",
     id = function(path) 12,
     subject = function(path) "Rebecca",
     cores = 1L
