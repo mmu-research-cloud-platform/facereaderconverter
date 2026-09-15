@@ -87,14 +87,14 @@ negative_controls <- function(
     end_frame
   )])
   source_episodes[, source_row_id := .I]
-  frame_limits <- inputs$coding[,
-    .(
-      first_frame = min(frame, na.rm = TRUE),
-      last_frame = max(frame, na.rm = TRUE)
-    ),
-    by = id
-  ]
-  source_episodes <- frame_limits[source_episodes, on = "id"]
+frame_limits <- inputs$coding[,
+  .(
+    first_frame = min(frame, na.rm = TRUE),
+    last_frame = max(frame, na.rm = TRUE)
+  ),
+  by = .(id, subject)
+]
+source_episodes <- frame_limits[source_episodes, on = .(id, subject)]
   source_episodes[, `:=`(
     control_start_frame = as.integer(NA),
     control_end_frame = as.integer(NA),
