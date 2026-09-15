@@ -63,19 +63,19 @@ convertFRDirectory <- function(
   }
 
   # Do not rediscover CSVs generated from TXT or XLSX inputs.
-  source_stems <- tools::file_path_sans_ext(
-    basename(ls)[tolower(tools::file_ext(ls)) %in% c("txt", "xlsx")]
+  source_files <- ls[
+    tolower(tools::file_ext(ls)) %in% c("txt", "xlsx")
+  ]
+  source_stems <- file.path(
+    dirname(source_files),
+    tools::file_path_sans_ext(basename(source_files))
+  )
+  csv_stems <- file.path(
+    dirname(ls),
+    tools::file_path_sans_ext(basename(ls))
   )
   is_derived_csv <- tolower(tools::file_ext(ls)) == "csv" &
-    vapply(
-      tools::file_path_sans_ext(basename(ls)),
-      function(stem) {
-        stem %in%
-          source_stems ||
-          any(startsWith(stem, paste0(source_stems, "_")))
-      },
-      logical(1)
-    )
+    csv_stems %in% source_stems
   ls <- ls[!is_derived_csv]
   ls <- ls[!grepl("^metadata.*\\.csv$", basename(ls), ignore.case = TRUE)]
 

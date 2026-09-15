@@ -107,8 +107,9 @@ test_that("shared_synchronous_episodes requires source episode maxima", {
   coded_data <- make_shared_episode_data()
   coded_data$episodes[, max_value := NULL]
 
-  expect_snapshot(
+  expect_error(
     shared_synchronous_episodes(coded_data, exclude_emotions = NULL),
-    error = TRUE
+    "`coded_data$episodes` is missing required column: max_value.",
+    fixed = TRUE
   )
 })

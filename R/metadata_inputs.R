@@ -44,6 +44,7 @@ fr_conversion_type <- function(data) {
 }
 
 add_fr_metadata <- function(data, metadata) {
+  metadata <- metadata[!vapply(metadata, is.null, logical(1))]
   collisions <- intersect(names(data), names(metadata))
   if (length(collisions) > 0L) {
     stop(
@@ -53,9 +54,7 @@ add_fr_metadata <- function(data, metadata) {
   }
 
   for (name in names(metadata)) {
-    if (!is.null(metadata[[name]])) {
-      data[[name]] <- rep(metadata[[name]], nrow(data))
-    }
+    data[[name]] <- rep(metadata[[name]], nrow(data))
   }
   data
 }

@@ -27,13 +27,15 @@ validation_episodes <- data.table(
 )
 
 test_that("negative_controls validates controls and range bounds", {
-  expect_snapshot(error = TRUE, {
+  expect_error(
     negative_controls(
       validation_data,
       validation_episodes,
       mutually_exclusive = NA
-    )
-  })
+    ),
+    "`mutually_exclusive` must be a non-missing logical scalar.",
+    fixed = TRUE
+  )
   expect_snapshot(error = TRUE, {
     negative_controls(validation_data, validation_episodes, max_tries = 0L)
   })

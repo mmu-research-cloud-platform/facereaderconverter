@@ -173,11 +173,13 @@ export_shared_synchrony_clips <- function(
       "-t",
       sprintf("%.9f", manifest$duration_seconds[[i]]),
       "-map",
-      "0",
+      "0:v:0",
+      "-map",
+      "0:a:0?",
       "-c:v",
       "libx264",
       "-c:a",
-      "aac",
+      "aac"
       shQuote(clip_path)
     )
     executable <- if (nzchar(ffmpeg_path)) ffmpeg_path else ffmpeg
@@ -471,11 +473,6 @@ prepare_shared_synchrony_clips <- function(
       call. = FALSE
     )
   }
-  id_keys <- as.character(clips$id)
-  missing_ids <- setdiff(unique(id_keys), names(video_paths))
-  if (length(missing_ids) > 0L) {
-    stop("`video_paths` is missing one or more selected IDs.", call. = FALSE)
-  }
   data.table::setorderv(
     clips,
     c(
@@ -493,6 +490,11 @@ prepare_shared_synchrony_clips <- function(
     na.last = TRUE
   )
   clips <- clips[seq_len(n)]
+  id_keys <- as.character(clips$id)
+  missing_ids <- setdiff(unique(id_keys), names(video_paths))
+  if (length(missing_ids) > 0L) {
+    stop("`video_paths` is missing one or more selected IDs.", call. = FALSE)
+  }
   frame_buffers <- if (buffer_units == "seconds") {
     as.integer(round(buffer * fps))
   } else {

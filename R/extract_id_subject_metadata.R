@@ -30,8 +30,8 @@ extract_subject_id_metadata <- function(
   id <- stringr::str_extract(filename, id_pattern) |>
     stringr::str_trim()
   subject <- stringr::str_extract(
-    tolower(filename),
-    subject_pattern
+    filename,
+    stringr::regex(subject_pattern, ignore_case = TRUE)
   )
 
   list(id = id, subject = subject)
@@ -42,7 +42,7 @@ extract_subject_id_metadata <- function(
 #' Compatibility alias for `extract_subject_id_metadata()`.
 #'
 #' @inheritParams extract_subject_id_metadata
-#' @return @inherit extract_subject_id_metadata return
+#' @inherit extract_subject_id_metadata return
 #' @examples
 #' \dontrun{
 #' extract_id_subject_metadata("FR9 1218 mum_Analysis_detailed.xlsx")
