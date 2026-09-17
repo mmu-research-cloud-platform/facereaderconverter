@@ -18,7 +18,7 @@ exclusive_data <- structure(
   class = c("fr_coding", "list")
 )
 
-test_that("negative_controls permits overlap by default", {
+test_that("negative_controls rejects overlap by default", {
   episodes <- data.table(
     id = 1L,
     subject = "teen",
@@ -35,9 +35,8 @@ test_that("negative_controls permits overlap by default", {
     max_tries = 1L
   )
 
-  expect_equal(unique(result$control_status), "matched")
-  expect_equal(result$control_start_frame, 1L)
-  expect_equal(result$control_end_frame, 4L)
+  expect_equal(unique(result$control_status), "unmatched")
+  expect_true(is.na(result$control_start_frame))
 })
 
 test_that("negative_controls rejects overlapping controls when requested", {

@@ -3,15 +3,16 @@
 #' Samples control intervals with the same inclusive frame length as supplied
 #' episodes, then calculates synchrony for the sampled intervals. The `episodes`
 #' argument can be the output of [synchrony_by_episode()] or a compatible episode
-#' table. By default, controls may overlap known episodes.
+#' table. Control intervals cannot overlap supplied episodes or previously
+#' accepted controls for the same ID.
 #'
 #' @param coded_data Output from [convert_to_episodes()].
 #' @param episodes A data frame containing episode ranges. It must contain the
 #'   selected ID column, either the selected subject column or `denominator`, and
 #'   `emotion`, `run_id`, `start_frame`, and `end_frame`. Frame bounds are
 #'   inclusive.
-#' @param mutually_exclusive Logical scalar. When `TRUE`, controls cannot overlap
-#'   any supplied episode for the same ID. Defaults to `FALSE`.
+#' @param mutually_exclusive Logical scalar retained for compatibility. Controls
+#'   cannot overlap supplied episodes for the same ID regardless of this value.
 #' @param subject Character scalar giving the subject column. Defaults to
 #'   `"subject"`.
 #' @param id Character scalar giving the ID column. Defaults to `"id"`.
@@ -87,14 +88,14 @@ negative_controls <- function(
     end_frame
   )])
   source_episodes[, source_row_id := .I]
-frame_limits <- inputs$coding[,
-  .(
-    first_frame = min(frame, na.rm = TRUE),
-    last_frame = max(frame, na.rm = TRUE)
-  ),
-  by = .(id, subject)
-]
-source_episodes <- frame_limits[source_episodes, on = .(id, subject)]
+  frame_limits <- inputs$coding[,
+    .(
+      first_frame = min(frame, na.rm = TRUE),
+      last_frame = max(frame, na.rm = TRUE)
+    ),
+    by = .(id, subject)
+  ]
+  source_episodes <- frame_limits[source_episodes, on = .(id, subject)]
   source_episodes[, `:=`(
     control_start_frame = as.integer(NA),
     control_end_frame = as.integer(NA),
@@ -103,6 +104,11 @@ source_episodes <- frame_limits[source_episodes, on = .(id, subject)]
   )]
 
   known_ranges <- unique(inputs$known_episodes[, .(id, start_frame, end_frame)])
+  used_ranges <- data.table::data.table(
+    id = source_episodes$id[0],
+    start_frame = integer(),
+    end_frame = integer()
+  )
   for (row in seq_len(nrow(source_episodes))) {
     source <- source_episodes[row]
     duration <- source$end_frame - source$start_frame + 1L
@@ -123,7 +129,15 @@ source_episodes <- frame_limits[source_episodes, on = .(id, subject)]
           start_frame <= control_end &
           end_frame >= control_start
       ]
-      if (mutually_exclusive && nrow(overlaps) > 0L) {
+      if (nrow(overlaps) > 0L) {
+        next
+      }
+      reused_frames <- used_ranges[
+        id == source$id &
+          start_frame <= control_end &
+          end_frame >= control_start
+      ]
+      if (nrow(reused_frames) > 0L) {
         next
       }
       source_episodes[
@@ -135,6 +149,17 @@ source_episodes <- frame_limits[source_episodes, on = .(id, subject)]
           control_status = "matched"
         )
       ]
+      used_ranges <- data.table::rbindlist(
+        list(
+          used_ranges,
+          data.table::data.table(
+            id = source$id,
+            start_frame = control_start,
+            end_frame = control_end
+          )
+        ),
+        use.names = TRUE
+      )
       break
     }
   }

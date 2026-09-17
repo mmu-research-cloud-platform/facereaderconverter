@@ -27,8 +27,8 @@ selected ID column, either the selected subject column or \code{denominator}, an
 \code{emotion}, \code{run_id}, \code{start_frame}, and \code{end_frame}. Frame bounds are
 inclusive.}
 
-\item{mutually_exclusive}{Logical scalar. When \code{TRUE}, controls cannot overlap
-any supplied episode for the same ID. Defaults to \code{FALSE}.}
+\item{mutually_exclusive}{Logical scalar retained for compatibility. Controls
+cannot overlap supplied episodes for the same ID regardless of this value.}
 
 \item{subject}{Character scalar giving the subject column. Defaults to
 \code{"subject"}.}
@@ -69,7 +69,8 @@ synchrony fields and \code{control_status = "unmatched"}.
 Samples control intervals with the same inclusive frame length as supplied
 episodes, then calculates synchrony for the sampled intervals. The \code{episodes}
 argument can be the output of \code{\link[=synchrony_by_episode]{synchrony_by_episode()}} or a compatible episode
-table. By default, controls may overlap known episodes.
+table. Control intervals cannot overlap supplied episodes or previously
+accepted controls for the same ID.
 }
 \details{
 When \code{coded_data} contains metadata, its \code{metadata$fps} value is
