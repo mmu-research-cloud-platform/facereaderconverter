@@ -1,0 +1,127 @@
+TEST_DATA <- Sys.getenv("TEST_DATA")
+
+test_data_path <- file.path(TEST_DATA, "test_data.RDa")
+test_data_error <- tryCatch(
+  {
+    load(test_data_path)
+    NULL
+  },
+  error = identity
+)
+if (inherits(test_data_error, "error")) {
+  testthat::skip(sprintf(
+    "Could not load test data fixtures: %s",
+    test_data_error$message
+  ))
+}
+
+library(testthat)
+library(data.table)
+
+make_multi_subject <- function(x) {
+  out <- copy(x)
+  sibling_coding <- out$coding[id == 1]
+  sibling_coding[, subject := "sibling"]
+
+  sibling_episodes <- out$episodes[id == 1]
+  sibling_episodes[, subject := "sibling"]
+
+  sibling_deltas <- out$deltas[id == 1]
+  sibling_deltas[, subject := "sibling"]
+
+  out$coding <- rbind(out$coding, sibling_coding, fill = TRUE)
+  out$episodes <- rbind(out$episodes, sibling_episodes, fill = TRUE)
+  out$deltas <- rbind(out$deltas, sibling_deltas, fill = TRUE)
+  out
+}
+
+make_singleton_id <- function(x) {
+  out <- copy(x)
+  out$coding <- out$coding[!(id == 3 & subject == "parent")]
+  out
+}
+
+sort_coded_data <- function(x) {
+  out <- copy(x)
+  coding_order_cols <- intersect(
+    c("id", "subject", "emotion", "video_time", "run_id", "delta_id", "delta"),
+    names(out$coding)
+  )
+  data.table::setorderv(out$coding, coding_order_cols)
+  data.table::setorder(
+    out$episodes,
+    id,
+    subject,
+    emotion,
+    start_frame,
+    end_frame,
+    run_id
+  )
+  out
+}
+
+test_that("convert_to_episodes matches the stored synchrony fixture", {
+  converted <- sort_coded_data(
+    convert_to_episodes(
+      test_coding,
+      fps = 30L,
+      delta_window = 0.1,
+      T_up = 0.15,
+      T_down = 0.05,
+      delta = 1,
+      min_dur_sec = 0.1,
+      consecutive_missing = 90L
+    )
+  )
+  expected <- sort_coded_data(test_data_sync2)
+
+  expect_equal(
+    converted$episodes |>
+      dplyr::select(
+        id,
+        subject,
+        emotion,
+        start_frame,
+        end_frame,
+        duration_s,
+        n_frames
+      ),
+    expected$episodes |>
+      dplyr::select(
+        id,
+        subject,
+        emotion,
+        start_frame,
+        end_frame,
+        duration_s,
+        n_frames
+      )
+  )
+  expect_equal(
+    converted$episodes[, names(expected$episodes), with = FALSE],
+    expected$episodes
+  )
+  expect_equal(
+    converted$coding[, .(
+      id,
+      subject,
+      video_time,
+      emotion,
+      value,
+      run_id,
+      status,
+      in_state
+    )],
+    expected$coding
+  )
+  expect_true(all(
+    vapply(
+      names(expected$metadata),
+      function(name) {
+        identical(converted$metadata[[name]], expected$metadata[[name]])
+      },
+      logical(1)
+    )
+  ))
+  expect_true("delta" %in% names(converted$coding))
+})

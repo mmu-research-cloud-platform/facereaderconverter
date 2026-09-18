@@ -1,0 +1,180 @@
+#!/usr/bin/env Rscript
+
+usage <- function() {
+  message(
+    "Usage: synchrony-moments --input DIRECTORY [options]\n\n",
+    "Discovery options:\n",
+    "  --input DIRECTORY                 Root directory (required)\n",
+    "  --output-dir DIRECTORY            Root directory for clip outputs\n",
+    "  --video-pattern REGEX             Video filename pattern\n",
+    "  --video PATH                      Pair all exports to one video\n",
+    "  --subject-from-filename           Use export filenames when Participant Name is absent\n",
+    "  --verbose                         List FaceReader video matches\n\n",
+    "Episode options:\n",
+    "  --t-up NUMBER                     Episode-entry threshold\n",
+    "  --t-down NUMBER                   Episode-exit threshold\n",
+    "  --delta NUMBER                    Delta-up threshold\n",
+    "  --delta-window SECONDS            Delta window\n",
+    "  --min-dur-sec SECONDS             Minimum episode duration\n",
+    "  --consecutive-missing NUMBER      Allowed missing frames in an episode\n",
+    "  --fps NUMBER                      Frames per second\n",
+    "  --cores NUMBER                    data.table thread count\n\n",
+    "Synchrony options:\n",
+    "  --time-limit SECONDS              Maximum comparison window\n",
+    "  --time-limit-frames NUMBER        Frame-based comparison window\n",
+    "  --constraint-method NAME          strict, episode, loose, or frames\n",
+    "  --missing-threshold NUMBER        Required observed-data proportion\n",
+    "  --exclude-emotions LIST           Comma-separated emotions to exclude\n\n",
+    "Clip options:\n",
+    "  --n NUMBER                        Clips per video; 0 exports all\n",
+    "  --emotion LIST                    Comma-separated emotions to export\n",
+    "  --optimised-subject REGEX         Subject used to rank individual clips\n",
+    "  --only-synchronies TRUE|FALSE     Select shared rather than individual episodes\n",
+    "  --no-only-synchronies             Equivalent to --only-synchronies FALSE\n",
+    "  --buffer VALUE                    Seconds/frames, or BEFORE,AFTER\n",
+    "  --buffer-units NAME               seconds or frames\n",
+    "  --output NAME                     zip or folder\n",
+    "  --ffmpeg PATH                     FFmpeg executable or command\n",
+    "  --overwrite                       Replace existing outputs\n",
+    "  --help                            Show this help\n\n",
+    "FFprobe must also be available on PATH."
+  )
+}
+
+parse_logical <- function(value, option) {
+  value <- tolower(value)
+  if (value %in% c("true", "t", "1")) return(TRUE)
+  if (value %in% c("false", "f", "0")) return(FALSE)
+  stop(option, " must be TRUE or FALSE.")
+}
+
+parse_list <- function(value) {
+  values <- trimws(strsplit(value, ",", fixed = TRUE)[[1L]])
+  values[nzchar(values)]
+}
+
+parse_buffer <- function(value) {
+  values <- suppressWarnings(as.numeric(parse_list(as.character(value))))
+  if (anyNA(values) || !length(values) %in% c(1L, 2L)) {
+    stop("`--buffer` must be one number or two comma-separated numbers.")
+  }
+  if (length(values) == 2L) stats::setNames(values, c("before", "after")) else values
+}
+
+parse_integer <- function(value, option) {
+  parsed <- suppressWarnings(as.numeric(value))
+  if (!is.finite(parsed) || parsed != floor(parsed)) {
+    stop(option, " must be a finite whole number.")
+  }
+  as.integer(parsed)
+}
+
+parse_args <- function(args) {
+  values <- list(
+    output_dir = NULL,
+    video_pattern = "\\.(mp4|mov|mkv|avi)$",
+    video_path = NULL,
+    subject_from_filename = FALSE,
+    verbose = FALSE,
+    T_up = 0.20,
+    T_down = 0.1,
+    delta = 0.10,
+    delta_window = 0.2,
+    min_dur_sec = 0.1,
+    consecutive_missing = 150L,
+    fps = 30L,
+    cores = 0L,
+    time_limit = 3,
+    time_limit_frames = NULL,
+    constraint_method = "episode",
+    missing_threshold = 0,
+    exclude_emotions = "neutral",
+    n = 10L,
+    emotion = "happy",
+    optimised_subject = "both",
+    only_synchronies = TRUE,
+    buffer = 0,
+    buffer_units = "seconds",
+    output = "zip",
+    overwrite = FALSE,
+    ffmpeg = "ffmpeg"
+  )
+  valid_names <- c("input", names(values))
+  i <- 1L
+  while (i <= length(args)) {
+    option <- args[[i]]
+    if (identical(option, "--help")) {
+      usage()
+      return(NULL)
+    }
+    if (identical(option, "--overwrite")) {
+      values$overwrite <- TRUE
+      i <- i + 1L
+      next
+    }
+    if (identical(option, "--subject-from-filename")) {
+      values$subject_from_filename <- TRUE
+      i <- i + 1L
+      next
+    }
+    if (identical(option, "--verbose")) {
+      values$verbose <- TRUE
+      i <- i + 1L
+      next
+    }
+    if (identical(option, "--no-only-synchronies")) {
+      values$only_synchronies <- FALSE
+      i <- i + 1L
+      next
+    }
+    if (identical(option, "--video")) option <- "--video-path"
+    name <- gsub("-", "_", sub("^--", "", option), fixed = TRUE)
+    name <- switch(name, t_up = "T_up", t_down = "T_down", name)
+    if (!name %in% valid_names) stop("Unknown option: ", option)
+    if (i == length(args) || startsWith(args[[i + 1L]], "--")) {
+      stop("Missing value for option: ", option)
+    }
+    values[[name]] <- args[[i + 1L]]
+    i <- i + 2L
+  }
+  if (is.null(values$input)) stop("`--input` is required.")
+
+  integer_names <- c("consecutive_missing", "fps", "cores", "time_limit_frames", "n")
+  numeric_names <- c("T_up", "T_down", "delta", "delta_window", "min_dur_sec", "time_limit", "missing_threshold")
+  for (name in integer_names) {
+    if (!is.null(values[[name]])) {
+      values[[name]] <- parse_integer(values[[name]], paste0("`--", gsub("_", "-", name, fixed = TRUE), "`"))
+    }
+  }
+  for (name in numeric_names) values[[name]] <- as.numeric(values[[name]])
+  values$only_synchronies <- parse_logical(as.character(values$only_synchronies), "`--only-synchronies`")
+  values$emotion <- parse_list(values$emotion)
+  values$exclude_emotions <- parse_list(values$exclude_emotions)
+  values$buffer <- parse_buffer(values$buffer)
+  values
+}
+
+main <- function(args = commandArgs(trailingOnly = TRUE)) {
+  values <- parse_args(args)
+  if (is.null(values)) return(invisible(NULL))
+
+  pipeline_values <- values
+  pipeline_values$inpath <- pipeline_values$input
+  pipeline_values$input <- NULL
+  if (is.null(pipeline_values$output_dir)) pipeline_values$output_dir <- pipeline_values$inpath
+  result <- do.call(facereaderconverter::synchrony_moments_pipeline, pipeline_values)
+  manifest_path <- file.path(values$output_dir %||% values$input, "synchrony-moments-manifest.csv")
+  dir.create(dirname(manifest_path), recursive = TRUE, showWarnings = FALSE)
+  data.table::fwrite(result$manifest, manifest_path)
+  message("Completed synchrony moments pipeline: ", manifest_path)
+  invisible(result)
+}
+
+`%||%` <- function(x, y) if (is.null(x)) y else x
+
+if (sys.nframe() == 0L) {
+  tryCatch(main(), error = function(error) {
+    message(conditionMessage(error))
+    quit(status = 1L)
+  })
+}

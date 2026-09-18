@@ -12,6 +12,8 @@
 #' @param clean_names returns janitor-style clean names
 #' @param fail_codes adds a column with the fail reason, True or False. Column then has 0 for success, 1 for fit_failed, 2 for find_failed
 #' @param duplicate_timecodes_as_error throws an error if there are duplicate timecodes, if FALSE then throws warning
+#' @param id Optional scalar ID or function of `inpath` returning one.
+#' @param subject Optional scalar subject or function of `inpath` returning one.
 #' @param ... arguments passed as necessary
 #' @return Invisibly returns the metadata.
 #' @examples
@@ -40,6 +42,8 @@ convertFRFiles <- function(
   clean_names = TRUE,
   fail_codes = FALSE,
   duplicate_timecodes_as_error = TRUE,
+  id = NULL,
+  subject = NULL,
   ...
 ) {
   if (!is.character(inpath) || length(inpath) != 1) {
@@ -52,6 +56,8 @@ convertFRFiles <- function(
   if (ext != "txt") {
     stop("Input file must have a .txt extension.")
   }
+
+  metadata_values <- resolve_conversion_metadata(id, subject, inpath)
 
   # metadata
 
@@ -180,11 +186,8 @@ convertFRFiles <- function(
   if (clean_names) {
     df <- janitor::clean_names(df, ...)
   }
-  # construct CSV path (same dir, same basename, .csv extension)
-  csv_path <- file.path(
-    dirname(outpath),
-    paste0(tools::file_path_sans_ext(basename(outpath)), ".csv")
-  )
+  df <- add_fr_metadata(df, metadata_values)
+  csv_path <- fr_output_path(outpath, metadata_values, md_type)
 
   if (return_data) {
     invisible(df)

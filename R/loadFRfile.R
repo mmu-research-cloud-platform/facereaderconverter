@@ -12,6 +12,8 @@
 #' @param duplicate_timecodes_as_error Throw an error if duplicate timecodes are
 #'   found.
 #' @param sheet Excel sheet to read when importing `.xlsx` files.
+#' @param id Optional scalar ID or function of `inpath` returning one.
+#' @param subject Optional scalar subject or function of `inpath` returning one.
 #' @param ... Additional arguments passed to the underlying importer.
 #'
 #' @return Invisibly returns the parsed data frame.
@@ -31,6 +33,8 @@ loadFRfile <- function(
   fail_codes = FALSE,
   duplicate_timecodes_as_error = TRUE,
   sheet = 1,
+  id = NULL,
+  subject = NULL,
   ...
 ) {
   if (!is.character(inpath) || length(inpath) != 1) {
@@ -51,6 +55,8 @@ loadFRfile <- function(
         clean_names = clean_names,
         fail_codes = fail_codes,
         duplicate_timecodes_as_error = duplicate_timecodes_as_error,
+        id = id,
+        subject = subject,
         ...
       ),
       error = function(e) {
@@ -71,6 +77,8 @@ loadFRfile <- function(
         fail_codes = fail_codes,
         duplicate_timecodes_as_error = duplicate_timecodes_as_error,
         sheet = sheet,
+        id = id,
+        subject = subject,
         ...
       ),
       error = function(e) {
@@ -86,6 +94,7 @@ loadFRfile <- function(
     if (clean_names) {
       df <- janitor::clean_names(df)
     }
+    df <- add_fr_metadata(df, resolve_conversion_metadata(id, subject, inpath))
     invisible(df)
   } else {
     stop("Unsupported file extension: .", ext)

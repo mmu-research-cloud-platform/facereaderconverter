@@ -12,7 +12,7 @@ files into a more analysis-friendly format, and for detecting episodes
 of emotion from the time series data. It also includes some utilities
 for downstream analysis.
 
-Tested to work with FaceReader 9.1.
+Tested to work with FaceReader 9.1 and 10
 
 ## Installation
 
@@ -124,8 +124,9 @@ cleaned.
 
 ### `convertFRDirectory()`
 
-`convertFRDirectory()` processes all `.txt` files in a directory and
-returns metadata invisibly.
+`convertFRDirectory()` processes supported `.txt`, `.xlsx`, and `.csv`
+FaceReader exports in a directory, writes converted CSV files, and
+returns conversion metadata invisibly.
 
 ``` r
 library(facereaderconverter)
@@ -142,17 +143,242 @@ convertFRDirectory(
 destination directory and defaults to `inpath`; when different, the
 input folder structure is reproduced below it. `recursive` controls
 whether nested directories are searched. `pattern` optionally restricts
-file names using a regular expression; `NULL` processes all lowercase
-`.txt` files. `values_as_numeric`, `clean_names`, `fail_codes`, and
-`duplicate_timecodes_as_error` are passed to `convertFRFiles()`.
-`save_metadata` is the directory in which the metadata CSV is saved, or
-`NULL` to skip saving it. `metadata_filename` sets that CSV’s filename.
-`cores` controls parallel workers; `0` automatically selects a worker
-count. Additional arguments in `...` are passed to `convertFRFiles()`.
+input **basenames** using a case-sensitive regular expression; it is
+applied in addition to the supported-extension filter. `NULL` processes
+all supported `.txt`, `.xlsx`, and `.csv` inputs. `values_as_numeric`,
+`clean_names`, `fail_codes`, and `duplicate_timecodes_as_error` are
+passed to the file readers. `save_metadata` is the directory in which
+the metadata CSV is saved, or `NULL` to skip saving it.
+`metadata_filename` sets that CSV’s filename. `cores` controls parallel
+workers; `0` automatically selects a worker count. Additional arguments
+in `...` are passed to the relevant file importer.
 
-The returned metadata contains `status` (`"Success"` or `"Fail"`) and an
-`error` message column. Files that fail are recorded rather than
-stopping the whole directory conversion.
+For example, use `pattern = "detailed\\.xlsx$"` for detailed Excel
+exports, `pattern = "_state\\.txt$"` for state text exports, or
+`pattern = "8895.*(detailed|state)\\.xlsx$"` to select a participant’s
+detailed and state workbooks. Generated CSVs and metadata CSVs are
+excluded from subsequent input discovery.
+
+The returned metadata contains `inpath`, `outpath`, `video_filename`,
+`time`, `type`, `status` (`"Success"` or `"Fail"`), and `error`. Files
+that fail are recorded rather than stopping the whole directory
+conversion. By default this metadata is also written as `metadata.csv`
+in `outpath`; set `save_metadata = NULL` to omit it.
+
+## Synchrony moments pipeline
+
+`synchrony_moments_pipeline()` provides an end-to-end workflow: it
+recursively finds videos and detailed FaceReader `.txt` or `.xlsx`
+exports, detects emotion episodes for the two participants in each
+video, identifies shared synchronous episodes, and exports clips. By
+default it selects the ten highest-ranked shared `happy` intervals per
+video and creates a separate ZIP archive for each video.
+
+FaceReader exports are normally matched to videos by the basename in
+their `Filename` metadata, ignoring directory components and case. Each
+matched video must have exactly two detailed exports whose
+`Participant Name` columns each contain one distinct non-missing value.
+State outputs are ignored and CSV exports are not accepted because they
+do not retain the source-video header metadata required for validation.
+FFmpeg and FFprobe must be available on `PATH` to create clips.
+
+### Interactive R
+
+The compact example below uses common defaults.
+
+``` r
+library(facereaderconverter)
+
+result <- synchrony_moments_pipeline(
+  inpath = "data/study",
+  output_dir = "data/synchrony-clips",
+  fps = 30L,
+  n = 10L,
+  emotion = "happy"
+)
+
+result$manifest
+result$videos
+result$results
+```
+
+### Full configuration
+
+For full control, this example groups every pipeline argument by stage;
+remove settings whose defaults are appropriate.
+
+``` r
+result <- synchrony_moments_pipeline(
+  # Discovery and pairing
+  inpath = "data/study",
+  output_dir = "data/synchrony-clips",
+  video_pattern = "\\.(mp4|mov|mkv|avi)$",
+  video_path = NULL,
+  subject_from_filename = FALSE,
+
+  # Episode detection
+  T_up = 0.20,
+  T_down = 0.10,
+  delta = 0.10,
+  delta_window = 0.2,
+  min_dur_sec = 0.1,
+  consecutive_missing = 150L,
+  fps = 30L,
+  cores = 0L,
+
+  # Shared synchrony detection
+  time_limit = 3,
+  time_limit_frames = NULL,
+  constraint_method = "episode",
+  missing_threshold = 0,
+  exclude_emotions = "neutral",
+
+  # Clip selection and export
+  n = 10L,
+  emotion = "happy",
+  optimised_subject = "both",
+  only_synchronies = TRUE,
+  buffer = c(before = 2, after = 1),
+  buffer_units = "seconds",
+  output = "zip",
+  overwrite = FALSE,
+  ffmpeg = "ffmpeg"
+)
+```
+
+For a successful run, `result$manifest` records every discovered
+FaceReader export and its validated association. Invalid or ambiguous
+associations stop the pipeline with an error. `result$videos` records
+each validated video and its two paired exports. `result$results` is
+named by pipeline video ID; each entry contains the combined
+`coding_input`, the `coded_data` `fr_coding` object, the
+`shared_moments` table, the returned `clip_manifest`, and the clip
+archive path.
+
+Some datasets, including the Brazil fixture used in the clip-export
+tests, contain two single-participant FaceReader exports but one
+side-by-side source video. Those exports may also lack
+`Participant Name`. Use `video_path` to deliberately pair all detailed
+exports with that video, and `subject_from_filename = TRUE` to use each
+export basename as its participant label:
+
+``` r
+
+brazil_dir <- file.path(Sys.getenv("TEST_DATA"), "brazil")
+
+brazil_result <- synchrony_moments_pipeline(
+
+  inpath = brazil_dir,
+
+  video_path = file.path(brazil_dir, "ID100024_side_by_side.mp4"),
+
+  subject_from_filename = TRUE,
+
+  output_dir = "brazil-synchrony-clips",
+
+  n = 1L,
+
+  overwrite = TRUE,
+
+  cores = 1L
+
+)
+```
+
+### Command line
+
+Install the package before using the command-line interface. From a
+local checkout, run:
+
+``` r
+
+remotes::install_local(".")
+```
+
+The CLI script is installed with the package rather than registered
+automatically on your shell `PATH`. Run it from R to obtain its
+installed location, then pass that path to `Rscript`:
+
+``` r
+
+cli <- system.file("scripts", "synchrony-moments", package = "facereaderconverter")
+
+cli
+```
+
+``` sh
+
+Rscript "PATH_PRINTED_ABOVE" \
+
+  --input data/study \
+
+  --output-dir data/synchrony-clips \
+
+  --fps 30 \
+
+  --n 10 \
+
+  --emotion happy
+```
+
+To make `synchrony-moments` available as a regular shell command, copy
+or symlink the installed script to a directory on `PATH`. On Unix-like
+systems:
+
+``` sh
+
+ln -s "$(Rscript -e 'cat(system.file("scripts", "synchrony-moments", package = "facereaderconverter"))')" ~/.local/bin/synchrony-moments
+
+chmod +x ~/.local/bin/synchrony-moments
+```
+
+After that one-time setup, supply a root directory with `--input`; use
+`--output-dir` to keep generated clips separate from source files:
+
+``` sh
+
+synchrony-moments \
+
+  --input data/study \
+
+  --output-dir data/synchrony-clips \
+
+  --fps 30 \
+
+  --n 10 \
+
+  --emotion happy
+```
+
+For Brazil-style side-by-side recordings, explicitly supply the source
+video and use export filenames as participant labels:
+
+``` sh
+
+synchrony-moments \
+
+  --input "brazil" \
+
+  --video "brazil/ID00000_side_by_side.mp4" \
+
+  --subject-from-filename \
+
+  --output-dir brazil-synchrony-clips \
+
+  --n 1 \
+
+  --overwrite
+```
+
+CLI option names use lowercase kebab case (`--time-limit-frames` for
+`time_limit_frames`). Comma-separate multiple emotions, for example
+`--emotion happy,surprised`, and use `--buffer 2,1` for asymmetric
+`before,after` buffering. Set logical selection explicitly with
+`--only-synchronies TRUE` or use `--no-only-synchronies` for individual
+episodes. Run `synchrony-moments --help` for the complete option
+reference. Each successful CLI run writes
+`synchrony-moments-manifest.csv` at the output root and creates one clip
+ZIP archive for each video with selected intervals.
 
 ## Episode coding
 
@@ -331,6 +557,91 @@ the aggregated synchrony summary.
 function returns the unaggregated comparison rows, including the matched
 subjects, `run_id`, presence proportion, and logical synchrony result.
 
+### `shared_synchronous_episodes()`
+
+`shared_synchronous_episodes()` identifies overlapping, same-emotion
+episode pairs that are synchronous. Each unordered subject pair is
+returned once for each overlapping pair of source episodes. The result
+includes the inclusive shared frame interval, source episode
+identifiers, each subject’s maximum emotion value, the larger maximum,
+and their combined value.
+
+``` r
+library(facereaderconverter)
+
+shared <- shared_synchronous_episodes(
+  coded_data,
+  exclude_emotions = "neutral"
+)
+
+head(shared)
+```
+
+This function is useful when synchrony needs to be linked back to
+specific episode intervals, for example when selecting video clips.
+`coded_data` must be the `fr_coding` object returned by
+`convert_to_episodes()` and its episode table must contain `max_value`.
+`subject` and `id` select the subject and case/dyad columns.
+`time_limit`, `time_limit_frames`, and `constraint_method` control the
+comparison window in the same way as `synchrony()`. `fps` converts a
+time limit to frames, `missing_threshold` controls the required
+comparison-subject presence, and `exclude_emotions` removes emotions
+before matching.
+
+The returned table contains `id`, `emotion`, `subject1`, `subject2`,
+`subject1_run_id`, `subject2_run_id`, `start_frame`, `end_frame`,
+`subject1_max_value`, `subject2_max_value`, `max_value`, and
+`combined_value`. Rows are ordered by case, emotion, subject pair, and
+source episode identifiers.
+
+### `export_shared_synchrony_clips()`
+
+`export_shared_synchrony_clips()` ranks shared synchronous intervals by
+`combined_value` and uses FFmpeg to export the corresponding video
+segments. It returns a clip manifest invisibly and, for ZIP output,
+includes the manifest as `manifest.csv` in the archive.
+
+``` r
+library(facereaderconverter)
+
+shared <- shared_synchronous_episodes(coded_data)
+
+export_shared_synchrony_clips(
+  coded_data,
+  shared,
+  video_paths = c("1" = "recording.mp4"),
+  n = 10L,
+  emotion = "happy",
+  buffer = c(before = 2, after = 1),
+  buffer_units = "seconds",
+  output_path = "recording-shared-clips.zip"
+)
+```
+
+`coded_data` must be an `fr_coding` object with `metadata$fps`.
+`shared_synchrony` is the result from `shared_synchronous_episodes()`.
+`video_paths` is a named character vector of existing video files; its
+names must match the `id` values in the shared-synchrony table. `n`
+selects the highest-ranked intervals, and `emotion` optionally filters
+them before ranking.
+
+`buffer` can be one non-negative value for a symmetric buffer or a named
+vector such as `c(before = 2, after = 1)` for asymmetric buffering. Set
+`buffer_units` to `"seconds"` or `"frames"`. The legacy `buffer_frames`
+and `buffer_seconds` arguments remain available, but should not be
+supplied together with `buffer`.
+
+`output` can be `"zip"` or `"folder"`; ZIP output requires an `.zip`
+`output_path`. If `output_path` is `NULL`, the output is placed beside
+the selected source video, which requires all selected videos to be in
+the same directory. `overwrite = TRUE` permits replacing an existing
+archive or non-empty output folder. `ffmpeg` is either the FFmpeg
+command available on `PATH` or an executable path.
+
+The manifest records the selected intervals, frame and time boundaries,
+source video paths, generated clip filenames, and output paths. Frame
+ranges are inclusive, so a one-frame interval has duration `1 / fps`.
+
 ### `reaction_rate()`
 
 `reaction_rate()` estimates the proportion of eligible episodes that
@@ -505,6 +816,8 @@ dependency, so both are listed separately.
 | `reaction_rate_by_episode()` | none | accepts `fr_coding`; otherwise needs a delta-coded table with `id`, `subject`, `emotion`, `frame`, `delta`, `run_id`, and `in_state` | `add_delta_column()` |
 | `synchrony()` | none | requires `fr_coding` returned by `convert_to_episodes()` | `convert_to_episodes()` |
 | `synchrony_by_episode()` | none | requires `fr_coding` returned by `convert_to_episodes()` | `convert_to_episodes()` |
+| `shared_synchronous_episodes()` | none | requires `fr_coding` with episode `max_value` | `convert_to_episodes()` |
+| `export_shared_synchrony_clips()` | none | requires `fr_coding` with `metadata$fps`, shared-synchrony table, named video paths, and FFmpeg | `shared_synchronous_episodes()` |
 | `convertFRFiles()` | none | none | none |
 | `convertFRExcelFiles()` | none | none | none |
 | `to_seconds()` | none | none | none |
