@@ -244,13 +244,16 @@ export_shared_synchrony_clips <- function(
     )
     executable <- if (nzchar(ffmpeg_path)) ffmpeg_path else ffmpeg
     status <- system2(executable, args = args)
-    if ((!is.null(status) && status != 0L) || !file.exists(clip_path)) {
+    if (
+      (!is.null(status) && status != 0L) ||
+        !shared_synchrony_file_exists(clip_path)
+    ) {
       stop(sprintf("FFmpeg failed while creating clip %d.", i), call. = FALSE)
     }
     manifest$clip_path[[i]] <- normalizePath(
       clip_path,
       winslash = "/",
-      mustWork = TRUE
+      mustWork = FALSE
     )
   }
   if (output == "zip") {
@@ -278,6 +281,20 @@ export_shared_synchrony_clips <- function(
     }
   }
   manifest
+}
+
+shared_synchrony_file_exists <- function(path) {
+  if (file.exists(path)) {
+    return(TRUE)
+  }
+  if (.Platform$OS.type != "windows") {
+    return(FALSE)
+  }
+  long_path <- paste0(
+    "\\\\?\\",
+    normalizePath(path, winslash = "\\", mustWork = FALSE)
+  )
+  file.exists(long_path)
 }
 
 probe_shared_synchrony_video_duration <- function(path, ffprobe) {

@@ -165,6 +165,221 @@ that fail are recorded rather than stopping the whole directory
 conversion. By default this metadata is also written as `metadata.csv`
 in `outpath`; set `save_metadata = NULL` to omit it.
 
+## Synchrony moments pipeline
+
+`synchrony_moments_pipeline()` provides an end-to-end workflow: it
+recursively finds videos and detailed FaceReader `.txt` or `.xlsx`
+exports, detects emotion episodes for the two participants in each
+video, identifies shared synchronous episodes, and exports clips. By
+default it selects the ten highest-ranked shared `happy` intervals per
+video and creates a separate ZIP archive for each video.
+
+FaceReader exports are normally matched to videos by the basename in
+their `Filename` metadata, ignoring directory components and case. Each
+matched video must have exactly two detailed exports whose
+`Participant Name` columns each contain one distinct non-missing value.
+State outputs are ignored and CSV exports are not accepted because they
+do not retain the source-video header metadata required for validation.
+FFmpeg and FFprobe must be available on `PATH` to create clips.
+
+### Interactive R
+
+The compact example below uses common defaults.
+
+``` r
+library(facereaderconverter)
+
+result <- synchrony_moments_pipeline(
+  inpath = "data/study",
+  output_dir = "data/synchrony-clips",
+  fps = 30L,
+  n = 10L,
+  emotion = "happy"
+)
+
+result$manifest
+result$videos
+result$results
+```
+
+### Full configuration
+
+For full control, this example groups every pipeline argument by stage;
+remove settings whose defaults are appropriate.
+
+``` r
+result <- synchrony_moments_pipeline(
+  # Discovery and pairing
+  inpath = "data/study",
+  output_dir = "data/synchrony-clips",
+  video_pattern = "\\.(mp4|mov|mkv|avi)$",
+  video_path = NULL,
+  subject_from_filename = FALSE,
+
+  # Episode detection
+  T_up = 0.20,
+  T_down = 0.10,
+  delta = 0.10,
+  delta_window = 0.2,
+  min_dur_sec = 0.1,
+  consecutive_missing = 150L,
+  fps = 30L,
+  cores = 0L,
+
+  # Shared synchrony detection
+  time_limit = 3,
+  time_limit_frames = NULL,
+  constraint_method = "episode",
+  missing_threshold = 0,
+  exclude_emotions = "neutral",
+
+  # Clip selection and export
+  n = 10L,
+  emotion = "happy",
+  optimised_subject = "both",
+  only_synchronies = TRUE,
+  buffer = c(before = 2, after = 1),
+  buffer_units = "seconds",
+  output = "zip",
+  overwrite = FALSE,
+  ffmpeg = "ffmpeg"
+)
+```
+
+For a successful run, `result$manifest` records every discovered
+FaceReader export and its validated association. Invalid or ambiguous
+associations stop the pipeline with an error. `result$videos` records
+each validated video and its two paired exports. `result$results` is
+named by pipeline video ID; each entry contains the combined
+`coding_input`, the `coded_data` `fr_coding` object, the
+`shared_moments` table, the returned `clip_manifest`, and the clip
+archive path.
+
+Some datasets, including the Brazil fixture used in the clip-export
+tests, contain two single-participant FaceReader exports but one
+side-by-side source video. Those exports may also lack
+`Participant Name`. Use `video_path` to deliberately pair all detailed
+exports with that video, and `subject_from_filename = TRUE` to use each
+export basename as its participant label:
+
+``` r
+
+brazil_dir <- file.path(Sys.getenv("TEST_DATA"), "brazil")
+
+brazil_result <- synchrony_moments_pipeline(
+
+  inpath = brazil_dir,
+
+  video_path = file.path(brazil_dir, "ID100024_side_by_side.mp4"),
+
+  subject_from_filename = TRUE,
+
+  output_dir = "brazil-synchrony-clips",
+
+  n = 1L,
+
+  overwrite = TRUE,
+
+  cores = 1L
+
+)
+```
+
+### Command line
+
+Install the package before using the command-line interface. From a
+local checkout, run:
+
+``` r
+
+remotes::install_local(".")
+```
+
+The CLI script is installed with the package rather than registered
+automatically on your shell `PATH`. Run it from R to obtain its
+installed location, then pass that path to `Rscript`:
+
+``` r
+
+cli <- system.file("scripts", "synchrony-moments", package = "facereaderconverter")
+
+cli
+```
+
+``` sh
+
+Rscript "PATH_PRINTED_ABOVE" \
+
+  --input data/study \
+
+  --output-dir data/synchrony-clips \
+
+  --fps 30 \
+
+  --n 10 \
+
+  --emotion happy
+```
+
+To make `synchrony-moments` available as a regular shell command, copy
+or symlink the installed script to a directory on `PATH`. On Unix-like
+systems:
+
+``` sh
+
+ln -s "$(Rscript -e 'cat(system.file("scripts", "synchrony-moments", package = "facereaderconverter"))')" ~/.local/bin/synchrony-moments
+
+chmod +x ~/.local/bin/synchrony-moments
+```
+
+After that one-time setup, supply a root directory with `--input`; use
+`--output-dir` to keep generated clips separate from source files:
+
+``` sh
+
+synchrony-moments \
+
+  --input data/study \
+
+  --output-dir data/synchrony-clips \
+
+  --fps 30 \
+
+  --n 10 \
+
+  --emotion happy
+```
+
+For Brazil-style side-by-side recordings, explicitly supply the source
+video and use export filenames as participant labels:
+
+``` sh
+
+synchrony-moments \
+
+  --input "brazil" \
+
+  --video "brazil/ID00000_side_by_side.mp4" \
+
+  --subject-from-filename \
+
+  --output-dir brazil-synchrony-clips \
+
+  --n 1 \
+
+  --overwrite
+```
+
+CLI option names use lowercase kebab case (`--time-limit-frames` for
+`time_limit_frames`). Comma-separate multiple emotions, for example
+`--emotion happy,surprised`, and use `--buffer 2,1` for asymmetric
+`before,after` buffering. Set logical selection explicitly with
+`--only-synchronies TRUE` or use `--no-only-synchronies` for individual
+episodes. Run `synchrony-moments --help` for the complete option
+reference. Each successful CLI run writes
+`synchrony-moments-manifest.csv` at the output root and creates one clip
+ZIP archive for each video with selected intervals.
+
 ## Episode coding
 
 ### `convert_to_episodes()`

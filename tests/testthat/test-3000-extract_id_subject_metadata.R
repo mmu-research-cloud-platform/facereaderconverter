@@ -1,5 +1,19 @@
 TEST_DATA <- Sys.getenv("TEST_DATA")
-load(file.path(TEST_DATA, "test_data.RDa"))
+
+test_data_path <- file.path(TEST_DATA, "test_data.RDa")
+test_data_error <- tryCatch(
+  {
+    load(test_data_path)
+    NULL
+  },
+  error = identity
+)
+if (inherits(test_data_error, "error")) {
+  testthat::skip(sprintf(
+    "Could not load test data fixtures: %s",
+    test_data_error$message
+  ))
+}
 
 test_that("extract_subject_id_metadata trims four-digit ids and extracts subjects", {
   id_pattern <- "(?<![0-9])\\s*[0-9]{4}\\s*(?![0-9])"

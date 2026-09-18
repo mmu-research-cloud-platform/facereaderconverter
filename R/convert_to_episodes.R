@@ -235,6 +235,19 @@ convert_to_episodes <- function(
     ]
   }
 
+  if (nrow(episodes) == 0L) {
+    episodes <- data.table::data.table(
+      id = coding_df$id[0],
+      subject = coding_df$subject[0],
+      emotion = character(),
+      state_run = integer(),
+      start_frame = integer(),
+      end_frame = integer(),
+      start_time = coding_df$video_time[0],
+      end_time = coding_df$video_time[0],
+      max_value = numeric()
+    )
+  }
   data.table::setorder(episodes, id, subject, emotion, start_frame)
   episodes[, run_id := as.integer(.I)]
   episodes[, n_frames := as.integer(end_frame - start_frame + 1L)]

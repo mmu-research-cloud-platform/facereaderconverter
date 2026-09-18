@@ -1,6 +1,19 @@
 TEST_DATA <- Sys.getenv("TEST_DATA")
 
-load(file.path(TEST_DATA, "test_data.RDa"))
+test_data_path <- file.path(TEST_DATA, "test_data.RDa")
+test_data_error <- tryCatch(
+  {
+    load(test_data_path)
+    NULL
+  },
+  error = identity
+)
+if (inherits(test_data_error, "error")) {
+  testthat::skip(sprintf(
+    "Could not load test data fixtures: %s",
+    test_data_error$message
+  ))
+}
 test_that("locf, csv", {
   coding_df <- read.csv(file.path("testdata", "testdata_detailed.csv")) |>
     dplyr::mutate(id = 1, subject = "parent")

@@ -1,5 +1,19 @@
 TEST_DATA <- Sys.getenv("TEST_DATA")
-load(file.path(TEST_DATA, "test_data.RDa"))
+
+test_data_path <- file.path(TEST_DATA, "test_data.RDa")
+test_data_error <- tryCatch(
+  {
+    load(test_data_path)
+    NULL
+  },
+  error = identity
+)
+if (inherits(test_data_error, "error")) {
+  testthat::skip(sprintf(
+    "Could not load test data fixtures: %s",
+    test_data_error$message
+  ))
+}
 
 library(testthat)
 
@@ -26,7 +40,13 @@ make_brazil_clip_inputs <- function() {
   skip_if(Sys.which("ffmpeg") == "", "FFmpeg is not available.")
 
   emotions <- c(
-    "neutral", "happy", "sad", "angry", "surprised", "scared", "disgusted"
+    "neutral",
+    "happy",
+    "sad",
+    "angry",
+    "surprised",
+    "scared",
+    "disgusted"
   )
   coding <- dplyr::bind_rows(lapply(coding_files, function(path) {
     loadFRfile(path) |>
@@ -46,7 +66,10 @@ make_brazil_clip_inputs <- function() {
     brazil_dir = brazil_dir,
     coded_data = coded_data,
     shared = sad_shared,
-    video_paths = stats::setNames(video_files, unique(as.character(sad_shared$id)))
+    video_paths = stats::setNames(
+      video_files,
+      unique(as.character(sad_shared$id))
+    )
   )
 }
 
@@ -113,7 +136,10 @@ test_that("export_shared_synchrony_clips caps sad clips and overwrites folder ou
   )
 
   expect_equal(nrow(manifest), nrow(inputs$shared))
-  expect_equal(length(list.files(output_dir, pattern = "\\.mp4$")), nrow(manifest))
+  expect_equal(
+    length(list.files(output_dir, pattern = "\\.mp4$")),
+    nrow(manifest)
+  )
   expect_true(file.exists(file.path(output_dir, "manifest.csv")))
   expect_error(
     export_shared_synchrony_clips(
@@ -137,5 +163,8 @@ test_that("export_shared_synchrony_clips caps sad clips and overwrites folder ou
     output = "folder",
     overwrite = TRUE
   )
-  expect_equal(length(list.files(output_dir, pattern = "\\.mp4$")), nrow(overwritten))
+  expect_equal(
+    length(list.files(output_dir, pattern = "\\.mp4$")),
+    nrow(overwritten)
+  )
 })
