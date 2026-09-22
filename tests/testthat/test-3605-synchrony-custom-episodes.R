@@ -1,20 +1,3 @@
-TEST_DATA <- Sys.getenv("TEST_DATA")
-
-test_data_path <- file.path(TEST_DATA, "test_data.RDa")
-test_data_error <- tryCatch(
-  {
-    load(test_data_path)
-    NULL
-  },
-  error = identity
-)
-if (inherits(test_data_error, "error")) {
-  testthat::skip(sprintf(
-    "Could not load test data fixtures: %s",
-    test_data_error$message
-  ))
-}
-
 library(data.table)
 library(testthat)
 
@@ -67,6 +50,55 @@ test_that("synchrony accepts synchrony_by_episode output as episodes", {
   )
 
   expect_equal(result, episode_result)
+})
+
+test_that("synchrony preserves historical positional arguments", {
+  positional <- synchrony(
+    custom_data,
+    "subject",
+    "id",
+    3,
+    NULL,
+    "episode",
+    30L,
+    0,
+    NULL
+  )
+  named <- synchrony(
+    custom_data,
+    episodes = custom_episodes,
+    exclude_emotions = NULL
+  )
+
+  expect_s3_class(positional, "data.table")
+  expect_s3_class(named, "data.table")
+})
+
+test_that("synchrony_by_episode preserves inputs and accepts named episodes", {
+  coding_before <- data.table::copy(custom_data$coding)
+  episodes_before <- data.table::copy(custom_episodes)
+
+  positional <- synchrony_by_episode(
+    custom_data,
+    "subject",
+    "id",
+    3,
+    NULL,
+    "episode",
+    30L,
+    0,
+    NULL
+  )
+  named <- synchrony_by_episode(
+    custom_data,
+    episodes = custom_episodes,
+    exclude_emotions = NULL
+  )
+
+  expect_s3_class(positional, "data.table")
+  expect_s3_class(named, "data.table")
+  expect_equal(custom_data$coding, coding_before)
+  expect_equal(custom_episodes, episodes_before)
 })
 
 test_that("synchrony validates malformed supplied episode ranges", {

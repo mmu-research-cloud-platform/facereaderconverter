@@ -62,15 +62,16 @@ add_fr_metadata <- function(data, metadata) {
 fr_output_path <- function(outpath, metadata, type = NULL) {
   values <- metadata[c("id", "subject")]
   has_values <- vapply(values, Negate(is.null), logical(1))
-  output_stem <- tools::file_path_sans_ext(basename(outpath))
+  source_stem <- tools::file_path_sans_ext(basename(outpath))
+  output_stem <- source_stem
 
   if (all(has_values)) {
     components <- vapply(values, as.character, character(1))
     if (any(!nzchar(components)) || any(grepl("[/\\\\:*?\"<>|]", components))) {
       stop("`id` and `subject` must produce safe filename components.")
     }
-    output_stem <- paste(components, collapse = "_")
-    if (type %in% c("detailed", "state")) {
+    output_stem <- paste(c(components, source_stem), collapse = "_")
+    if (!is.null(type) && type %in% c("detailed", "state")) {
       output_stem <- paste(output_stem, type, sep = "_")
     }
   }

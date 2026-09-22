@@ -22,35 +22,25 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals", {
   skip_if_not(dir.exists(brazil_dir))
   video_files <- list.files(
     brazil_dir,
-    pattern = "\\.(mp4|mov|avi|mkv|webm)$",
+    pattern = "^ID100024_side_by_side\\.mp4$",
     full.names = TRUE,
     ignore.case = TRUE
   )
   coding_files <- list.files(
     brazil_dir,
-    pattern = "\\.(csv|txt|xlsx)$",
+    pattern = "^00024_.*_detailed\\.xlsx$",
     full.names = TRUE,
     ignore.case = TRUE
   )
-  skip_if(length(video_files) != 1L, "Brazil fixture must contain one video.")
-  output <- file.path(
-    dirname(video_files[[1L]]),
-    paste0(
-      tools::file_path_sans_ext(basename(video_files[[1L]])),
-      "-shared-synchrony-clips.zip"
-    )
+  skip_if(
+    length(video_files) != 1L,
+    "Brazil fixture must contain the ID100024 video."
   )
-  output_dir <- file.path(
-    dirname(video_files[[1L]]),
-    paste0(
-      tools::file_path_sans_ext(basename(video_files[[1L]])),
-      "-shared-synchrony-clips"
-    )
-  )
-  unlink(c(output, output_dir), recursive = TRUE, force = TRUE)
+  output <- tempfile("ID100024-shared-synchrony-clips-", fileext = ".zip")
+  on.exit(unlink(output, force = TRUE), add = TRUE)
   skip_if(
     length(coding_files) != 2L,
-    "Brazil fixture must contain two FaceReader outputs."
+    "Brazil fixture must contain two ID100024 FaceReader outputs."
   )
   skip_if(Sys.which("ffmpeg") == "", "FFmpeg is not available.")
 
@@ -85,17 +75,20 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals", {
     shared,
     video_paths = stats::setNames(video_files, ids),
     n = 1L,
+    output_path = output,
     overwrite = TRUE
   )
 
-  expected_archive <- file.path(
-    dirname(video_files[[1L]]),
-    paste0(
-      tools::file_path_sans_ext(basename(video_files[[1L]])),
-      "-shared-synchrony-clips.zip"
-    )
-  )
+  expected_archive <- output
   expect_s3_class(manifest, "data.table")
+  expect_invisible(export_shared_synchrony_clips(
+    coded_data,
+    shared,
+    video_paths = stats::setNames(video_files, ids),
+    n = 1L,
+    output_path = output,
+    overwrite = TRUE
+  ))
   expect_equal(
     manifest$archive_path,
     normalizePath(expected_archive, winslash = "/")
@@ -112,23 +105,26 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals to a f
   skip_if_not(dir.exists(brazil_dir))
   video_files <- list.files(
     brazil_dir,
-    pattern = "\\.(mp4|mov|avi|mkv|webm)$",
+    pattern = "^ID100024_side_by_side\\.mp4$",
     full.names = TRUE,
     ignore.case = TRUE
   )
   coding_files <- list.files(
     brazil_dir,
-    pattern = "\\.(csv|txt|xlsx)$",
+    pattern = "^00024_.*_detailed\\.xlsx$",
     full.names = TRUE,
     ignore.case = TRUE
   )
-  skip_if(length(video_files) != 1L, "Brazil fixture must contain one video.")
+  skip_if(
+    length(video_files) != 1L,
+    "Brazil fixture must contain the ID100024 video."
+  )
   skip_if(Sys.which("ffmpeg") == "", "FFmpeg is not available.")
   ffprobe <- Sys.which("ffprobe")
   skip_if(ffprobe == "", "FFprobe is not available.")
   skip_if(
     length(coding_files) != 2L,
-    "Brazil fixture must contain two FaceReader outputs."
+    "Brazil fixture must contain two ID100024 FaceReader outputs."
   )
   skip_if(Sys.which("ffmpeg") == "", "FFmpeg is not available.")
 
@@ -158,14 +154,8 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals to a f
   )
   ids <- unique(as.character(shared$id))
   skip_if(length(ids) != 1L, "Brazil fixture must represent one video ID.")
-  output_dir <- file.path(
-    dirname(video_files[[1L]]),
-    paste0(
-      tools::file_path_sans_ext(basename(video_files[[1L]])),
-      "-shared-synchrony-clips"
-    )
-  )
-  unlink(output_dir, recursive = TRUE, force = TRUE)
+  output_dir <- tempfile("ID100024-shared-synchrony-clips-")
+  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
   video_duration <- function(path) {
     as.numeric(system2(
       ffprobe,
@@ -267,11 +257,10 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals to a f
 
   expect_s3_class(manifest, "data.table")
   expect_true(dir.exists(output_dir))
-  expect_equal(dirname(output_dir), dirname(video_files[[1L]]))
   expect_true(file.exists(file.path(output_dir, "manifest.csv")))
   exported_video_files <- list.files(
     output_dir,
-    pattern = "\\.(mp4|mov|avi|mkv|webm)$",
+    pattern = "^[0-9]{3}_id-1_.*\\.mp4$",
     full.names = TRUE,
     ignore.case = TRUE
   )
@@ -294,20 +283,23 @@ test_that("export_shared_synchrony_clips exports all Brazil happy intervals with
   skip_if_not(dir.exists(brazil_dir))
   video_files <- list.files(
     brazil_dir,
-    pattern = "\\.(mp4|mov|avi|mkv|webm)$",
+    pattern = "^ID100024_side_by_side\\.mp4$",
     full.names = TRUE,
     ignore.case = TRUE
   )
   coding_files <- list.files(
     brazil_dir,
-    pattern = "\\.(csv|txt|xlsx)$",
+    pattern = "^00024_.*_detailed\\.xlsx$",
     full.names = TRUE,
     ignore.case = TRUE
   )
-  skip_if(length(video_files) != 1L, "Brazil fixture must contain one video.")
+  skip_if(
+    length(video_files) != 1L,
+    "Brazil fixture must contain the ID100024 video."
+  )
   skip_if(
     length(coding_files) != 2L,
-    "Brazil fixture must contain two FaceReader outputs."
+    "Brazil fixture must contain two ID100024 FaceReader outputs."
   )
   skip_if(Sys.which("ffmpeg") == "", "FFmpeg is not available.")
   skip_if(Sys.which("ffprobe") == "", "FFprobe is not available.")
@@ -356,7 +348,7 @@ test_that("export_shared_synchrony_clips exports all Brazil happy intervals with
   expect_length(
     list.files(
       output_dir,
-      pattern = "\\.(mp4|mov|avi|mkv|webm)$",
+      pattern = "^[0-9]{3}_id-1_.*\\.mp4$",
       full.names = TRUE,
       ignore.case = TRUE
     ),

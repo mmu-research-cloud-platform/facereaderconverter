@@ -6,7 +6,6 @@
 \usage{
 synchrony_by_episode(
   coded_data,
-  episodes = NULL,
   subject = "subject",
   id = "id",
   time_limit = 3,
@@ -14,16 +13,12 @@ synchrony_by_episode(
   constraint_method = "episode",
   fps = 30L,
   missing_threshold = 0,
-  exclude_emotions = "neutral"
+  exclude_emotions = "neutral",
+  episodes = NULL
 )
 }
 \arguments{
 \item{coded_data}{Output from \code{convert_to_episodes()}.}
-
-\item{episodes}{Optional replacement episode data frame. It must contain the
-selected ID and subject columns plus \code{emotion}, \code{run_id}, \code{start_frame}, and
-\code{end_frame}. Frame bounds are inclusive. A \code{synchrony_by_episode()} result
-is also accepted, using its \code{denominator} column as the episode subject.}
 
 \item{subject}{Character scalar giving the column in \code{coded_data$coding} and
 \code{coded_data$episodes} that identifies the subject. Default is \code{"subject"}.}
@@ -51,6 +46,11 @@ proportion of frames within the episode. Default is \code{0}.}
 
 \item{exclude_emotions}{Character vector of emotions to exclude from the
 denominator calculation. Default is \code{"neutral"}.}
+
+\item{episodes}{Optional replacement episode data frame. It must contain the
+selected ID and subject columns plus \code{emotion}, \code{run_id}, \code{start_frame}, and
+\code{end_frame}. Frame bounds are inclusive. A \code{synchrony_by_episode()} result
+is also accepted, using its \code{denominator} column as the episode subject.}
 }
 \value{
 A data.table with columns \code{id}, \code{denominator}, \code{numerator},

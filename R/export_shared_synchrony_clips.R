@@ -221,6 +221,9 @@ export_shared_synchrony_clips <- function(
   if (!dir.exists(staging_dir) && !dir.create(staging_dir, recursive = TRUE)) {
     stop("Could not create the output directory.", call. = FALSE)
   }
+  if (output == "zip") {
+    on.exit(unlink(staging_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  }
 
   for (i in seq_len(nrow(manifest))) {
     clip_path <- file.path(staging_dir, manifest$clip_filename[[i]])
@@ -280,7 +283,7 @@ export_shared_synchrony_clips <- function(
       stop("Could not create the ZIP archive.", call. = FALSE)
     }
   }
-  manifest
+  invisible(manifest)
 }
 
 shared_synchrony_file_exists <- function(path) {

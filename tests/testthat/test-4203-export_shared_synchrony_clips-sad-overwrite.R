@@ -22,20 +22,23 @@ make_brazil_clip_inputs <- function() {
   skip_if_not(dir.exists(brazil_dir))
   video_files <- list.files(
     brazil_dir,
-    pattern = "\\.(mp4|mov|avi|mkv|webm)$",
+    pattern = "^ID100024_side_by_side\\.mp4$",
     full.names = TRUE,
     ignore.case = TRUE
   )
   coding_files <- list.files(
     brazil_dir,
-    pattern = "\\.(csv|txt|xlsx)$",
+    pattern = "^00024_.*_detailed\\.xlsx$",
     full.names = TRUE,
     ignore.case = TRUE
   )
-  skip_if(length(video_files) != 1L, "Brazil fixture must contain one video.")
+  skip_if(
+    length(video_files) != 1L,
+    "Brazil fixture must contain the ID100024 video."
+  )
   skip_if(
     length(coding_files) != 2L,
-    "Brazil fixture must contain two FaceReader outputs."
+    "Brazil fixture must contain two ID100024 FaceReader outputs."
   )
   skip_if(Sys.which("ffmpeg") == "", "FFmpeg is not available.")
 
@@ -75,7 +78,8 @@ make_brazil_clip_inputs <- function() {
 
 test_that("export_shared_synchrony_clips caps sad clips and overwrites ZIP output", {
   inputs <- make_brazil_clip_inputs()
-  output <- file.path(inputs$brazil_dir, "sad-shared-synchrony-clips.zip")
+  output <- tempfile("ID100024-sad-shared-synchrony-clips-", fileext = ".zip")
+  on.exit(unlink(output, force = TRUE), add = TRUE)
   requested_n <- nrow(inputs$shared) + 1L
 
   manifest <- export_shared_synchrony_clips(
@@ -121,7 +125,8 @@ test_that("export_shared_synchrony_clips caps sad clips and overwrites ZIP outpu
 
 test_that("export_shared_synchrony_clips caps sad clips and overwrites folder output", {
   inputs <- make_brazil_clip_inputs()
-  output_dir <- file.path(inputs$brazil_dir, "sad-shared-synchrony-clips")
+  output_dir <- tempfile("ID100024-sad-shared-synchrony-clips-")
+  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
   requested_n <- nrow(inputs$shared) + 1L
 
   manifest <- export_shared_synchrony_clips(

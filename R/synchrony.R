@@ -56,7 +56,6 @@
 #' @export
 synchrony <- function(
   coded_data,
-  episodes = NULL,
   subject = "subject",
   id = "id",
   time_limit = 3,
@@ -64,7 +63,8 @@ synchrony <- function(
   constraint_method = "episode",
   fps = 30L,
   missing_threshold = 0,
-  exclude_emotions = "neutral"
+  exclude_emotions = "neutral",
+  episodes = NULL
 ) {
   inputs <- prepare_synchrony_inputs(
     coded_data = coded_data,
@@ -179,7 +179,6 @@ synchrony <- function(
 #' @export
 synchrony_by_episode <- function(
   coded_data,
-  episodes = NULL,
   subject = "subject",
   id = "id",
   time_limit = 3,
@@ -187,7 +186,8 @@ synchrony_by_episode <- function(
   constraint_method = "episode",
   fps = 30L,
   missing_threshold = 0,
-  exclude_emotions = "neutral"
+  exclude_emotions = "neutral",
+  episodes = NULL
 ) {
   inputs <- prepare_synchrony_inputs(
     coded_data = coded_data,

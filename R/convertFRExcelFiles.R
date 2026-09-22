@@ -44,9 +44,9 @@ convertFRExcelFiles <- function(
   fail_codes = FALSE,
   duplicate_timecodes_as_error = TRUE,
   sheet = 1,
+  ...,
   id = NULL,
-  subject = NULL,
-  ...
+  subject = NULL
 ) {
   if (!is.character(inpath) || length(inpath) != 1) {
     stop("`inpath` must be a single string to a .xlsx file.")

@@ -118,11 +118,11 @@ prepare_synchrony_inputs <- function(
     }
   }
 
-  coding <- data.table::as.data.table(coded_data$coding)
+  coding <- data.table::as.data.table(data.table::copy(coded_data$coding))
   episodes <- if (is.null(episodes)) {
-    data.table::as.data.table(coded_data$episodes)
+    data.table::as.data.table(data.table::copy(coded_data$episodes))
   } else {
-    data.table::as.data.table(episodes)
+    data.table::as.data.table(data.table::copy(episodes))
   }
   if (!"frame" %in% names(coding)) {
     coding[,

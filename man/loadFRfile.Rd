@@ -11,9 +11,11 @@ loadFRfile(
   fail_codes = FALSE,
   duplicate_timecodes_as_error = TRUE,
   sheet = 1,
+  ...,
   id = NULL,
   subject = NULL,
-  ...
+  csv_args = list(),
+  clean_names_args = list()
 )
 }
 \arguments{
@@ -31,11 +33,17 @@ found.}
 
 \item{sheet}{Excel sheet to read when importing \code{.xlsx} files.}
 
+\item{...}{Legacy additional arguments passed to \code{janitor::clean_names()} for
+TXT and XLSX imports and to \code{\link[readr:read_csv]{readr::read_csv()}} for CSV imports.}
+
 \item{id}{Optional scalar ID or function of \code{inpath} returning one.}
 
 \item{subject}{Optional scalar subject or function of \code{inpath} returning one.}
 
-\item{...}{Additional arguments passed to the underlying importer.}
+\item{csv_args}{Named list of additional arguments for \code{\link[readr:read_csv]{readr::read_csv()}}.}
+
+\item{clean_names_args}{Named list of additional arguments for
+\code{\link[janitor:clean_names]{janitor::clean_names()}}.}
 }
 \value{
 Invisibly returns the parsed data frame.

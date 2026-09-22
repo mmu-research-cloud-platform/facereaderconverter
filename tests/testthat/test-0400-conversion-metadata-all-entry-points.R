@@ -32,10 +32,13 @@ test_that("convertFRDirectory adds metadata across all supported file types", {
   skip_if_not_installed("readxl")
 
   input_dir <- tempfile("fr_metadata_input_")
-  output_dir <- file.path(TEST_DATA, "converted", "metadata_all_entry_points")
+  output_dir <- tempfile("metadata_all_entry_points_")
   dir.create(input_dir)
-  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-  on.exit(unlink(input_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  dir.create(output_dir)
+  on.exit(
+    unlink(c(input_dir, output_dir), recursive = TRUE, force = TRUE),
+    add = TRUE
+  )
 
   input_files <- c(
     testthat::test_path("testdata", "testdata_detailed.txt"),
@@ -85,9 +88,9 @@ test_that("convertFRDirectory adds metadata across all supported file types", {
   expect_setequal(
     basename(result$outpath),
     c(
-      "1001_mum_detailed.csv",
-      "1002_teen_detailed.csv",
-      "1003_child_detailed.csv"
+      "1001_mum_source_txt_detailed.csv",
+      "1002_teen_source_xlsx_detailed.csv",
+      "1003_child_source_csv_detailed.csv"
     )
   )
 

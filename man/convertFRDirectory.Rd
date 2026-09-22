@@ -15,10 +15,10 @@ convertFRDirectory(
   metadata_filename = "metadata.csv",
   fail_codes = FALSE,
   duplicate_timecodes_as_error = TRUE,
-  id = NULL,
-  subject = NULL,
   cores = 0L,
-  ...
+  ...,
+  id = NULL,
+  subject = NULL
 )
 }
 \arguments{
@@ -42,13 +42,13 @@ convertFRDirectory(
 
 \item{duplicate_timecodes_as_error}{throws an error if there are duplicate timecodes, if FALSE then throws warning}
 
-\item{id}{Optional scalar ID or function of each input path returning one.}
-
-\item{subject}{Optional scalar subject or function of each input path returning one.}
-
 \item{cores}{integer Number of threads to use. Default 0 is auto.}
 
 \item{...}{arguments passed as necessary}
+
+\item{id}{Optional scalar ID or function of each input path returning one.}
+
+\item{subject}{Optional scalar subject or function of each input path returning one.}
 }
 \value{
 Invisibly returns the metadata.

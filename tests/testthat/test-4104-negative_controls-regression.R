@@ -1,20 +1,3 @@
-TEST_DATA <- Sys.getenv("TEST_DATA")
-
-test_data_path <- file.path(TEST_DATA, "test_data.RDa")
-test_data_error <- tryCatch(
-  {
-    load(test_data_path)
-    NULL
-  },
-  error = identity
-)
-if (inherits(test_data_error, "error")) {
-  testthat::skip(sprintf(
-    "Could not load test data fixtures: %s",
-    test_data_error$message
-  ))
-}
-
 library(data.table)
 library(testthat)
 
@@ -111,6 +94,28 @@ test_that("negative_controls matches interval lengths and calculates synchrony",
   )
 })
 
+
+test_that("negative_controls supports custom ID and subject columns", {
+  custom_coding <- data.table::copy(control_coding)
+  data.table::setnames(custom_coding, c("id", "subject"), c("dyad", "person"))
+  custom_data <- structure(
+    list(coding = custom_coding, episodes = custom_coding[0]),
+    class = c("fr_coding", "list")
+  )
+  custom_episodes <- data.table::copy(control_episodes)
+  data.table::setnames(custom_episodes, c("id", "subject"), c("dyad", "person"))
+
+  set.seed(7349)
+  result <- negative_controls(
+    custom_data,
+    custom_episodes,
+    id = "dyad",
+    subject = "person",
+    exclude_emotions = NULL
+  )
+
+  expect_equal(unique(result$control_status), "matched")
+})
 
 test_that("negative controls do not reuse frames for an ID", {
   coding <- data.table(

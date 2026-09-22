@@ -42,8 +42,9 @@ test_that("metadata columns are optional and partial values preserve the stem", 
   x <- convertFRFiles(path, return_data = TRUE)
   expect_false(any(c("id", "subject") %in% names(x)))
 
-  output <- file.path(TEST_DATA, "converted", "metadata_partial")
-  dir.create(output, recursive = TRUE, showWarnings = FALSE)
+  output <- tempfile("metadata_partial_")
+  dir.create(output)
+  on.exit(unlink(output, recursive = TRUE, force = TRUE), add = TRUE)
   md <- convertFRFiles(
     path,
     outpath = file.path(output, "original.txt"),
@@ -62,8 +63,9 @@ test_that("metadata columns are optional and partial values preserve the stem", 
 
 test_that("both metadata values determine output name and collisions fail", {
   path <- file.path("testdata", "testdata_detailed.txt")
-  output <- file.path(TEST_DATA, "converted", "metadata_complete")
-  dir.create(output, recursive = TRUE, showWarnings = FALSE)
+  output <- tempfile("metadata_complete_")
+  dir.create(output)
+  on.exit(unlink(output, recursive = TRUE, force = TRUE), add = TRUE)
 
   md <- convertFRFiles(
     path,
@@ -78,8 +80,8 @@ test_that("both metadata values determine output name and collisions fail", {
     id = 12,
     subject = "Rebecca"
   )
-  expect_true(file.exists(file.path(output, "12_Rebecca_detailed.csv")))
-  expect_true(grepl("12_Rebecca_detailed.csv$", md$outpath))
+  expect_true(file.exists(file.path(output, "12_Rebecca_ignored_detailed.csv")))
+  expect_true(grepl("12_Rebecca_ignored_detailed.csv$", md$outpath))
   expect_false("stale output" %in% readLines(md$outpath))
 
   collision_path <- tempfile(fileext = ".csv")
@@ -89,6 +91,29 @@ test_that("both metadata values determine output name and collisions fail", {
     loadFRfile(collision_path, id = 12),
     "already exist"
   )
+})
+
+test_that("metadata output names retain distinct source stems", {
+  output <- tempfile("metadata_output_")
+  dir.create(output)
+  on.exit(unlink(output, recursive = TRUE, force = TRUE), add = TRUE)
+  source <- file.path("testdata", "testdata_detailed.txt")
+
+  first <- convertFRFiles(
+    source,
+    outpath = file.path(output, "session_one.txt"),
+    id = 12,
+    subject = "Rebecca"
+  )
+  second <- convertFRFiles(
+    source,
+    outpath = file.path(output, "session_two.txt"),
+    id = 12,
+    subject = "Rebecca"
+  )
+
+  expect_false(identical(first$outpath, second$outpath))
+  expect_true(all(file.exists(c(first$outpath, second$outpath))))
 })
 
 test_that("Excel and CSV imports apply metadata", {
@@ -108,8 +133,9 @@ test_that("Excel and CSV imports apply metadata", {
 test_that("directory conversion applies metadata to supported file types", {
   input_dir <- file.path(TEST_DATA, "FR9")
   skip_if(!dir.exists(input_dir), "The FR9 directory fixture is not available")
-  output_dir <- file.path(TEST_DATA, "converted", "metadata_directory")
-  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  output_dir <- tempfile("metadata_directory_")
+  dir.create(output_dir)
+  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
 
   result <- convertFRDirectory(
     input_dir,
@@ -130,7 +156,10 @@ test_that("directory conversion applies metadata to supported file types", {
   )
 
   expect_true(all(result$status == "Success"))
-  expect_true(all(grepl("12_Rebecca_detailed.csv$", result$outpath)))
+  expect_true(all(grepl(
+    "^12_Rebecca_.*_detailed\\.csv$",
+    basename(result$outpath)
+  )))
   expect_true(all(file.exists(result$outpath)))
   expect_false("stale output" %in% readLines(result$outpath[[1]]))
 })
@@ -146,8 +175,9 @@ test_that("FR10 directory conversion accepts metadata callbacks", {
   )
   skip_if(length(files) == 0L, "The FR10 directory contains no state TXT files")
 
-  output <- file.path(TEST_DATA, "converted", "FR10_metadata")
-  dir.create(output, recursive = TRUE, showWarnings = FALSE)
+  output <- tempfile("FR10_metadata_")
+  dir.create(output)
+  on.exit(unlink(output, recursive = TRUE, force = TRUE), add = TRUE)
   result <- convertFRDirectory(
     path,
     output,
@@ -167,7 +197,10 @@ test_that("FR10 directory conversion accepts metadata callbacks", {
   )
 
   expect_true(all(result$status == "Success"))
-  expect_true(all(grepl("fr10_fixture_state.csv$", result$outpath)))
+  expect_true(all(grepl(
+    "^fr10_fixture_.*_state\\.csv$",
+    basename(result$outpath)
+  )))
   expect_true(all(file.exists(result$outpath)))
   expect_false("stale output" %in% readLines(result$outpath[[1]]))
 })

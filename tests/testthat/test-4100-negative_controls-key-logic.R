@@ -83,7 +83,7 @@ test_that("all negative controls have zero synchrony", {
     )
   ]
 
-  result <- synchrony(test_data_sync2, control_episodes)
+  result <- synchrony(test_data_sync2, episodes = control_episodes)
 
   expect_gt(nrow(control_episodes), 0L)
   expect_equal(unique(result$synchrony), 0)
@@ -110,7 +110,7 @@ test_that("negative controls have some synchrony when not mutually exclusive", {
 
   result <- synchrony(
     test_data_sync2,
-    control_episodes,
+    episodes = control_episodes,
     missing_threshold = 0
   ) |>
     mutate(syncs = synchrony * n_episodes)

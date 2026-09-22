@@ -42,10 +42,10 @@ convertFRDirectory <- function(
   metadata_filename = "metadata.csv",
   fail_codes = FALSE,
   duplicate_timecodes_as_error = TRUE,
-  id = NULL,
-  subject = NULL,
   cores = 0L,
-  ...
+  ...,
+  id = NULL,
+  subject = NULL
 ) {
   ls <- list.files(
     inpath,

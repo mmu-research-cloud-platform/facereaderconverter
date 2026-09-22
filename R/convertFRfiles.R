@@ -42,9 +42,9 @@ convertFRFiles <- function(
   clean_names = TRUE,
   fail_codes = FALSE,
   duplicate_timecodes_as_error = TRUE,
+  ...,
   id = NULL,
-  subject = NULL,
-  ...
+  subject = NULL
 ) {
   if (!is.character(inpath) || length(inpath) != 1) {
     stop("`inpath` must be a single string to a .txt file.")
@@ -187,11 +187,11 @@ convertFRFiles <- function(
     df <- janitor::clean_names(df, ...)
   }
   df <- add_fr_metadata(df, metadata_values)
-  csv_path <- fr_output_path(outpath, metadata_values, md_type)
 
   if (return_data) {
     invisible(df)
   } else {
+    csv_path <- fr_output_path(outpath, metadata_values, md_type)
     readr::write_csv(df, csv_path)
 
     metadata <- data.frame(

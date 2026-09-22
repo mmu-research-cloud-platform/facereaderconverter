@@ -15,11 +15,12 @@ if (inherits(test_data_error, "error")) {
   ))
 }
 
-test_that("loadFRfile passes read_csv args without leaking them into clean_names", {
-  expect_no_error(
-    loadFRfile(
-      file.path("testdata", "testdata_detailed.csv"),
-      locale = readr::locale()
-    )
+test_that("loadFRfile keeps CSV and name-repair arguments separate", {
+  data <- loadFRfile(
+    file.path("testdata", "testdata_detailed.csv"),
+    csv_args = list(locale = readr::locale()),
+    clean_names_args = list(case = "upper_camel")
   )
+
+  expect_true("VideoTime" %in% names(data))
 })

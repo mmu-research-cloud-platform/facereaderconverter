@@ -60,14 +60,32 @@ test_that("metadata fps is authoritative for synchrony results", {
 
 test_that("metadata fps is inherited by negative controls", {
   coded_data <- convert_to_episodes(test_coding, fps = 12L)
-  episodes <- synchrony_by_episode(coded_data, exclude_emotions = NULL)
+  episodes <- synchrony_by_episode(
+    coded_data,
+    constraint_method = "frames",
+    time_limit_frames = 12L,
+    exclude_emotions = NULL
+  )
 
-  result <- negative_controls(
+  set.seed(7349)
+  inherited <- negative_controls(
     coded_data,
     episodes,
+    constraint_method = "frames",
+    time_limit = 1,
     fps = 30L,
     exclude_emotions = NULL
   )
+  set.seed(7349)
+  explicit <- negative_controls(
+    coded_data,
+    episodes,
+    constraint_method = "frames",
+    time_limit_frames = 12L,
+    exclude_emotions = NULL
+  )
+
+  expect_equal(inherited, explicit)
 })
 
 test_that("metadata is preserved through coded-data transformations", {

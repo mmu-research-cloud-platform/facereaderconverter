@@ -175,6 +175,12 @@ negative_controls <- function(
       start_frame = control_start_frame,
       end_frame = control_end_frame
     )]
+    if (subject != "subject") {
+      data.table::setnames(control_episodes, "subject", subject)
+    }
+    if (id != "id") {
+      data.table::setnames(control_episodes, "id", id)
+    }
     control_synchrony <- synchrony_by_episode(
       coded_data = coded_data,
       episodes = control_episodes,

@@ -12,9 +12,9 @@ convertFRExcelFiles(
   fail_codes = FALSE,
   duplicate_timecodes_as_error = TRUE,
   sheet = 1,
+  ...,
   id = NULL,
-  subject = NULL,
-  ...
+  subject = NULL
 )
 }
 \arguments{
@@ -34,11 +34,11 @@ found.}
 
 \item{sheet}{Excel sheet to read. Defaults to the first sheet.}
 
+\item{...}{Additional arguments passed to \code{janitor::clean_names()}.}
+
 \item{id}{Optional scalar ID or function of \code{inpath} returning one.}
 
 \item{subject}{Optional scalar subject or function of \code{inpath} returning one.}
-
-\item{...}{Additional arguments passed to \code{janitor::clean_names()}.}
 }
 \value{
 Invisibly returns the parsed data when \code{return_data = TRUE};
