@@ -268,21 +268,13 @@ export basename as its participant label:
 brazil_dir <- file.path(Sys.getenv("TEST_DATA"), "brazil")
 
 brazil_result <- synchrony_moments_pipeline(
-
   inpath = brazil_dir,
-
   video_path = file.path(brazil_dir, "ID100024_side_by_side.mp4"),
-
   subject_from_filename = TRUE,
-
   output_dir = "brazil-synchrony-clips",
-
   n = 1L,
-
   overwrite = TRUE,
-
   cores = 1L
-
 )
 ```
 
@@ -292,7 +284,6 @@ Install the package before using the command-line interface. From a
 local checkout, run:
 
 ``` r
-
 remotes::install_local(".")
 ```
 
@@ -308,17 +299,11 @@ cli
 ```
 
 ``` sh
-
 Rscript "PATH_PRINTED_ABOVE" \
-
   --input data/study \
-
   --output-dir data/synchrony-clips \
-
   --fps 30 \
-
   --n 10 \
-
   --emotion happy
 ```
 
@@ -329,25 +314,46 @@ systems:
 ``` sh
 
 ln -s "$(Rscript -e 'cat(system.file("scripts", "synchrony-moments", package = "facereaderconverter"))')" ~/.local/bin/synchrony-moments
-
 chmod +x ~/.local/bin/synchrony-moments
 ```
 
-After that one-time setup, supply a root directory with `--input`; use
-`--output-dir` to keep generated clips separate from source files:
+On Windows, use PowerShell instead of these Unix commands. In
+particular, `chmod` and `~/.local/bin` are not available in Windows
+PowerShell. The following adds a `synchrony-moments` function to your
+PowerShell profile, so it remains available in future sessions:
+
+``` powershell
+$profileDirectory = Split-Path $PROFILE
+New-Item -ItemType Directory -Path $profileDirectory -Force | Out-Null
+if (-not (Test-Path $PROFILE)) {
+  New-Item -ItemType File -Path $PROFILE -Force | Out-Null
+}
+@'
+function synchrony-moments {
+  $cli = & Rscript -e 'cat(system.file("scripts", "synchrony-moments", package = "facereaderconverter"))'
+  & Rscript $cli @args
+}
+'@ | Add-Content -Path $PROFILE
+. $PROFILE
+```
+
+In PowerShell, run the command with the usual CLI options, for example:
+
+``` powershell
+synchrony-moments --input data/study --output-dir data/synchrony-clips --fps 30 --n 10 --emotion happy
+```
+
+On Unix-like shells, after the one-time setup, supply a root directory
+with `--input`; use `--output-dir` to keep generated clips separate from
+source files:
 
 ``` sh
 
 synchrony-moments \
-
   --input data/study \
-
   --output-dir data/synchrony-clips \
-
   --fps 30 \
-
   --n 10 \
-
   --emotion happy
 ```
 
