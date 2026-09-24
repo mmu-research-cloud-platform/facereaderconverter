@@ -43,7 +43,7 @@ file extension.
 library(facereaderconverter)
 
 loadFRfile(
-  inpath = "testdata/testdata_detailed.txt",
+  inpath = "tests/testthat/testdata/testdata_detailed.txt",
   values_as_numeric = TRUE,
   clean_names = TRUE
 )
@@ -73,7 +73,8 @@ same basename unless `return_data = TRUE`.
 library(facereaderconverter)
 
 convertFRFiles(
-  inpath = "testdata/testdata_detailed.txt",
+  inpath = "tests/testthat/testdata/testdata_detailed.txt",
+  outpath = file.path(tempdir(), "testdata_detailed.csv"),
   values_as_numeric = TRUE,
   clean_names = TRUE
 )
@@ -103,7 +104,7 @@ the header row automatically, and returns the parsed data unless
 library(facereaderconverter)
 
 convertFRExcelFiles(
-  inpath = "FaceReaderOutput.xlsx",
+  inpath = "tests/testthat/testdata/testdata_excel_detailed.xlsx",
   return_data = TRUE,
   values_as_numeric = TRUE,
   clean_names = TRUE
@@ -132,8 +133,8 @@ returns conversion metadata invisibly.
 library(facereaderconverter)
 
 convertFRDirectory(
-  inpath = "testdata",
-  outpath = "junk",
+  inpath = "tests/testthat/testdata/testdata2",
+  outpath = file.path(tempdir(), "fr-converted"),
   values_as_numeric = TRUE,
   cores = 2L
 )
@@ -193,7 +194,6 @@ library(facereaderconverter)
 result <- synchrony_moments_pipeline(
   inpath = "data/study",
   output_dir = "data/synchrony-clips",
-  fps = 30L,
   n = 10L,
   emotion = "happy"
 )
@@ -224,7 +224,6 @@ result <- synchrony_moments_pipeline(
   delta_window = 0.2,
   min_dur_sec = 0.1,
   consecutive_missing = 150L,
-  fps = 30L,
   cores = 0L,
 
   # Shared synchrony detection
@@ -271,7 +270,7 @@ brazil_result <- synchrony_moments_pipeline(
   inpath = brazil_dir,
   video_path = file.path(brazil_dir, "ID100024_side_by_side.mp4"),
   subject_from_filename = TRUE,
-  output_dir = "brazil-synchrony-clips",
+  output_dir = file.path(tempdir(), "brazil_output"),
   n = 1L,
   overwrite = TRUE,
   cores = 1L
@@ -302,7 +301,6 @@ cli
 Rscript "PATH_PRINTED_ABOVE" \
   --input data/study \
   --output-dir data/synchrony-clips \
-  --fps 30 \
   --n 10 \
   --emotion happy
 ```
@@ -340,7 +338,7 @@ function synchrony-moments {
 In PowerShell, run the command with the usual CLI options, for example:
 
 ``` powershell
-synchrony-moments --input data/study --output-dir data/synchrony-clips --fps 30 --n 10 --emotion happy
+synchrony-moments --input data/study --output-dir data/synchrony-clips --n 10 --emotion happy
 ```
 
 On Unix-like shells, after the one-time setup, supply a root directory
@@ -352,7 +350,6 @@ source files:
 synchrony-moments \
   --input data/study \
   --output-dir data/synchrony-clips \
-  --fps 30 \
   --n 10 \
   --emotion happy
 ```
@@ -370,7 +367,7 @@ synchrony-moments \
 
   --subject-from-filename \
 
-  --output-dir brazil-synchrony-clips \
+  --output-dir "${TMPDIR:-/tmp}/brazil-synchrony-clips" \
 
   --n 1 \
 
@@ -424,7 +421,7 @@ markers.
 ``` r
 library(facereaderconverter)
 
-coding_df <- read.csv("testdata/testdata_detailed.csv") |>
+coding_df <- read.csv("tests/testthat/testdata/testdata_detailed.csv") |>
   dplyr::mutate(id = 1, subject = "parent")
 
 coding_df2 <- coding_df |>
@@ -436,13 +433,13 @@ coding_df2 <- coding_df |>
 
 res <- convert_to_episodes(
   coding_df2,
-  fps = 30L,
   T_up = 0.20,
   T_down = 0.18,
   delta = 0.10,
   delta_window = 0.1,
   min_dur_sec = 0.1,
-  consecutive_missing = 150L
+  consecutive_missing = 150L,
+  fps = 30L
 )
 
 res$episodes
@@ -733,7 +730,7 @@ summaries.
 ``` r
 library(facereaderconverter)
 
-coding_df <- read.csv("testdata/testdata_detailed.csv") |>
+coding_df <- read.csv("tests/testthat/testdata/testdata_detailed.csv") |>
   dplyr::mutate(id = 1, subject = "parent")
 
 coding_df2 <- coding_df |>
