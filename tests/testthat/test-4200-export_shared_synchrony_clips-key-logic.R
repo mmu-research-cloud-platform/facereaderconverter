@@ -36,8 +36,10 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals", {
     length(video_files) != 1L,
     "Brazil fixture must contain the ID100024 video."
   )
-  output <- tempfile("ID100024-shared-synchrony-clips-", fileext = ".zip")
-  on.exit(unlink(output, force = TRUE), add = TRUE)
+  output_dir <- tempfile("synchrony_inspection_4200-")
+  dir.create(output_dir)
+  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  output <- file.path(output_dir, "ID100024-shared-synchrony-clips.zip")
   skip_if(
     length(coding_files) != 2L,
     "Brazil fixture must contain two ID100024 FaceReader outputs."
@@ -81,6 +83,8 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals", {
 
   expected_archive <- output
   expect_s3_class(manifest, "data.table")
+  test_started <- Sys.time()
+  age_files(output)
   expect_invisible(export_shared_synchrony_clips(
     coded_data,
     shared,
@@ -94,6 +98,7 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals", {
     normalizePath(expected_archive, winslash = "/")
   )
   expect_true(file.exists(expected_archive))
+  expect_files_modified_since(expected_archive, test_started)
   expect_equal(
     utils::unzip(output, list = TRUE)$Name,
     c(manifest$clip_filename, "manifest.csv")
@@ -154,7 +159,8 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals to a f
   )
   ids <- unique(as.character(shared$id))
   skip_if(length(ids) != 1L, "Brazil fixture must represent one video ID.")
-  output_dir <- tempfile("ID100024-shared-synchrony-clips-")
+  output_dir <- tempfile("synchrony_inspection_4200-")
+  dir.create(output_dir)
   on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
   video_duration <- function(path) {
     as.numeric(system2(
@@ -245,6 +251,16 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals to a f
       asymmetric_manifest$fps
   )
 
+  test_started <- Sys.time()
+  age_files(
+    c(
+      file.path(output_dir, "manifest.csv"),
+      file.path(output_dir, unbuffered_manifest$clip_filename),
+      file.path(output_dir, buffered_manifest$clip_filename),
+      file.path(output_dir, asymmetric_manifest$clip_filename)
+    )
+  )
+  test_started <- Sys.time()
   manifest <- export_shared_synchrony_clips(
     coded_data,
     shared,
@@ -258,6 +274,13 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals to a f
   expect_s3_class(manifest, "data.table")
   expect_true(dir.exists(output_dir))
   expect_true(file.exists(file.path(output_dir, "manifest.csv")))
+  expect_files_modified_since(
+    c(
+      file.path(output_dir, "manifest.csv"),
+      file.path(output_dir, manifest$clip_filename)
+    ),
+    test_started
+  )
   exported_video_files <- list.files(
     output_dir,
     pattern = "^[0-9]{3}_id-1_.*\\.mp4$",
@@ -331,7 +354,10 @@ test_that("export_shared_synchrony_clips exports all Brazil happy intervals with
   )
   ids <- unique(as.character(shared$id))
   skip_if(length(ids) != 1L, "Brazil fixture must represent one video ID.")
-  output_dir <- tempfile("brazil-shared-synchrony-clips-")
+  output_dir <- tempfile("synchrony_inspection_4200-")
+  dir.create(output_dir)
+  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  test_started <- Sys.time()
 
   manifest <- export_shared_synchrony_clips(
     coded_data,
@@ -345,6 +371,13 @@ test_that("export_shared_synchrony_clips exports all Brazil happy intervals with
   )
 
   expect_equal(nrow(manifest), nrow(shared_happy))
+  expect_files_modified_since(
+    c(
+      file.path(output_dir, "manifest.csv"),
+      file.path(output_dir, manifest$clip_filename)
+    ),
+    test_started
+  )
   expect_length(
     list.files(
       output_dir,

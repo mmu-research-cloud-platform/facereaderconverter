@@ -15,6 +15,7 @@ test_that("convertFRDirectory reports successful conversion count", {
     full.names = TRUE
   ))
 
+  test_started <- Sys.time()
   expect_message(
     result <- convertFRDirectory(
       input_dir,
@@ -24,4 +25,12 @@ test_that("convertFRDirectory reports successful conversion count", {
     paste0("Successfully converted ", expected, " files\\.")
   )
   expect_equal(sum(result$status == "Success"), expected)
+  expect_files_modified_since(
+    result$outpath[result$status == "Success"],
+    test_started
+  )
+  expect_files_modified_since(
+    file.path(output_dir, "metadata.csv"),
+    test_started
+  )
 })

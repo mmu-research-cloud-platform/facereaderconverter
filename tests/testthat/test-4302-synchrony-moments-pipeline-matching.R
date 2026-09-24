@@ -21,6 +21,14 @@ test_that("pipeline export matches export_shared_synchrony_clips", {
 
   output_pipeline <- tempfile("brazil-pipeline-")
   output_exporter <- tempfile("brazil-exporter-")
+  on.exit(
+    unlink(
+      c(output_pipeline, output_exporter),
+      recursive = TRUE,
+      force = TRUE
+    ),
+    add = TRUE
+  )
   export_args <- list(
     n = 10L,
     emotion = "happy",
@@ -44,7 +52,6 @@ test_that("pipeline export matches export_shared_synchrony_clips", {
     delta_window = 0.2,
     min_dur_sec = 0.1,
     consecutive_missing = 150L,
-    fps = 30L,
     cores = 1L,
     time_limit = 3,
     time_limit_frames = NULL,
@@ -61,10 +68,13 @@ test_that("pipeline export matches export_shared_synchrony_clips", {
     buffer = export_args$buffer,
     buffer_units = export_args$buffer_units
   )
+  test_started <- Sys.time()
   pipeline <- do.call(synchrony_moments_pipeline, pipeline_args)
 
   pipeline_manifest <- pipeline$results$video_001$clip_manifest
   pipeline_clip_dir <- pipeline$results$video_001$clip_output
+  pipeline_started <- test_started
+  test_started <- Sys.time()
   direct_manifest <- do.call(
     export_shared_synchrony_clips,
     c(
@@ -85,6 +95,20 @@ test_that("pipeline export matches export_shared_synchrony_clips", {
     manifest
   }
 
+  expect_files_modified_since(
+    c(
+      file.path(pipeline_clip_dir, "manifest.csv"),
+      file.path(pipeline_clip_dir, pipeline_manifest$clip_filename)
+    ),
+    pipeline_started
+  )
+  expect_files_modified_since(
+    c(
+      file.path(output_exporter, "manifest.csv"),
+      file.path(output_exporter, direct_manifest$clip_filename)
+    ),
+    test_started
+  )
   expect_equal(
     normalise_manifest(pipeline_manifest),
     normalise_manifest(direct_manifest)

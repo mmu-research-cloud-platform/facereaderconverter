@@ -196,7 +196,7 @@ brazil_result <- synchrony_moments_pipeline(
   inpath = brazil_dir,
   video_path = file.path(brazil_dir, "ID100024_side_by_side.mp4"),
   subject_from_filename = TRUE,
-  output_dir = "brazil-synchrony-clips",
+  output_dir = file.path(Sys.getenv("TEST_DATA"), "brazil_output"),
   n = 1L,
   overwrite = TRUE,
   cores = 1L

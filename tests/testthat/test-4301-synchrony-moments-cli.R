@@ -39,8 +39,6 @@ test_that("synchrony-moments CLI maps every pipeline argument", {
     "0.2",
     "--consecutive-missing",
     "10",
-    "--fps",
-    "25",
     "--cores",
     "1",
     "--time-limit",
@@ -84,6 +82,25 @@ test_that("synchrony-moments CLI maps every pipeline argument", {
   expect_false(values$only_synchronies)
 })
 
+test_that("synchrony-moments CLI loads subject maps from CSV", {
+  cli <- load_cli_parser()
+  map_path <- tempfile(fileext = ".csv")
+  on.exit(unlink(map_path), add = TRUE)
+  writeLines(
+    c("export_filename,subject", "first.txt,parent"),
+    map_path
+  )
+
+  values <- cli$parse_args(c(
+    "--input",
+    "data/study",
+    "--subject-map",
+    map_path
+  ))
+
+  expect_equal(values$subject_map, c("first.txt" = "parent"))
+})
+
 test_that("synchrony-moments CLI uses input as the default output directory", {
   cli <- load_cli_parser()
   values <- cli$parse_args(c("--input", "data/study"))
@@ -97,7 +114,9 @@ test_that("synchrony-moments CLI processes two matched Brazil XLSX video pairs",
   skip_if(Sys.which("ffmpeg") == "", "FFmpeg is not available.")
   skip_if(Sys.which("ffprobe") == "", "FFprobe is not available.")
   output_dir <- tempfile("brazil-cli-output-")
+  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
   cli <- load_cli_parser()
+  test_started <- Sys.time()
 
   result <- NULL
   expect_message(
@@ -129,6 +148,21 @@ test_that("synchrony-moments CLI processes two matched Brazil XLSX video pairs",
     function(video) file.exists(file.path(video$clip_output, "manifest.csv")),
     logical(1)
   )))
+  expect_files_modified_since(
+    c(
+      file.path(output_dir, "synchrony-moments-manifest.csv"),
+      unlist(
+        lapply(result$results, function(video) {
+          c(
+            file.path(video$clip_output, "manifest.csv"),
+            file.path(video$clip_output, video$clip_manifest$clip_filename)
+          )
+        }),
+        use.names = FALSE
+      )
+    ),
+    test_started
+  )
   expect_true(all(vapply(
     result$results,
     function(video) {
@@ -148,7 +182,9 @@ test_that("synchrony-moments CLI exports no Brazil episodes when t-up is 1", {
   brazil_dir <- file.path(TEST_DATA, "brazil")
   skip_if_not(dir.exists(brazil_dir))
   output_dir <- tempfile("brazil-no-episodes-")
+  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
   cli <- load_cli_parser()
+  test_started <- Sys.time()
 
   result <- NULL
   expect_message(
@@ -176,6 +212,10 @@ test_that("synchrony-moments CLI exports no Brazil episodes when t-up is 1", {
     output_dir,
     "synchrony-moments-manifest.csv"
   )))
+  expect_files_modified_since(
+    file.path(output_dir, "synchrony-moments-manifest.csv"),
+    test_started
+  )
   expect_length(
     list.files(
       output_dir,
@@ -203,11 +243,11 @@ test_that("synchrony-moments CLI main returns errors without exiting R", {
   )
 })
 
-test_that("synchrony-moments CLI rejects fractional integer options", {
+test_that("synchrony-moments CLI rejects the removed FPS option", {
   cli <- load_cli_parser()
 
   expect_error(
     cli$parse_args(c("--input", "data/study", "--fps", "29.5")),
-    "`--fps` must be a finite whole number"
+    "Unknown option: --fps"
   )
 })

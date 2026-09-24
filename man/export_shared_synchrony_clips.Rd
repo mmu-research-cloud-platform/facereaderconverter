@@ -19,7 +19,8 @@ export_shared_synchrony_clips(
   output_path = NULL,
   output = c("zip", "folder"),
   overwrite = FALSE,
-  ffmpeg = "ffmpeg"
+  ffmpeg = "ffmpeg",
+  verbose = FALSE
 )
 }
 \arguments{
@@ -65,6 +66,8 @@ selected source video. All selected videos must then be in the same folder.}
 output folder. Defaults to \code{FALSE}.}
 
 \item{ffmpeg}{Path to the FFmpeg executable or its command name.}
+
+\item{verbose}{Whether to display FFmpeg output instead of a clip progress bar.}
 }
 \value{
 A \code{data.table} manifest invisibly. For ZIP output, the manifest is

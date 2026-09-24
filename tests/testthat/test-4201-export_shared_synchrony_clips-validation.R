@@ -20,6 +20,7 @@ library(testthat)
 
 test_that("export_shared_synchrony_clips validates selection inputs", {
   video <- tempfile(fileext = ".mp4")
+  on.exit(unlink(video, force = TRUE), add = TRUE)
   file.create(video)
   coding <- structure(
     list(metadata = list(fps = 10L)),
@@ -69,5 +70,15 @@ test_that("export_shared_synchrony_clips validates selection inputs", {
       ffmpeg = "not-an-ffmpeg-command"
     ),
     "https://ffmpeg.org/download.html"
+  )
+  expect_error(
+    export_shared_synchrony_clips(
+      coding,
+      intervals,
+      c("1" = video),
+      n = 1L,
+      verbose = NA
+    ),
+    "`verbose` must be TRUE or FALSE"
   )
 })

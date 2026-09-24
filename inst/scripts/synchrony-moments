@@ -6,10 +6,12 @@ usage <- function() {
     "Discovery options:\n",
     "  --input DIRECTORY                 Root directory (required)\n",
     "  --output-dir DIRECTORY            Root directory for clip outputs\n",
-    "  --video-pattern REGEX             Video filename pattern\n",
+    "  --video-extension REGEX           Supported video filename extensions\n",
+    "  --video-pattern REGEX             Optional video filename pattern\n",
     "  --video PATH                      Pair all exports to one video\n",
     "  --subject-from-filename           Use export filenames when Participant Name is absent\n",
-    "  --verbose                         List FaceReader video matches\n\n",
+    "  --subject-map MAP.csv              CSV with export_filename,subject columns\n",
+    "  --verbose                         List matches and show FFmpeg output instead of progress\n\n",
     "Episode options:\n",
     "  --t-up NUMBER                     Episode-entry threshold\n",
     "  --t-down NUMBER                   Episode-exit threshold\n",
@@ -17,7 +19,7 @@ usage <- function() {
     "  --delta-window SECONDS            Delta window\n",
     "  --min-dur-sec SECONDS             Minimum episode duration\n",
     "  --consecutive-missing NUMBER      Allowed missing frames in an episode\n",
-    "  --fps NUMBER                      Frames per second\n",
+    "  Frame rate is read from FaceReader export metadata\n",
     "  --cores NUMBER                    data.table thread count\n\n",
     "Synchrony options:\n",
     "  --time-limit SECONDS              Maximum comparison window\n",
@@ -72,9 +74,11 @@ parse_integer <- function(value, option) {
 parse_args <- function(args) {
   values <- list(
     output_dir = NULL,
-    video_pattern = "\\.(mp4|mov|mkv|avi)$",
+    video_extension = "\\.(mp4|mov|mkv|avi)$",
+    video_pattern = NULL,
     video_path = NULL,
-    subject_from_filename = FALSE,
+    subject_from_filename = TRUE,
+    subject_map = NULL,
     verbose = FALSE,
     T_up = 0.20,
     T_down = 0.1,
@@ -82,7 +86,6 @@ parse_args <- function(args) {
     delta_window = 0.2,
     min_dur_sec = 0.1,
     consecutive_missing = 150L,
-    fps = 30L,
     cores = 0L,
     time_limit = 3,
     time_limit_frames = NULL,
@@ -117,6 +120,21 @@ parse_args <- function(args) {
       i <- i + 1L
       next
     }
+    if (identical(option, "--subject-map")) {
+      if (i == length(args) || startsWith(args[[i + 1L]], "--")) {
+        stop("Missing value for option: ", option)
+      }
+      mapping <- utils::read.csv(args[[i + 1L]], stringsAsFactors = FALSE)
+      if (!all(c("export_filename", "subject") %in% names(mapping))) {
+        stop("`--subject-map` CSV must contain `export_filename` and `subject` columns.")
+      }
+      values$subject_map <- stats::setNames(
+        as.character(mapping$subject),
+        as.character(mapping$export_filename)
+      )
+      i <- i + 2L
+      next
+    }
     if (identical(option, "--verbose")) {
       values$verbose <- TRUE
       i <- i + 1L
@@ -139,7 +157,7 @@ parse_args <- function(args) {
   }
   if (is.null(values$input)) stop("`--input` is required.")
 
-  integer_names <- c("consecutive_missing", "fps", "cores", "time_limit_frames", "n")
+  integer_names <- c("consecutive_missing", "cores", "time_limit_frames", "n")
   numeric_names <- c("T_up", "T_down", "delta", "delta_window", "min_dur_sec", "time_limit", "missing_threshold")
   for (name in integer_names) {
     if (!is.null(values[[name]])) {

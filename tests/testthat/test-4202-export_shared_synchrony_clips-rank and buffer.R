@@ -41,6 +41,7 @@ make_clip_intervals <- function() {
 
 test_that("export_shared_synchrony_clips ranks filtered intervals and buffers frames", {
   video <- tempfile(fileext = ".mp4")
+  on.exit(unlink(video, force = TRUE), add = TRUE)
   file.create(video)
 
   result <- facereaderconverter:::prepare_shared_synchrony_clips(
@@ -68,6 +69,7 @@ test_that("export_shared_synchrony_clips ranks filtered intervals and buffers fr
 
 test_that("export_shared_synchrony_clips caps buffered end at source EOF", {
   video <- tempfile(fileext = ".mp4")
+  on.exit(unlink(video, force = TRUE), add = TRUE)
   file.create(video)
 
   result <- facereaderconverter:::prepare_shared_synchrony_clips(

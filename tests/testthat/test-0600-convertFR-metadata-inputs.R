@@ -51,12 +51,15 @@ test_that("metadata columns are optional and partial values preserve the stem", 
     id = 12
   )
   writeLines("stale output", md$outpath)
+  age_files(md$outpath)
+  test_started <- Sys.time()
   md <- convertFRFiles(
     path,
     outpath = file.path(output, "original.txt"),
     id = 12
   )
   expect_true(file.exists(file.path(output, "original.csv")))
+  expect_files_modified_since(md$outpath, test_started)
   expect_true(grepl("original.csv$", md$outpath))
   expect_false("stale output" %in% readLines(md$outpath))
 })
@@ -67,6 +70,7 @@ test_that("both metadata values determine output name and collisions fail", {
   dir.create(output)
   on.exit(unlink(output, recursive = TRUE, force = TRUE), add = TRUE)
 
+  test_started <- Sys.time()
   md <- convertFRFiles(
     path,
     outpath = file.path(output, "ignored.txt"),
@@ -74,6 +78,8 @@ test_that("both metadata values determine output name and collisions fail", {
     subject = "Rebecca"
   )
   writeLines("stale output", md$outpath)
+  age_files(md$outpath)
+  test_started <- Sys.time()
   md <- convertFRFiles(
     path,
     outpath = file.path(output, "ignored.txt"),
@@ -82,6 +88,7 @@ test_that("both metadata values determine output name and collisions fail", {
   )
   expect_true(file.exists(file.path(output, "12_Rebecca_ignored_detailed.csv")))
   expect_true(grepl("12_Rebecca_ignored_detailed.csv$", md$outpath))
+  expect_files_modified_since(md$outpath, test_started)
   expect_false("stale output" %in% readLines(md$outpath))
 
   collision_path <- tempfile(fileext = ".csv")
@@ -99,6 +106,7 @@ test_that("metadata output names retain distinct source stems", {
   on.exit(unlink(output, recursive = TRUE, force = TRUE), add = TRUE)
   source <- file.path("testdata", "testdata_detailed.txt")
 
+  test_started <- Sys.time()
   first <- convertFRFiles(
     source,
     outpath = file.path(output, "session_one.txt"),
@@ -114,6 +122,7 @@ test_that("metadata output names retain distinct source stems", {
 
   expect_false(identical(first$outpath, second$outpath))
   expect_true(all(file.exists(c(first$outpath, second$outpath))))
+  expect_files_modified_since(c(first$outpath, second$outpath), test_started)
 })
 
 test_that("Excel and CSV imports apply metadata", {
@@ -137,6 +146,7 @@ test_that("directory conversion applies metadata to supported file types", {
   dir.create(output_dir)
   on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
 
+  test_started <- Sys.time()
   result <- convertFRDirectory(
     input_dir,
     output_dir,
@@ -146,6 +156,8 @@ test_that("directory conversion applies metadata to supported file types", {
     cores = 1L
   )
   writeLines("stale output", result$outpath[[1]])
+  age_files(c(result$outpath, file.path(output_dir, "metadata.csv")))
+  test_started <- Sys.time()
   result <- convertFRDirectory(
     input_dir,
     output_dir,
@@ -161,6 +173,7 @@ test_that("directory conversion applies metadata to supported file types", {
     basename(result$outpath)
   )))
   expect_true(all(file.exists(result$outpath)))
+  expect_files_modified_since(result$outpath, test_started)
   expect_false("stale output" %in% readLines(result$outpath[[1]]))
 })
 
@@ -178,6 +191,7 @@ test_that("FR10 directory conversion accepts metadata callbacks", {
   output <- tempfile("FR10_metadata_")
   dir.create(output)
   on.exit(unlink(output, recursive = TRUE, force = TRUE), add = TRUE)
+  test_started <- Sys.time()
   result <- convertFRDirectory(
     path,
     output,
@@ -187,6 +201,8 @@ test_that("FR10 directory conversion accepts metadata callbacks", {
     cores = 1L
   )
   writeLines("stale output", result$outpath[[1]])
+  age_files(c(result$outpath, file.path(output, "metadata.csv")))
+  test_started <- Sys.time()
   result <- convertFRDirectory(
     path,
     output,
@@ -202,5 +218,6 @@ test_that("FR10 directory conversion accepts metadata callbacks", {
     basename(result$outpath)
   )))
   expect_true(all(file.exists(result$outpath)))
+  expect_files_modified_since(result$outpath, test_started)
   expect_false("stale output" %in% readLines(result$outpath[[1]]))
 })

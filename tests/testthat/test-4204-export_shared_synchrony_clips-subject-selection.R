@@ -37,6 +37,7 @@ make_subject_clip_intervals <- function() {
 
 test_that("export_shared_synchrony_clips ranks synchronies by one subject", {
   video <- tempfile(fileext = ".mp4")
+  on.exit(unlink(video, force = TRUE), add = TRUE)
   file.create(video)
 
   result <- facereaderconverter:::prepare_shared_synchrony_clips(
@@ -55,6 +56,7 @@ test_that("export_shared_synchrony_clips ranks synchronies by one subject", {
 
 test_that("export_shared_synchrony_clips selects individual subject episodes", {
   video <- tempfile(fileext = ".mp4")
+  on.exit(unlink(video, force = TRUE), add = TRUE)
   file.create(video)
 
   result <- facereaderconverter:::prepare_shared_synchrony_clips(
@@ -79,6 +81,7 @@ test_that("export_shared_synchrony_clips selects individual subject episodes", {
 
 test_that("export_shared_synchrony_clips ignores episode selection for both", {
   video <- tempfile(fileext = ".mp4")
+  on.exit(unlink(video, force = TRUE), add = TRUE)
   file.create(video)
 
   result <- facereaderconverter:::prepare_shared_synchrony_clips(
@@ -97,6 +100,7 @@ test_that("export_shared_synchrony_clips ignores episode selection for both", {
 
 test_that("export_shared_synchrony_clips requires one matched subject", {
   video <- tempfile(fileext = ".mp4")
+  on.exit(unlink(video, force = TRUE), add = TRUE)
   file.create(video)
 
   expect_error(

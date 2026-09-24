@@ -90,6 +90,8 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
   )
 
   writeLines("stale output", result$outpath[[1]])
+  age_files(result$outpath)
+  test_started <- Sys.time()
   result <- convertFRDirectory(
     input_dir,
     output_dir,
@@ -102,6 +104,7 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
 
   expect_true(all(result$status == "Success"))
   expect_true(all(file.exists(result$outpath)))
+  expect_files_modified_since(result$outpath, test_started)
   expect_false("stale output" %in% readLines(result$outpath[[1]]))
   expect_setequal(
     basename(result$inpath),
@@ -171,6 +174,7 @@ test_that("convertFRDirectory retains source stems for shared metadata", {
   file.copy(source, file.path(input_dir, "first.csv"))
   file.copy(source, file.path(input_dir, "second.csv"))
 
+  test_started <- Sys.time()
   result <- convertFRDirectory(
     input_dir,
     output_dir,
@@ -183,6 +187,7 @@ test_that("convertFRDirectory retains source stems for shared metadata", {
   expect_true(all(result$status == "Success"))
   expect_length(unique(result$outpath), 2L)
   expect_true(all(file.exists(result$outpath)))
+  expect_files_modified_since(result$outpath, test_started)
 })
 
 test_that("FR10 directory conversion supports explicit id and subject metadata", {
@@ -208,6 +213,8 @@ test_that("FR10 directory conversion supports explicit id and subject metadata",
     save_metadata = NULL
   )
   writeLines("stale output", result$outpath[[1]])
+  age_files(result$outpath)
+  test_started <- Sys.time()
   result <- convertFRDirectory(
     path,
     output,
@@ -220,6 +227,7 @@ test_that("FR10 directory conversion supports explicit id and subject metadata",
 
   expect_true(all(result$status == "Success"))
   expect_true(all(file.exists(result$outpath)))
+  expect_files_modified_since(result$outpath, test_started)
   converted <- readr::read_csv(result$outpath[[1]], show_col_types = FALSE)
   expect_true(all(converted$id == "fr10"))
   expect_true(all(converted$subject == "fixture"))
