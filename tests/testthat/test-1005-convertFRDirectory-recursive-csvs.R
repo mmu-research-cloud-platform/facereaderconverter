@@ -17,6 +17,7 @@ test_that("convertFRDirectory keeps CSVs distinct from sibling source stems", {
     file.path(input_dir, "second", "session.csv")
   )
 
+  test_started <- Sys.time()
   result <- convertFRDirectory(
     input_dir,
     output_dir,
@@ -33,4 +34,5 @@ test_that("convertFRDirectory keeps CSVs distinct from sibling source stems", {
   )
   expect_setequal(relative_paths, c("first/session.txt", "second/session.csv"))
   expect_true(all(file.exists(result$outpath)))
+  expect_files_modified_since(result$outpath, test_started)
 })

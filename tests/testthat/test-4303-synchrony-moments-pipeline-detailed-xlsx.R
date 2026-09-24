@@ -91,12 +91,17 @@ test_that("synchrony_moments_pipeline matches detailed XLSX files and skips copi
     "Skipped videos without matching detailed FaceReader exports:\\n.*Session-A - Copy.MP4"
   )
 
-  expect_setequal(result$videos$video_filename, video_names)
-  expect_equal(nrow(result$videos), 2L)
+  completed_videos <- result$videos[status == "completed"]
+  expect_setequal(completed_videos$video_filename, video_names)
+  expect_equal(nrow(completed_videos), 2L)
+  expect_equal(
+    result$videos[video_filename == basename(copy_video), status],
+    "unmatched"
+  )
   expect_true(all(vapply(
-    seq_len(nrow(result$videos)),
+    seq_len(nrow(completed_videos)),
     function(i) {
-      data.table::uniqueN(unlist(result$videos[
+      data.table::uniqueN(unlist(completed_videos[
         i,
         .(participant1, participant2)
       ])) ==
@@ -105,7 +110,7 @@ test_that("synchrony_moments_pipeline matches detailed XLSX files and skips copi
     logical(1)
   )))
   expect_named(result$results, c("video_001", "video_002"))
-  expect_false(basename(copy_video) %in% result$videos$video_filename)
+  expect_true(basename(copy_video) %in% result$videos$video_filename)
   expect_true(all(vapply(
     result$results,
     function(video) nrow(video$clip_manifest) == 0L,
@@ -127,26 +132,33 @@ test_that("synchrony_moments_pipeline processes two matched Brazil XLSX video pa
     "Brazil fixture must contain two matched detailed XLSX pairs."
   )
 
+  output_dir <- tempfile("brazil-xlsx-clips-")
+  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
   result <- NULL
   expect_message(
     result <- synchrony_moments_pipeline(
       brazil_dir,
-      output_dir = tempfile("brazil-xlsx-clips-"),
+      output_dir = output_dir,
       subject_from_filename = TRUE,
       emotion = "not_an_emotion"
     ),
     "Skipped videos without matching detailed FaceReader exports:\\n.*ID100024_side_by_side - Copy\\.mp4"
   )
 
-  expect_equal(nrow(result$videos), 2L)
+  expect_equal(sum(result$videos$status == "completed"), 2L)
+  expect_equal(sum(result$videos$status == "failed"), 1L)
   expect_length(result$results, 2L)
   expect_true(all(vapply(
     result$results,
     function(video) nrow(video$clip_manifest) == 0L,
     logical(1)
   )))
-  expect_false(
-    "ID100024_side_by_side - Copy.mp4" %in% result$videos$video_filename
+  expect_equal(
+    result$videos[
+      video_filename == "ID100024_side_by_side - Copy.mp4",
+      status
+    ],
+    "unmatched"
   )
 })
 

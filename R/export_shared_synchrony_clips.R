@@ -20,7 +20,9 @@
 #'   `optimised_subject = "both"`.
 #' @param buffer A non-negative number for a symmetric buffer, or a named
 #'   two-element vector with names `before` and `after` for asymmetric buffers.
-#'   Units are controlled by `buffer_units`.
+#'   Units are controlled by `buffer_units`. Defaults to 5 seconds before and
+#'   3 seconds after. Use `NULL` internally to select these defaults while
+#'   preserving the legacy buffer arguments.
 #' @param buffer_units Buffer units: `"seconds"` or `"frames"`.
 #' @param buffer_frames Non-negative whole-number symmetric frame buffer. Kept
 #'   for compatibility; use `buffer` and `buffer_units` for new code.
@@ -33,6 +35,7 @@
 #' @param overwrite Logical; overwrite an existing ZIP archive or non-empty
 #'   output folder. Defaults to `FALSE`.
 #' @param ffmpeg Path to the FFmpeg executable or its command name.
+#' @param verbose Whether to display FFmpeg output instead of a clip progress bar.
 #'
 #' @return A `data.table` manifest invisibly. For ZIP output, the manifest is
 #'   also included in the archive as `manifest.csv`.
@@ -60,14 +63,15 @@ export_shared_synchrony_clips <- function(
   emotion = "happy",
   optimised_subject = "both",
   only_synchronies = TRUE,
-  buffer = 0,
+  buffer = c(before = 5, after = 3),
   buffer_units = c("seconds", "frames"),
   buffer_frames = 0L,
   buffer_seconds = 0,
   output_path = NULL,
   output = c("zip", "folder"),
   overwrite = FALSE,
-  ffmpeg = "ffmpeg"
+  ffmpeg = "ffmpeg",
+  verbose = FALSE
 ) {
   manifest <- prepare_shared_synchrony_clips(
     coded_data = coded_data,
@@ -111,6 +115,9 @@ export_shared_synchrony_clips <- function(
   }
   if (!is.logical(overwrite) || length(overwrite) != 1L || is.na(overwrite)) {
     stop("`overwrite` must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
+    stop("`verbose` must be TRUE or FALSE.", call. = FALSE)
   }
   if (
     !is.character(ffmpeg) ||
@@ -225,6 +232,14 @@ export_shared_synchrony_clips <- function(
     on.exit(unlink(staging_dir, recursive = TRUE, force = TRUE), add = TRUE)
   }
 
+  progress <- if (!verbose && nrow(manifest) > 0L) {
+    utils::txtProgressBar(min = 0L, max = nrow(manifest), style = 3L)
+  } else {
+    NULL
+  }
+  if (!is.null(progress)) {
+    on.exit(close(progress), add = TRUE)
+  }
   for (i in seq_len(nrow(manifest))) {
     clip_path <- file.path(staging_dir, manifest$clip_filename[[i]])
     args <- c(
@@ -245,13 +260,23 @@ export_shared_synchrony_clips <- function(
       "aac",
       shQuote(clip_path)
     )
+    if (!verbose) {
+      args <- c("-loglevel", "error", "-nostats", args)
+    }
     executable <- if (nzchar(ffmpeg_path)) ffmpeg_path else ffmpeg
-    status <- system2(executable, args = args)
+    status <- if (verbose) {
+      system2(executable, args = args)
+    } else {
+      system2(executable, args = args, stdout = FALSE, stderr = FALSE)
+    }
     if (
       (!is.null(status) && status != 0L) ||
         !shared_synchrony_file_exists(clip_path)
     ) {
       stop(sprintf("FFmpeg failed while creating clip %d.", i), call. = FALSE)
+    }
+    if (!is.null(progress)) {
+      utils::setTxtProgressBar(progress, i)
     }
     manifest$clip_path[[i]] <- normalizePath(
       clip_path,
@@ -337,7 +362,7 @@ prepare_shared_synchrony_clips <- function(
   emotion,
   optimised_subject = "both",
   only_synchronies = TRUE,
-  buffer = 0,
+  buffer = c(before = 5, after = 3),
   buffer_units = c("seconds", "frames"),
   buffer_frames = 0L,
   buffer_seconds = 0,
@@ -404,6 +429,9 @@ prepare_shared_synchrony_clips <- function(
     stop("`only_synchronies` must be TRUE or FALSE.", call. = FALSE)
   }
   buffer_units <- match.arg(buffer_units)
+  if (is.null(buffer)) {
+    buffer <- c(before = 5, after = 3)
+  }
   if (!is.numeric(buffer) || anyNA(buffer) || any(buffer < 0)) {
     stop("`buffer` must contain non-negative numbers.", call. = FALSE)
   }

@@ -109,6 +109,8 @@ test_that("export_shared_synchrony_clips caps sad clips and overwrites ZIP outpu
     ),
     "ZIP archive already exists"
   )
+  age_files(output)
+  test_started <- Sys.time()
   expect_s3_class(
     export_shared_synchrony_clips(
       inputs$coded_data,
@@ -121,6 +123,7 @@ test_that("export_shared_synchrony_clips caps sad clips and overwrites ZIP outpu
     ),
     "data.table"
   )
+  expect_files_modified_since(output, test_started)
 })
 
 test_that("export_shared_synchrony_clips caps sad clips and overwrites folder output", {
@@ -158,6 +161,11 @@ test_that("export_shared_synchrony_clips caps sad clips and overwrites folder ou
     ),
     "output directory is not empty"
   )
+  age_files(c(
+    file.path(output_dir, "manifest.csv"),
+    file.path(output_dir, manifest$clip_filename)
+  ))
+  test_started <- Sys.time()
   overwritten <- export_shared_synchrony_clips(
     inputs$coded_data,
     inputs$shared,
@@ -171,5 +179,12 @@ test_that("export_shared_synchrony_clips caps sad clips and overwrites folder ou
   expect_equal(
     length(list.files(output_dir, pattern = "\\.mp4$")),
     nrow(overwritten)
+  )
+  expect_files_modified_since(
+    c(
+      file.path(output_dir, "manifest.csv"),
+      file.path(output_dir, overwritten$clip_filename)
+    ),
+    test_started
   )
 })

@@ -30,11 +30,18 @@ test_that("convertFRDirectory converts all supported file types", {
     paste0(tools::file_path_sans_ext(basename(input_files)), ".csv")
   )
   writeLines("stale output", output_paths[[1]])
+  age_files(c(output_paths, file.path(output_dir, "metadata.csv")))
+  test_started <- Sys.time()
   expect_no_error(convertFRDirectory(
     input_dir,
     output_dir,
     cores = 1L
   ))
+  expect_files_modified_since(output_paths, test_started)
+  expect_files_modified_since(
+    file.path(output_dir, "metadata.csv"),
+    test_started
+  )
   expect_false("stale output" %in% readLines(output_paths[[1]]))
 
   expected_outputs <- c(
@@ -65,9 +72,13 @@ test_that("convertFRDirectory converts FR10 supported file types", {
   dir.create(output, recursive = TRUE, showWarnings = FALSE)
   result <- convertFRDirectory(path, output, cores = 1L)
   writeLines("stale output", result$outpath[[1]])
+  age_files(c(result$outpath, file.path(output, "metadata.csv")))
+  test_started <- Sys.time()
   result <- convertFRDirectory(path, output, cores = 1L)
 
   expect_true(all(result$status == "Success"))
   expect_true(all(file.exists(result$outpath)))
+  expect_files_modified_since(result$outpath, test_started)
+  expect_files_modified_since(file.path(output, "metadata.csv"), test_started)
   expect_false("stale output" %in% readLines(result$outpath[[1]]))
 })

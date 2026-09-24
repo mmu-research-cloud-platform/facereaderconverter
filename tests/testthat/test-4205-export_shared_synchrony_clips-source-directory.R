@@ -23,6 +23,7 @@ test_that("folder output cannot contain a selected source video", {
 
   source_dir <- tempfile("shared-synchrony-source-")
   dir.create(source_dir)
+  on.exit(unlink(source_dir, recursive = TRUE, force = TRUE), add = TRUE)
   video <- file.path(source_dir, "source.mp4")
   file.create(video)
   coding <- structure(

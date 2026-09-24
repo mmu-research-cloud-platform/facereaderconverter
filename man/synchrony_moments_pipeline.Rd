@@ -7,9 +7,11 @@
 synchrony_moments_pipeline(
   inpath,
   output_dir = inpath,
-  video_pattern = "\\\\.(mp4|mov|mkv|avi)$",
+  video_extension = "\\\\.(mp4|mov|mkv|avi)$",
+  video_pattern = NULL,
   video_path = NULL,
-  subject_from_filename = FALSE,
+  subject_from_filename = TRUE,
+  subject_map = NULL,
   verbose = FALSE,
   T_up = 0.2,
   T_down = 0.1,
@@ -17,7 +19,6 @@ synchrony_moments_pipeline(
   delta_window = 0.2,
   min_dur_sec = 0.1,
   consecutive_missing = 150L,
-  fps = 30L,
   cores = 0L,
   time_limit = 3,
   time_limit_frames = NULL,
@@ -28,7 +29,7 @@ synchrony_moments_pipeline(
   emotion = "happy",
   optimised_subject = "both",
   only_synchronies = TRUE,
-  buffer = 0,
+  buffer = c(before = 5, after = 3),
   buffer_units = c("seconds", "frames"),
   output = c("zip", "folder"),
   overwrite = FALSE,
@@ -40,19 +41,29 @@ synchrony_moments_pipeline(
 
 \item{output_dir}{Optional root directory for clip outputs. Defaults to \code{inpath}.}
 
-\item{video_pattern}{Case-insensitive regular expression for video filenames.}
+\item{video_extension}{Regular expression matching supported video filename
+extensions. Defaults to common video formats.}
 
-\item{video_path}{Optional existing video path. When supplied, all detailed
-exports are paired to this one video instead of their header filenames.}
+\item{video_pattern}{Optional case-insensitive regular expression for video
+filenames. When supplied, only matching videos are considered.}
+
+\item{video_path}{Optional existing video path. When supplied, only this video
+is considered and both video filters are ignored.}
 
 \item{subject_from_filename}{Use the FaceReader export filename as the subject
 when its \verb{Participant Name} column is absent.}
 
-\item{verbose}{Whether to list videos with and without matching FaceReader
-detailed exports. Videos without matching detailed exports are always reported
-as skipped.}
+\item{subject_map}{Optional named character vector mapping FaceReader export
+basenames, including extensions, to subject names. Matching ignores case;
+mapped names override \verb{Participant Name}.}
 
-\item{T_up, T_down, delta, delta_window, min_dur_sec, consecutive_missing, fps, cores}{Arguments passed to \code{\link[=convert_to_episodes]{convert_to_episodes()}}.}
+\item{verbose}{Whether to list videos with and without matching FaceReader
+detailed exports and display FFmpeg output. Videos without matching detailed
+exports are always reported as skipped; otherwise, clip progress is shown.}
+
+\item{T_up, T_down, delta, delta_window, min_dur_sec, consecutive_missing, cores}{Arguments passed to \code{\link[=convert_to_episodes]{convert_to_episodes()}}. The frame rate is read from each
+FaceReader export's \verb{Frame rate} metadata, rounded to the nearest integer,
+and must agree within a video.}
 
 \item{time_limit, time_limit_frames, constraint_method, missing_threshold, exclude_emotions}{Arguments passed to \code{\link[=shared_synchronous_episodes]{shared_synchronous_episodes()}}.}
 
@@ -60,15 +71,17 @@ as skipped.}
 }
 \value{
 A \code{synchrony_moments_pipeline} list containing discovery \code{manifest},
-validated \code{videos}, and named per-video \code{results}.
+all in-scope \code{videos} with match counts, frame rates, and status, and named
+per-video \code{results} for completed videos.
 }
 \description{
 Recursively discovers videos and FaceReader detailed TXT/XLSX exports below a
 folder. Each export is matched to a video using the basename in its FaceReader
 \code{Filename} metadata, ignoring case, directories, and file extensions. Videos
 without matching detailed exports are skipped with a message.
-Each matched video must have exactly two detailed outputs with distinct, stable
-\verb{Participant Name} values.
+Videos with other than two detailed outputs containing a single stable
+\verb{Participant Name} are skipped with a warning. Repeated participant names
+across multiple outputs for one video are errors.
 }
 \examples{
 \dontrun{

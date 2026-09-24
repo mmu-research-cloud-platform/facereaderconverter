@@ -14,6 +14,35 @@ load_cli_parser <- function() {
   environment
 }
 
+copy_id100024_fixture <- function(brazil_dir) {
+  video_files <- list.files(
+    brazil_dir,
+    pattern = "^ID100024.*\\.mp4$",
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  export_files <- list.files(
+    brazil_dir,
+    pattern = "^100024_(child|mum)_.*_detailed( - Copy)?\\.xlsx$",
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  skip_if(
+    length(video_files) != 3L,
+    "Brazil fixture must contain three ID100024 videos."
+  )
+  skip_if(
+    length(export_files) != 3L,
+    "Brazil fixture must contain three matching ID100024 detailed exports."
+  )
+
+  input_dir <- tempfile("brazil-id100024-")
+  dir.create(input_dir)
+  file.copy(video_files, input_dir)
+  file.copy(export_files, input_dir)
+  input_dir
+}
+
 test_that("synchrony-moments CLI maps every pipeline argument", {
   cli <- load_cli_parser()
   values <- cli$parse_args(c(
@@ -39,8 +68,6 @@ test_that("synchrony-moments CLI maps every pipeline argument", {
     "0.2",
     "--consecutive-missing",
     "10",
-    "--fps",
-    "25",
     "--cores",
     "1",
     "--time-limit",
@@ -84,6 +111,25 @@ test_that("synchrony-moments CLI maps every pipeline argument", {
   expect_false(values$only_synchronies)
 })
 
+test_that("synchrony-moments CLI loads subject maps from CSV", {
+  cli <- load_cli_parser()
+  map_path <- tempfile(fileext = ".csv")
+  on.exit(unlink(map_path), add = TRUE)
+  writeLines(
+    c("export_filename,subject", "first.txt,parent"),
+    map_path
+  )
+
+  values <- cli$parse_args(c(
+    "--input",
+    "data/study",
+    "--subject-map",
+    map_path
+  ))
+
+  expect_equal(values$subject_map, c("first.txt" = "parent"))
+})
+
 test_that("synchrony-moments CLI uses input as the default output directory", {
   cli <- load_cli_parser()
   values <- cli$parse_args(c("--input", "data/study"))
@@ -91,21 +137,29 @@ test_that("synchrony-moments CLI uses input as the default output directory", {
   expect_null(values$output_dir)
 })
 
-test_that("synchrony-moments CLI processes two matched Brazil XLSX video pairs", {
+test_that("synchrony-moments CLI processes ID100024 videos and skips unmatched copies", {
   brazil_dir <- file.path(TEST_DATA, "brazil")
   skip_if_not(dir.exists(brazil_dir))
   skip_if(Sys.which("ffmpeg") == "", "FFmpeg is not available.")
   skip_if(Sys.which("ffprobe") == "", "FFprobe is not available.")
+  input_dir <- copy_id100024_fixture(brazil_dir)
   output_dir <- tempfile("brazil-cli-output-")
+  on.exit(
+    unlink(c(input_dir, output_dir), recursive = TRUE, force = TRUE),
+    add = TRUE
+  )
   cli <- load_cli_parser()
+  test_started <- Sys.time()
 
   result <- NULL
-  expect_message(
+  expect_warning(
     result <- cli$main(c(
       "--input",
-      brazil_dir,
+      input_dir,
       "--output-dir",
       output_dir,
+      "--video-pattern",
+      "^ID100024",
       "--subject-from-filename",
       "--n",
       "10",
@@ -115,11 +169,13 @@ test_that("synchrony-moments CLI processes two matched Brazil XLSX video pairs",
       "folder",
       "--overwrite"
     )),
-    "ID100024_side_by_side - Copy.mp4"
+    "sufficiently matched outputs"
   )
 
-  expect_equal(nrow(result$videos), 2L)
-  expect_length(result$results, 2L)
+  expect_equal(nrow(result$videos), 3L)
+  expect_equal(sum(result$videos$status == "completed"), 1L)
+  expect_equal(sum(result$videos$status %in% c("failed", "unmatched")), 2L)
+  expect_length(result$results, 1L)
   expect_true(file.exists(file.path(
     output_dir,
     "synchrony-moments-manifest.csv"
@@ -129,6 +185,21 @@ test_that("synchrony-moments CLI processes two matched Brazil XLSX video pairs",
     function(video) file.exists(file.path(video$clip_output, "manifest.csv")),
     logical(1)
   )))
+  expect_files_modified_since(
+    c(
+      file.path(output_dir, "synchrony-moments-manifest.csv"),
+      unlist(
+        lapply(result$results, function(video) {
+          c(
+            file.path(video$clip_output, "manifest.csv"),
+            file.path(video$clip_output, video$clip_manifest$clip_filename)
+          )
+        }),
+        use.names = FALSE
+      )
+    ),
+    test_started
+  )
   expect_true(all(vapply(
     result$results,
     function(video) {
@@ -144,19 +215,27 @@ test_that("synchrony-moments CLI processes two matched Brazil XLSX video pairs",
   )))
 })
 
-test_that("synchrony-moments CLI exports no Brazil episodes when t-up is 1", {
+test_that("synchrony-moments CLI exports no ID100024 episodes when t-up is 1", {
   brazil_dir <- file.path(TEST_DATA, "brazil")
   skip_if_not(dir.exists(brazil_dir))
+  input_dir <- copy_id100024_fixture(brazil_dir)
   output_dir <- tempfile("brazil-no-episodes-")
+  on.exit(
+    unlink(c(input_dir, output_dir), recursive = TRUE, force = TRUE),
+    add = TRUE
+  )
   cli <- load_cli_parser()
+  test_started <- Sys.time()
 
   result <- NULL
-  expect_message(
+  expect_warning(
     result <- cli$main(c(
       "--input",
-      brazil_dir,
+      input_dir,
       "--output-dir",
       output_dir,
+      "--video-pattern",
+      "^ID100024",
       "--subject-from-filename",
       "--t-up",
       "1",
@@ -168,14 +247,21 @@ test_that("synchrony-moments CLI exports no Brazil episodes when t-up is 1", {
       "folder",
       "--overwrite"
     )),
-    "Completed synchrony moments pipeline"
+    "sufficiently matched outputs"
   )
 
-  expect_equal(nrow(result$videos), 2L)
+  expect_equal(nrow(result$videos), 3L)
+  expect_equal(sum(result$videos$status == "completed"), 1L)
+  expect_equal(sum(result$videos$status %in% c("failed", "unmatched")), 2L)
+  expect_length(result$results, 1L)
   expect_true(file.exists(file.path(
     output_dir,
     "synchrony-moments-manifest.csv"
   )))
+  expect_files_modified_since(
+    file.path(output_dir, "synchrony-moments-manifest.csv"),
+    test_started
+  )
   expect_length(
     list.files(
       output_dir,
@@ -203,11 +289,11 @@ test_that("synchrony-moments CLI main returns errors without exiting R", {
   )
 })
 
-test_that("synchrony-moments CLI rejects fractional integer options", {
+test_that("synchrony-moments CLI rejects the removed FPS option", {
   cli <- load_cli_parser()
 
   expect_error(
     cli$parse_args(c("--input", "data/study", "--fps", "29.5")),
-    "`--fps` must be a finite whole number"
+    "Unknown option: --fps"
   )
 })

@@ -12,14 +12,15 @@ export_shared_synchrony_clips(
   emotion = "happy",
   optimised_subject = "both",
   only_synchronies = TRUE,
-  buffer = 0,
+  buffer = c(before = 5, after = 3),
   buffer_units = c("seconds", "frames"),
   buffer_frames = 0L,
   buffer_seconds = 0,
   output_path = NULL,
   output = c("zip", "folder"),
   overwrite = FALSE,
-  ffmpeg = "ffmpeg"
+  ffmpeg = "ffmpeg",
+  verbose = FALSE
 )
 }
 \arguments{
@@ -45,7 +46,8 @@ synchronies by their combined value.}
 
 \item{buffer}{A non-negative number for a symmetric buffer, or a named
 two-element vector with names \code{before} and \code{after} for asymmetric buffers.
-Units are controlled by \code{buffer_units}.}
+Units are controlled by \code{buffer_units}. Defaults to 5 seconds before and
+3 seconds after.}
 
 \item{buffer_units}{Buffer units: \code{"seconds"} or \code{"frames"}.}
 
@@ -65,6 +67,8 @@ selected source video. All selected videos must then be in the same folder.}
 output folder. Defaults to \code{FALSE}.}
 
 \item{ffmpeg}{Path to the FFmpeg executable or its command name.}
+
+\item{verbose}{Whether to display FFmpeg output instead of a clip progress bar.}
 }
 \value{
 A \code{data.table} manifest invisibly. For ZIP output, the manifest is

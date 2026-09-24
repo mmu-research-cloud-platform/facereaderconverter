@@ -40,6 +40,7 @@ test_that("convertFRDirectory adds metadata across all supported file types", {
     add = TRUE
   )
 
+  test_started <- Sys.time()
   input_files <- c(
     testthat::test_path("testdata", "testdata_detailed.txt"),
     testthat::test_path("testdata", "testdata_excel_detailed.xlsx"),
@@ -74,6 +75,8 @@ test_that("convertFRDirectory adds metadata across all supported file types", {
   )
 
   writeLines("stale output", result$outpath[[1]])
+  age_files(c(result$outpath, file.path(output_dir, "metadata.csv")))
+  test_started <- Sys.time()
   result <- convertFRDirectory(
     input_dir,
     output_dir,
@@ -84,6 +87,11 @@ test_that("convertFRDirectory adds metadata across all supported file types", {
 
   expect_true(all(result$status == "Success"))
   expect_true(all(file.exists(result$outpath)))
+  expect_files_modified_since(result$outpath, test_started)
+  expect_files_modified_since(
+    file.path(output_dir, "metadata.csv"),
+    test_started
+  )
   expect_false("stale output" %in% readLines(result$outpath[[1]]))
   expect_setequal(
     basename(result$outpath),

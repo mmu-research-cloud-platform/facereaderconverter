@@ -33,6 +33,8 @@ test_that("convertFRDirectory converts FR10 TXT and Excel exports", {
     cores = 1L
   )
   writeLines("stale output", result$outpath[[1]])
+  age_files(result$outpath[[1]])
+  test_started <- Sys.time()
   result <- convertFRDirectory(
     fr10_dir,
     output_dir,
@@ -42,6 +44,11 @@ test_that("convertFRDirectory converts FR10 TXT and Excel exports", {
   expect_true(all(result$status == "Success"))
   expect_length(result$outpath, length(fr10_files))
   expect_true(all(file.exists(result$outpath)))
+  expect_files_modified_since(result$outpath, test_started)
+  expect_files_modified_since(
+    file.path(output_dir, "metadata.csv"),
+    test_started
+  )
   expect_false("stale output" %in% readLines(result$outpath[[1]]))
   expect_true(file.exists(file.path(output_dir, "metadata.csv")))
   expect_setequal(
@@ -71,6 +78,8 @@ test_that("convertFRDirectory preserves FR10 detailed text columns", {
     cores = 1L
   )
   writeLines("stale output", result$outpath[[1]])
+  age_files(c(result$outpath, file.path(output_dir, "metadata.csv")))
+  test_started <- Sys.time()
   result <- convertFRDirectory(
     fr10_dir,
     output_dir,
@@ -80,6 +89,11 @@ test_that("convertFRDirectory preserves FR10 detailed text columns", {
 
   expect_true(all(result$status == "Success"))
   converted <- readr::read_csv(result$outpath[[1]], show_col_types = FALSE)
+  expect_files_modified_since(result$outpath, test_started)
+  expect_files_modified_since(
+    file.path(output_dir, "metadata.csv"),
+    test_started
+  )
   expect_true(any(
     c("stimulus", "event_marker", "speech_rate") %in% names(converted)
   ))

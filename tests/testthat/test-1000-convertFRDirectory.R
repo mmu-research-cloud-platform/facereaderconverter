@@ -195,13 +195,20 @@ test_that("convertFRDirectory", {
 
   x <- convertFRDirectory(base, pattern = "state", cores = 2L)
   expect_gte(nrow(x), 3L)
+  age_files(c(
+    x$outpath[x$status == "Success"],
+    file.path(base, "metadata.csv")
+  ))
 
+  test_started <- Sys.time()
   x <- convertFRDirectory(
     base,
     duplicate_timecodes_as_error = FALSE,
     cores = 2L
   )
 
+  expect_files_modified_since(x$outpath[x$status == "Success"], test_started)
+  expect_files_modified_since(file.path(base, "metadata.csv"), test_started)
   expect_true(sum(x$status == "Fail") == 1)
   expect_true(x$error[x$status == "Fail"] == "FaceReader metadata missing")
   expect_true(sum(x$status == "Success" & !is.na(x$error)) == 0)
@@ -223,10 +230,14 @@ test_that("convertFRDirectory converts the FR10 fixture directory", {
   dir.create(output, recursive = TRUE, showWarnings = FALSE)
   result <- convertFRDirectory(path, output, cores = 1L)
   writeLines("stale output", result$outpath[[1]])
+  age_files(c(result$outpath, file.path(output, "metadata.csv")))
+  test_started <- Sys.time()
   result <- convertFRDirectory(path, output, cores = 1L)
 
   expect_true(all(result$status == "Success"))
   expect_true(all(file.exists(result$outpath)))
+  expect_files_modified_since(result$outpath[[1]], test_started)
+  expect_files_modified_since(file.path(output, "metadata.csv"), test_started)
   expect_false("stale output" %in% readLines(result$outpath[[1]]))
   expect_length(result$outpath, length(files))
 })
