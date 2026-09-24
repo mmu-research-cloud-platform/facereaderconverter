@@ -62,25 +62,30 @@ convertFRDirectory <- function(
     ]
   }
 
-  # Do not rediscover CSVs generated from TXT or XLSX inputs.
-  source_files <- ls[
-    tolower(tools::file_ext(ls)) %in% c("txt", "xlsx")
-  ]
-  source_stems <- tools::file_path_sans_ext(basename(source_files))
-  csv_stems <- tools::file_path_sans_ext(basename(ls))
-  is_derived_csv <- tolower(tools::file_ext(ls)) == "csv" &
-    csv_stems %in% source_stems
-  ls <- ls[!is_derived_csv]
-  ls <- ls[!grepl("^metadata.*\\.csv$", basename(ls), ignore.case = TRUE)]
   if (outpath != inpath) {
     output_dir <- normalizePath(outpath, winslash = "/", mustWork = FALSE)
     input_files <- normalizePath(ls, winslash = "/", mustWork = FALSE)
+    if (.Platform$OS.type == "windows") {
+      output_dir <- tolower(output_dir)
+      input_files <- tolower(input_files)
+    }
     is_in_output_dir <- startsWith(
       input_files,
       paste0(output_dir, "/")
     )
     ls <- ls[!is_in_output_dir]
   }
+
+  # Do not rediscover CSVs generated beside TXT or XLSX inputs.
+  source_files <- ls[
+    tolower(tools::file_ext(ls)) %in% c("txt", "xlsx")
+  ]
+  source_stems <- tools::file_path_sans_ext(source_files)
+  csv_stems <- tools::file_path_sans_ext(ls)
+  is_derived_csv <- tolower(tools::file_ext(ls)) == "csv" &
+    csv_stems %in% source_stems
+  ls <- ls[!is_derived_csv]
+  ls <- ls[!grepl("^metadata.*\\.csv$", basename(ls), ignore.case = TRUE)]
 
   # initialise metadata with time as POSIXct
   metadata_template <- tibble::tibble(
@@ -139,10 +144,13 @@ convertFRDirectory <- function(
       if (inherits(data, "condition") || is.null(data)) {
         return(NA_character_)
       }
-      fr_output_path(
-        ls_out[i],
-        resolve_conversion_metadata(id, subject, ls[i]),
-        fr_conversion_type(data)
+      tryCatch(
+        fr_output_path(
+          ls_out[i],
+          resolve_conversion_metadata(id, subject, ls[i]),
+          fr_conversion_type(data)
+        ),
+        error = function(e) NA_character_
       )
     },
     character(1)

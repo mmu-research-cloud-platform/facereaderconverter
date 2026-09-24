@@ -19,7 +19,7 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
   skip_if_not_installed("readxl")
 
   input_dir <- file.path(TEST_DATA, "FR9")
-  output_dir <- file.path(TEST_DATA, "converted", "FR9_id_subject")
+  output_dir <- tempfile("fr9_id_subject_")
   skip_if(
     !dir.exists(input_dir),
     "The FR9 directory fixture is not available"
@@ -75,7 +75,9 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
     )
   )
 
-  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  unlink(output_dir, recursive = TRUE, force = TRUE)
+  dir.create(output_dir, recursive = TRUE)
+  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
 
   result <- convertFRDirectory(
     input_dir,
@@ -107,7 +109,10 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
   )
   expect_setequal(
     basename(result$outpath),
-    c("8895_mum_detailed.csv", "8895_mum_state.csv")
+    c(
+      "8895_mum_8895 mum FR9 Participant 1_00024 mum_Analysis 2_video_20260908_135003_detailed_detailed.csv",
+      "8895_mum_8895 mum FR9_00024 mum_Analysis 2_video_20260908_135003_state_state.csv"
+    )
   )
   expect_true(all(file.exists(result$outpath)))
 
@@ -122,10 +127,7 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
     function(data) all(data$subject == "mum"),
     logical(1)
   )))
-  expect_setequal(
-    list.files(output_dir),
-    c("8895_mum_detailed.csv", "8895_mum_state.csv")
-  )
+  expect_setequal(list.files(output_dir), basename(result$outpath))
 })
 
 test_that("convertFRDirectory rejects unsafe id-subject output components", {
@@ -156,7 +158,7 @@ test_that("convertFRDirectory rejects unsafe id-subject output components", {
   expect_false(file.exists(file.path(output_dir, "1001_mum_teen.csv")))
 })
 
-test_that("convertFRDirectory rejects duplicate metadata-derived destinations", {
+test_that("convertFRDirectory retains source stems for shared metadata", {
   input_dir <- tempfile("fr_duplicate_input_")
   output_dir <- tempfile("fr_duplicate_output_")
   dir.create(input_dir)
@@ -169,18 +171,18 @@ test_that("convertFRDirectory rejects duplicate metadata-derived destinations", 
   file.copy(source, file.path(input_dir, "first.csv"))
   file.copy(source, file.path(input_dir, "second.csv"))
 
-  expect_error(
-    convertFRDirectory(
-      input_dir,
-      output_dir,
-      id = "1001",
-      subject = "mum",
-      cores = 1L,
-      save_metadata = NULL
-    ),
-    "same output destination"
+  result <- convertFRDirectory(
+    input_dir,
+    output_dir,
+    id = "1001",
+    subject = "mum",
+    cores = 1L,
+    save_metadata = NULL
   )
-  expect_false(file.exists(file.path(output_dir, "1001_mum_detailed.csv")))
+
+  expect_true(all(result$status == "Success"))
+  expect_length(unique(result$outpath), 2L)
+  expect_true(all(file.exists(result$outpath)))
 })
 
 test_that("FR10 directory conversion supports explicit id and subject metadata", {

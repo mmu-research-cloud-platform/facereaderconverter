@@ -175,12 +175,13 @@ default it selects the ten highest-ranked shared `happy` intervals per
 video and creates a separate ZIP archive for each video.
 
 FaceReader exports are normally matched to videos by the basename in
-their `Filename` metadata, ignoring directory components and case. Each
-matched video must have exactly two detailed exports whose
-`Participant Name` columns each contain one distinct non-missing value.
-State outputs are ignored and CSV exports are not accepted because they
-do not retain the source-video header metadata required for validation.
-FFmpeg and FFprobe must be available on `PATH` to create clips.
+their `Filename` metadata, ignoring directory components, case, and file
+extensions. Each matched video must have exactly two detailed exports
+whose `Participant Name` columns each contain one distinct non-missing
+value. State outputs are ignored and CSV exports are not accepted
+because they do not retain the source-video header metadata required for
+validation. FFmpeg and FFprobe must be available on `PATH` to create
+clips.
 
 ### Interactive R
 
@@ -357,9 +358,9 @@ video and use export filenames as participant labels:
 
 synchrony-moments \
 
-  --input "brazil" \
+  --input "$TEST_DATA/brazil" \
 
-  --video "brazil/ID00000_side_by_side.mp4" \
+  --video "$TEST_DATA/brazil/ID100024_side_by_side.mp4" \
 
   --subject-from-filename \
 
@@ -693,6 +694,30 @@ same meanings as in `reaction_rate()`. The result retains one row per
 denominator episode so the window and reaction decision can be
 inspected.
 
+### `negative_controls()`
+
+`negative_controls()` samples control intervals matching the inclusive
+frame lengths of supplied episodes, then calculates episode-level
+synchrony for those intervals. Candidate controls avoid all supplied
+episodes and previously accepted controls for the same ID. Each source
+episode is marked as matched or unmatched if no valid interval is found
+within `max_tries` attempts. Because control selection is random, set a
+seed before calling the function for reproducible results.
+
+``` r
+library(facereaderconverter)
+
+source_episodes <- synchrony_by_episode(coded_data)
+controls <- negative_controls(coded_data, source_episodes)
+```
+
+`coded_data` is the `fr_coding` object returned by
+`convert_to_episodes()`. `episodes` is the source episode table,
+typically from `synchrony_by_episode()`. `max_tries` limits random
+candidate starts per source episode. The result includes control frame
+bounds, matching status, and the synchrony fields from
+`synchrony_by_episode()`.
+
 ### `locf()`
 
 `locf()` applies last-observation-carried-forward logic to an
@@ -814,6 +839,8 @@ dependency, so both are listed separately.
 | `locf()` | none | accepts `fr_coding`; otherwise needs a coding table with `id`, `subject`, `emotion`, `video_time`, `value`, and `run_id` | `convert_to_episodes()` |
 | `reaction_rate()` | none | accepts `fr_coding`; otherwise needs a delta-coded table with `id`, `subject`, `emotion`, `frame`, `delta`, `run_id`, and `in_state` | `add_delta_column()` |
 | `reaction_rate_by_episode()` | none | accepts `fr_coding`; otherwise needs a delta-coded table with `id`, `subject`, `emotion`, `frame`, `delta`, `run_id`, and `in_state` | `add_delta_column()` |
+| `negative_controls()` | `synchrony_by_episode()` | requires `fr_coding` and an episode table | `convert_to_episodes()`, `synchrony_by_episode()` |
+| `synchrony_moments_pipeline()` | `convert_to_episodes()`, `shared_synchronous_episodes()`, `export_shared_synchrony_clips()` | input directory containing paired detailed exports and videos | none |
 | `synchrony()` | none | requires `fr_coding` returned by `convert_to_episodes()` | `convert_to_episodes()` |
 | `synchrony_by_episode()` | none | requires `fr_coding` returned by `convert_to_episodes()` | `convert_to_episodes()` |
 | `shared_synchronous_episodes()` | none | requires `fr_coding` with episode `max_value` | `convert_to_episodes()` |

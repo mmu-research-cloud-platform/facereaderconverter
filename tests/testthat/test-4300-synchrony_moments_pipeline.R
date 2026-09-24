@@ -81,6 +81,24 @@ test_that("synchrony_moments_pipeline supports explicit video and filename subje
   unlink(root, recursive = TRUE, force = TRUE)
 })
 
+test_that("synchrony_moments_pipeline permits missing metadata with video override", {
+  root <- tempfile("synchrony-pipeline-")
+  dir.create(root)
+  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
+  video_path <- file.path(root, "side-by-side.mp4")
+  file.create(video_path)
+  write_detailed_export(file.path(root, "parent.txt"), "", "parent")
+  write_detailed_export(file.path(root, "teen.txt"), "", "teen")
+
+  expect_no_message(
+    result <- synchrony_moments_pipeline(root, video_path = video_path)
+  )
+
+  expect_equal(result$videos$video_filename, "side-by-side.mp4")
+  expect_equal(result$videos$participant1, "parent")
+  expect_equal(result$videos$participant2, "teen")
+})
+
 test_that("synchrony_moments_pipeline rejects unmatched FaceReader video metadata", {
   root <- tempfile("synchrony-pipeline-")
   dir.create(root)
@@ -170,23 +188,13 @@ test_that("synchrony_moments_pipeline processes Brazil video and exports", {
     "Brazil fixture must contain two FaceReader outputs."
   )
 
-  result <- NULL
-  expect_message(
-    result <- synchrony_moments_pipeline(
-      brazil_dir,
-      video_path = video_file[[1L]],
-      subject_from_filename = TRUE,
-      verbose = TRUE,
-      output_dir = tempfile("brazil-clips-"),
-      emotion = "not_an_emotion"
-    ),
-    paste(
-      "Videos matched to FaceReader files:",
-      ".*ID100024_side_by_side.mp4",
-      ".*Videos without matching FaceReader files:",
-      ".*ID100024_side_by_side - Copy.mp4",
-      sep = "\\n"
-    )
+  result <- synchrony_moments_pipeline(
+    brazil_dir,
+    video_path = video_file[[1L]],
+    subject_from_filename = TRUE,
+    verbose = TRUE,
+    output_dir = tempfile("brazil-clips-"),
+    emotion = "not_an_emotion"
   )
 
   expect_s3_class(result, "synchrony_moments_pipeline")

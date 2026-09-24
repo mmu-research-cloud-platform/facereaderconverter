@@ -2,21 +2,6 @@ TEST_DATA <- Sys.getenv("TEST_DATA")
 
 library(testthat)
 
-test_data_path <- file.path(TEST_DATA, "test_data.RDa")
-test_data_error <- tryCatch(
-  {
-    load(test_data_path)
-    NULL
-  },
-  error = identity
-)
-if (inherits(test_data_error, "error")) {
-  testthat::skip(sprintf(
-    "Could not load test data fixtures: %s",
-    test_data_error$message
-  ))
-}
-
 skip_if_not_installed("openxlsx")
 skip_if_not_installed("readxl")
 
@@ -184,7 +169,7 @@ test_that("synchrony_moments_pipeline filters videos before matching XLSX export
   expect_length(result$results, 1L)
 })
 
-test_that("synchrony_moments_pipeline retains video extensions in XLSX matching", {
+test_that("synchrony_moments_pipeline matches video and metadata base names", {
   root <- tempfile("synchrony-pipeline-xlsx-extension-")
   dir.create(root)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
@@ -197,8 +182,8 @@ test_that("synchrony_moments_pipeline retains video extensions in XLSX matching"
     )
   }
 
-  expect_error(
-    synchrony_moments_pipeline(root),
-    "No discovered video matches FaceReader Filename metadata"
-  )
+  result <- synchrony_moments_pipeline(root)
+
+  expect_equal(result$videos$video_filename, "recording.mov")
+  expect_length(result$results, 1L)
 })

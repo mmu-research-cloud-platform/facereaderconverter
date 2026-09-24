@@ -65,8 +65,8 @@ validated \code{videos}, and named per-video \code{results}.
 \description{
 Recursively discovers videos and FaceReader detailed TXT/XLSX exports below a
 folder. Each export is matched to a video using the basename in its FaceReader
-\code{Filename} metadata, ignoring case and directories while retaining the file
-extension. Videos without matching detailed exports are skipped with a message.
+\code{Filename} metadata, ignoring case, directories, and file extensions. Videos
+without matching detailed exports are skipped with a message.
 Each matched video must have exactly two detailed outputs with distinct, stable
 \verb{Participant Name} values.
 }

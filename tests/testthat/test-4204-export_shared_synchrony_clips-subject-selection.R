@@ -1,20 +1,3 @@
-TEST_DATA <- Sys.getenv("TEST_DATA")
-
-test_data_path <- file.path(TEST_DATA, "test_data.RDa")
-test_data_error <- tryCatch(
-  {
-    load(test_data_path)
-    NULL
-  },
-  error = identity
-)
-if (inherits(test_data_error, "error")) {
-  testthat::skip(sprintf(
-    "Could not load test data fixtures: %s",
-    test_data_error$message
-  ))
-}
-
 library(data.table)
 library(testthat)
 
@@ -116,7 +99,7 @@ test_that("export_shared_synchrony_clips requires one matched subject", {
   video <- tempfile(fileext = ".mp4")
   file.create(video)
 
-  expect_snapshot(error = TRUE, {
+  expect_error(
     facereaderconverter:::prepare_shared_synchrony_clips(
       coded_data = make_subject_clip_coding(),
       shared_synchrony = make_subject_clip_intervals(),
@@ -124,9 +107,10 @@ test_that("export_shared_synchrony_clips requires one matched subject", {
       n = 1L,
       emotion = NULL,
       optimised_subject = "guardian"
-    )
-  })
-  expect_snapshot(error = TRUE, {
+    ),
+    "must match exactly one"
+  )
+  expect_error(
     facereaderconverter:::prepare_shared_synchrony_clips(
       coded_data = make_subject_clip_coding(),
       shared_synchrony = make_subject_clip_intervals(),
@@ -134,6 +118,7 @@ test_that("export_shared_synchrony_clips requires one matched subject", {
       n = 1L,
       emotion = NULL,
       optimised_subject = "parent|child"
-    )
-  })
+    ),
+    "must match exactly one"
+  )
 })

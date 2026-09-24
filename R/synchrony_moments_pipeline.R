@@ -2,8 +2,8 @@
 #'
 #' Recursively discovers videos and FaceReader detailed TXT/XLSX exports below a
 #' folder. Each export is matched to a video using the basename in its FaceReader
-#' `Filename` metadata, ignoring case and directories while retaining the file
-#' extension. Videos without matching detailed exports are skipped with a message.
+#' `Filename` metadata, ignoring case, directories, and file extensions. Videos
+#' without matching detailed exports are skipped with a message.
 #' Each matched video must have exactly two detailed outputs with distinct, stable
 #' `Participant Name` values.
 #'
@@ -150,20 +150,21 @@ synchrony_moments_pipeline <- function(
   if (nrow(detailed) == 0L) {
     stop("No detailed FaceReader outputs were found.", call. = FALSE)
   }
-  if (anyNA(detailed$video_key) || any(!nzchar(detailed$video_key))) {
+  if (
+    is.null(video_path) &&
+      (anyNA(detailed$video_key) || any(!nzchar(detailed$video_key)))
+  ) {
     stop(
       "Each detailed FaceReader output must contain a Filename metadata value.",
       call. = FALSE
     )
   }
-  report_videos <- if (is.null(video_path)) videos else discovered_videos
-  report_keys <- if (is.null(video_path)) detailed$video_key else video_keys
-  if (verbose) {
-    synchrony_report_video_matches(report_videos, report_keys)
-  } else {
-    synchrony_report_unmatched_videos(report_videos, report_keys)
-  }
   if (is.null(video_path)) {
+    if (verbose) {
+      synchrony_report_video_matches(videos, detailed$video_key)
+    } else {
+      synchrony_report_unmatched_videos(videos, detailed$video_key)
+    }
     unmatched <- setdiff(unique(detailed$video_key), video_keys)
     if (length(unmatched) > 0L) {
       stop(
@@ -173,14 +174,16 @@ synchrony_moments_pipeline <- function(
       )
     }
     manifest[
-      type == "detailed",
+      type == "detailed" & video_key %in% video_keys,
       video_path := videos[match(video_key, video_keys)]
     ]
   } else {
     manifest[type == "detailed", video_path := videos[[1L]]]
   }
 
-  detailed_indices <- which(manifest$type == "detailed")
+  detailed_indices <- which(
+    manifest$type == "detailed" & !is.na(manifest$video_path)
+  )
   loaded <- lapply(detailed_indices, function(i) {
     data <- loadFRfile(
       manifest$fr_path[[i]],
@@ -208,7 +211,7 @@ synchrony_moments_pipeline <- function(
     data
   })
   names(loaded) <- manifest$fr_path[detailed_indices]
-  video_rows <- manifest[type == "detailed"]
+  video_rows <- manifest[type == "detailed" & !is.na(video_path)]
   counts <- data.table::data.table(video_path = videos)[
     video_rows[,
       .(n_outputs = .N, n_participants = data.table::uniqueN(participant)),
@@ -370,7 +373,11 @@ synchrony_report_unmatched_videos <- function(videos, fr_video_keys) {
 
 synchrony_video_key <- function(path) {
   path <- gsub("\\\\", "/", path)
-  ifelse(is.na(path), NA_character_, tolower(basename(path)))
+  ifelse(
+    is.na(path),
+    NA_character_,
+    tolower(tools::file_path_sans_ext(basename(path)))
+  )
 }
 
 synchrony_fr_header_metadata <- function(path) {
