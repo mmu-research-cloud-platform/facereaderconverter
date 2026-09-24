@@ -14,6 +14,35 @@ load_cli_parser <- function() {
   environment
 }
 
+copy_id100024_fixture <- function(brazil_dir) {
+  video_files <- list.files(
+    brazil_dir,
+    pattern = "^ID100024.*\\.mp4$",
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  export_files <- list.files(
+    brazil_dir,
+    pattern = "^100024_(child|mum)_.*_detailed( - Copy)?\\.xlsx$",
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  skip_if(
+    length(video_files) != 3L,
+    "Brazil fixture must contain three ID100024 videos."
+  )
+  skip_if(
+    length(export_files) != 3L,
+    "Brazil fixture must contain three matching ID100024 detailed exports."
+  )
+
+  input_dir <- tempfile("brazil-id100024-")
+  dir.create(input_dir)
+  file.copy(video_files, input_dir)
+  file.copy(export_files, input_dir)
+  input_dir
+}
+
 test_that("synchrony-moments CLI maps every pipeline argument", {
   cli <- load_cli_parser()
   values <- cli$parse_args(c(
@@ -108,23 +137,29 @@ test_that("synchrony-moments CLI uses input as the default output directory", {
   expect_null(values$output_dir)
 })
 
-test_that("synchrony-moments CLI processes two matched Brazil XLSX video pairs", {
+test_that("synchrony-moments CLI processes ID100024 videos and skips unmatched copies", {
   brazil_dir <- file.path(TEST_DATA, "brazil")
   skip_if_not(dir.exists(brazil_dir))
   skip_if(Sys.which("ffmpeg") == "", "FFmpeg is not available.")
   skip_if(Sys.which("ffprobe") == "", "FFprobe is not available.")
+  input_dir <- copy_id100024_fixture(brazil_dir)
   output_dir <- tempfile("brazil-cli-output-")
-  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  on.exit(
+    unlink(c(input_dir, output_dir), recursive = TRUE, force = TRUE),
+    add = TRUE
+  )
   cli <- load_cli_parser()
   test_started <- Sys.time()
 
   result <- NULL
-  expect_message(
+  expect_warning(
     result <- cli$main(c(
       "--input",
-      brazil_dir,
+      input_dir,
       "--output-dir",
       output_dir,
+      "--video-pattern",
+      "^ID100024",
       "--subject-from-filename",
       "--n",
       "10",
@@ -134,11 +169,13 @@ test_that("synchrony-moments CLI processes two matched Brazil XLSX video pairs",
       "folder",
       "--overwrite"
     )),
-    "ID100024_side_by_side - Copy.mp4"
+    "sufficiently matched outputs"
   )
 
-  expect_equal(nrow(result$videos), 2L)
-  expect_length(result$results, 2L)
+  expect_equal(nrow(result$videos), 3L)
+  expect_equal(sum(result$videos$status == "completed"), 1L)
+  expect_equal(sum(result$videos$status %in% c("failed", "unmatched")), 2L)
+  expect_length(result$results, 1L)
   expect_true(file.exists(file.path(
     output_dir,
     "synchrony-moments-manifest.csv"
@@ -178,21 +215,27 @@ test_that("synchrony-moments CLI processes two matched Brazil XLSX video pairs",
   )))
 })
 
-test_that("synchrony-moments CLI exports no Brazil episodes when t-up is 1", {
+test_that("synchrony-moments CLI exports no ID100024 episodes when t-up is 1", {
   brazil_dir <- file.path(TEST_DATA, "brazil")
   skip_if_not(dir.exists(brazil_dir))
+  input_dir <- copy_id100024_fixture(brazil_dir)
   output_dir <- tempfile("brazil-no-episodes-")
-  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  on.exit(
+    unlink(c(input_dir, output_dir), recursive = TRUE, force = TRUE),
+    add = TRUE
+  )
   cli <- load_cli_parser()
   test_started <- Sys.time()
 
   result <- NULL
-  expect_message(
+  expect_warning(
     result <- cli$main(c(
       "--input",
-      brazil_dir,
+      input_dir,
       "--output-dir",
       output_dir,
+      "--video-pattern",
+      "^ID100024",
       "--subject-from-filename",
       "--t-up",
       "1",
@@ -204,10 +247,13 @@ test_that("synchrony-moments CLI exports no Brazil episodes when t-up is 1", {
       "folder",
       "--overwrite"
     )),
-    "Completed synchrony moments pipeline"
+    "sufficiently matched outputs"
   )
 
-  expect_equal(nrow(result$videos), 2L)
+  expect_equal(nrow(result$videos), 3L)
+  expect_equal(sum(result$videos$status == "completed"), 1L)
+  expect_equal(sum(result$videos$status %in% c("failed", "unmatched")), 2L)
+  expect_length(result$results, 1L)
   expect_true(file.exists(file.path(
     output_dir,
     "synchrony-moments-manifest.csv"

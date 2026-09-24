@@ -197,6 +197,7 @@ synchrony_moments_pipeline <- function(
       error = NA_character_
     )
   }))
+  other_manifest <- manifest[type != "detailed"]
   manifest <- manifest[type == "detailed"]
   if (nrow(manifest) == 0L) {
     stop("No detailed FaceReader outputs were found.", call. = FALSE)
@@ -534,7 +535,15 @@ synchrony_moments_pipeline <- function(
     )
   }
   structure(
-    list(manifest = manifest, videos = video_table, results = results),
+    list(
+      manifest = data.table::rbindlist(
+        list(manifest, other_manifest),
+        use.names = TRUE,
+        fill = TRUE
+      ),
+      videos = video_table,
+      results = results
+    ),
     class = "synchrony_moments_pipeline"
   )
 }

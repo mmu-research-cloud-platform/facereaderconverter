@@ -147,7 +147,6 @@ test_that("synchrony_moments_pipeline reports matched and unmatched videos", {
     result$videos[video_filename == "unmatched.mp4", status],
     "unmatched"
   )
-  unlink(root, recursive = TRUE, force = TRUE)
 })
 
 test_that("synchrony_moments_pipeline warns and skips videos without two matched outputs", {
@@ -315,6 +314,10 @@ test_that("synchrony_moments_pipeline exports ten Brazil happy clips to a folder
 
   manifest <- result$results$video_001$clip_manifest
   clip_dir <- result$results$video_001$clip_output
+  expect_false(startsWith(
+    normalizePath(clip_dir, winslash = "/", mustWork = FALSE),
+    paste0(normalizePath(brazil_dir, winslash = "/"), "/")
+  ))
   expect_equal(nrow(manifest), 10L)
   expect_true(file.exists(file.path(clip_dir, "manifest.csv")))
   expect_files_modified_since(

@@ -95,5 +95,4 @@ test_that("export_shared_synchrony_clips caps buffered end at source EOF", {
   expect_equal(result$start_frame, 0L)
   expect_equal(result$end_frame, 19L)
   expect_equal(result$duration_seconds, 2)
-  unlink(video)
 })
