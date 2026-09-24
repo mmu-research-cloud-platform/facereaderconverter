@@ -20,7 +20,9 @@
 #'   `optimised_subject = "both"`.
 #' @param buffer A non-negative number for a symmetric buffer, or a named
 #'   two-element vector with names `before` and `after` for asymmetric buffers.
-#'   Units are controlled by `buffer_units`.
+#'   Units are controlled by `buffer_units`. Defaults to 5 seconds before and
+#'   3 seconds after. Use `NULL` internally to select these defaults while
+#'   preserving the legacy buffer arguments.
 #' @param buffer_units Buffer units: `"seconds"` or `"frames"`.
 #' @param buffer_frames Non-negative whole-number symmetric frame buffer. Kept
 #'   for compatibility; use `buffer` and `buffer_units` for new code.
@@ -61,7 +63,7 @@ export_shared_synchrony_clips <- function(
   emotion = "happy",
   optimised_subject = "both",
   only_synchronies = TRUE,
-  buffer = 0,
+  buffer = c(before = 5, after = 3),
   buffer_units = c("seconds", "frames"),
   buffer_frames = 0L,
   buffer_seconds = 0,
@@ -360,7 +362,7 @@ prepare_shared_synchrony_clips <- function(
   emotion,
   optimised_subject = "both",
   only_synchronies = TRUE,
-  buffer = 0,
+  buffer = c(before = 5, after = 3),
   buffer_units = c("seconds", "frames"),
   buffer_frames = 0L,
   buffer_seconds = 0,
@@ -427,6 +429,9 @@ prepare_shared_synchrony_clips <- function(
     stop("`only_synchronies` must be TRUE or FALSE.", call. = FALSE)
   }
   buffer_units <- match.arg(buffer_units)
+  if (is.null(buffer)) {
+    buffer <- c(before = 5, after = 3)
+  }
   if (!is.numeric(buffer) || anyNA(buffer) || any(buffer < 0)) {
     stop("`buffer` must contain non-negative numbers.", call. = FALSE)
   }

@@ -31,6 +31,27 @@ or
 devtools::install_github("mmu-research-cloud-platform/facereaderconverter")
 ```
 
+### FFmpeg prerequisite
+
+The clip-export and `synchrony-moments` workflows require both `ffmpeg`
+and `ffprobe` to be installed and available on your system `PATH`.
+Install FFmpeg using the package manager for your operating system, or
+follow the installation instructions at
+[ffmpeg.org](https://ffmpeg.org/download.html). For example:
+
+- **Windows:** install an FFmpeg build and add its `bin` directory to
+  `PATH`.
+- **macOS:** `brew install ffmpeg` (with Homebrew).
+- **Ubuntu/Debian:** `sudo apt update && sudo apt install ffmpeg`.
+
+Open a new terminal after updating `PATH`, then verify both commands are
+found:
+
+``` sh
+ffmpeg -version
+ffprobe -version
+```
+
 ## File conversion
 
 ### `loadFRfile()`
@@ -328,7 +349,10 @@ if (-not (Test-Path $PROFILE)) {
 }
 @'
 function synchrony-moments {
-  $cli = & Rscript -e 'cat(system.file("scripts", "synchrony-moments", package = "facereaderconverter"))'
+  $cli = & Rscript -e "cat(system.file('scripts', 'synchrony-moments', package = 'facereaderconverter'))"
+  if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($cli) -or -not (Test-Path $cli)) {
+    throw "Could not locate the installed synchrony-moments script. Install facereaderconverter first."
+  }
   & Rscript $cli @args
 }
 '@ | Add-Content -Path $PROFILE
@@ -339,6 +363,34 @@ In PowerShell, run the command with the usual CLI options, for example:
 
 ``` powershell
 synchrony-moments --input data/study --output-dir data/synchrony-clips --n 10 --emotion happy
+```
+
+Verify the setup by checking that the shell resolves the command and
+that its help runs:
+
+``` powershell
+Get-Command synchrony-moments
+synchrony-moments --help
+```
+
+``` sh
+command -v synchrony-moments
+synchrony-moments --help
+```
+
+If the shell cannot find the command, check whether R can locate the
+installed CLI script. The command prints its path; an empty result means
+the package is not installed in the R library used by `Rscript`:
+
+``` sh
+Rscript -e 'cat(system.file("scripts", "synchrony-moments", package = "facereaderconverter"))'
+```
+
+In PowerShell, use double quotes around the expression and single quotes
+inside it:
+
+``` powershell
+Rscript -e "cat(system.file('scripts', 'synchrony-moments', package = 'facereaderconverter'))"
 ```
 
 On Unix-like shells, after the one-time setup, supply a root directory

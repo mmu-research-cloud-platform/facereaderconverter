@@ -66,7 +66,7 @@ synchrony_moments_pipeline <- function(
   emotion = "happy",
   optimised_subject = "both",
   only_synchronies = TRUE,
-  buffer = 0,
+  buffer = c(before = 5, after = 3),
   buffer_units = c("seconds", "frames"),
   output = c("zip", "folder"),
   overwrite = FALSE,
