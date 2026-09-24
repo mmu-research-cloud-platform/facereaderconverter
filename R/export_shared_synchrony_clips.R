@@ -432,8 +432,11 @@ prepare_shared_synchrony_clips <- function(
   if (is.null(buffer)) {
     buffer <- c(before = 5, after = 3)
   }
-  if (!is.numeric(buffer) || anyNA(buffer) || any(buffer < 0)) {
-    stop("`buffer` must contain non-negative numbers.", call. = FALSE)
+  if (
+    !is.numeric(buffer) || anyNA(buffer) ||
+      any(!is.finite(buffer)) || any(buffer < 0)
+  ) {
+    stop("`buffer` must contain finite non-negative numbers.", call. = FALSE)
   }
   if (length(buffer) == 1L) {
     buffer <- c(before = buffer, after = buffer)
