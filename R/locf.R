@@ -16,9 +16,9 @@
 #' @export
 locf <- function(coding, fps = 30, consecutive_missing = NULL) {
   stopifnot(requireNamespace("data.table"))
-  if ("fr_coding" %in% class(coding)) {
+  if (is_fr_coding(coding)) {
     table <- coding$coding
-    fps <- coding$metadata$fps
+    fps <- resolve_fr_metadata(fps, coding, "fps", default = 30)
     if (is.null(consecutive_missing)) {
       consecutive_missing <- coding$metadata$consecutive_missing
     }
@@ -83,13 +83,10 @@ locf <- function(coding, fps = 30, consecutive_missing = NULL) {
   } else if (!is.null(consecutive_missing)) {
     metadata$consecutive_missing <- consecutive_missing
   }
-  structure(
-    list(
-      episodes = episodes,
-      deltas = deltas,
-      coding = dt_sensitivity[],
-      metadata = metadata
-    ),
-    class = c("fr_coding", "list")
+  fr_coding(
+    coding = dt_sensitivity[],
+    episodes = episodes,
+    deltas = deltas,
+    metadata = metadata
   )
 }

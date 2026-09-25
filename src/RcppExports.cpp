@@ -40,10 +40,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// max_delta_ranges
+NumericVector max_delta_ranges(NumericVector value, IntegerVector start_row, IntegerVector end_row, IntegerVector group_start_row, int k);
+RcppExport SEXP _facereaderconverter_max_delta_ranges(SEXP valueSEXP, SEXP start_rowSEXP, SEXP end_rowSEXP, SEXP group_start_rowSEXP, SEXP kSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type value(valueSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type start_row(start_rowSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type end_row(end_rowSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type group_start_row(group_start_rowSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    rcpp_result_gen = Rcpp::wrap(max_delta_ranges(value, start_row, end_row, group_start_row, k));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_facereaderconverter_all_deltas", (DL_FUNC) &_facereaderconverter_all_deltas, 3},
     {"_facereaderconverter_hysteresis_state", (DL_FUNC) &_facereaderconverter_hysteresis_state, 7},
+    {"_facereaderconverter_max_delta_ranges", (DL_FUNC) &_facereaderconverter_max_delta_ranges, 5},
     {NULL, NULL, 0}
 };
 

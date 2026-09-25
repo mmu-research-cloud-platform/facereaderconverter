@@ -13,6 +13,8 @@
 #' @param duplicate_timecodes_as_error Throw an error if duplicate timecodes are
 #'   found.
 #' @param sheet Excel sheet to read. Defaults to the first sheet.
+#' @param id Optional scalar ID or function of `inpath` returning one.
+#' @param subject Optional scalar subject or function of `inpath` returning one.
 #' @param ... Additional arguments passed to `janitor::clean_names()`.
 #'
 #' @return Invisibly returns the parsed data when `return_data = TRUE`;
@@ -42,11 +44,14 @@ convertFRExcelFiles <- function(
   fail_codes = FALSE,
   duplicate_timecodes_as_error = TRUE,
   sheet = 1,
-  ...
+  ...,
+  id = NULL,
+  subject = NULL
 ) {
   if (!is.character(inpath) || length(inpath) != 1) {
     stop("`inpath` must be a single string to a .xlsx file.")
   }
+  metadata_values <- resolve_conversion_metadata(id, subject, inpath)
   if (!file.exists(inpath)) {
     stop("File does not exist: ", inpath)
   }
@@ -149,6 +154,7 @@ convertFRExcelFiles <- function(
   if (clean_names) {
     df <- janitor::clean_names(df, ...)
   }
+  df <- add_fr_metadata(df, metadata_values)
 
   if (return_data) {
     invisible(df)

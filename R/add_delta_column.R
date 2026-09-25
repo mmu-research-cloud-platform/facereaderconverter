@@ -41,9 +41,9 @@ add_delta_column <- function(
     is.numeric(x) && is_scalar(x) && abs(x - round(x)) < .Machine$double.eps^0.5
   }
   stopifnot(requireNamespace("data.table"))
-  if ("fr_coding" %in% class(coding)) {
+  if (is_fr_coding(coding)) {
     coding_df <- coding$coding
-    fps <- coding$metadata$fps
+    fps <- resolve_fr_metadata(fps, coding, "fps", default = 30L)
   } else {
     coding_df <- coding
   }
@@ -109,7 +109,7 @@ add_delta_column <- function(
     dt[, delta := NULL]
   }
   dt[, delta := all_deltas(value, k, delta), by = .(id, subject, emotion)]
-  return(dt)
+  dt
 }
 
 #' Add delta column alias
