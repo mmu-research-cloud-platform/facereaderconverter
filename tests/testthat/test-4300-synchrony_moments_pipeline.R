@@ -350,12 +350,15 @@ test_that("synchrony_moments_pipeline processes Brazil video directory and expor
 
   output_dir <- tempfile("brazil-clips-")
   on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
-  result <- synchrony_moments_pipeline(
-    brazil_dir,
-    subject_from_filename = TRUE,
-    verbose = FALSE,
-    output_dir = output_dir,
-    emotion = "happy"
+  expect_warning(
+    result <- synchrony_moments_pipeline(
+      brazil_dir,
+      subject_from_filename = TRUE,
+      verbose = FALSE,
+      output_dir = output_dir,
+      emotion = "happy"
+    ),
+    "found 1 sufficiently matched outputs out of 1 detailed outputs"
   )
 
   expect_s3_class(result, "synchrony_moments_pipeline")
