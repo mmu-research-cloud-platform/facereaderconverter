@@ -46,8 +46,15 @@ test_that("threaded coding functions match one-thread Linux results", {
   episodes_two <- delta_episodes(delta_two, cores = 2L)
   expect_equal(episodes_two, episodes_one)
   expect_identical(
-    observed_threads[c(1L, 3L, 5L, 7L, 9L, 11L)],
-    c(1L, 2L, 1L, 2L, 1L, 2L)
+    observed_threads,
+    c(
+      1L, original_threads,
+      2L, original_threads,
+      1L, original_threads,
+      2L, original_threads,
+      1L, original_threads,
+      2L, original_threads
+    )
   )
   expect_identical(data.table::getDTthreads(), original_threads)
 })
