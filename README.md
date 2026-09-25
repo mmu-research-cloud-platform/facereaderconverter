@@ -307,14 +307,77 @@ local checkout, run:
 remotes::install_local(".")
 ```
 
-The CLI script is installed with the package rather than registered
-automatically on your shell `PATH`. Run it from R to obtain its
-installed location, then pass that path to `Rscript`:
+### Unix-like shell
+
+Install the package in the R environment used by this shell. This
+matters in WSL: WSL uses its own Linux R installation and package
+library, separate from Windows R. From the package checkout in WSL,
+install it with:
+
+``` sh
+Rscript -e 'remotes::install_local(".", force = TRUE)'
+```
+
+To make `synchrony-moments` available as a regular shell command, create
+the local bin directory and link the installed script to a directory on
+`PATH`:
+
+``` sh
+mkdir -p ~/.local/bin
+cli="$(Rscript -e 'cat(system.file("scripts", "synchrony-moments", package = "facereaderconverter"))')"
+test -f "$cli" || { echo "CLI script not found; install facereaderconverter in this R environment first."; exit 1; }
+ln -sf "$cli" ~/.local/bin/synchrony-moments
+chmod +x ~/.local/bin/synchrony-moments
+```
+
+If `ln` reports `No such file or directory`, check that the printed CLI
+path is nonempty and that the package is installed in the current
+shell’s R library. In WSL, install it from WSL rather than relying on a
+Windows R installation.
+
+Verify the command is available and that its help runs:
+
+``` sh
+command -v synchrony-moments
+synchrony-moments --help
+```
+
+If the shell cannot find the command, check whether `Rscript` can locate
+the installed CLI script. An empty result means the package is not
+installed in the R library used by `Rscript`:
+
+``` sh
+Rscript -e 'cat(system.file("scripts", "synchrony-moments", package = "facereaderconverter"))'
+```
+
+After setup, run the CLI with the usual options, for example:
+
+``` sh
+synchrony-moments \
+  --input data/study \
+  --output-dir data/synchrony-clips \
+  --n 10 \
+  --emotion happy
+```
+
+For Brazil-style side-by-side recordings, explicitly supply the source
+video and use export filenames as participant labels:
+
+``` sh
+synchrony-moments \
+  --input "$TEST_DATA/brazil" \
+  --video "$TEST_DATA/brazil/ID100024_side_by_side.mp4" \
+  --subject-from-filename \
+  --output-dir "${TMPDIR:-/tmp}/brazil-synchrony-clips" \
+  --n 1 \
+  --overwrite
+```
+
+To run the CLI without adding it to `PATH`, get the installed script
+location from R and pass it to `Rscript`:
 
 ``` r
-
 cli <- system.file("scripts", "synchrony-moments", package = "facereaderconverter")
-
 cli
 ```
 
@@ -326,15 +389,7 @@ Rscript "PATH_PRINTED_ABOVE" \
   --emotion happy
 ```
 
-To make `synchrony-moments` available as a regular shell command, copy
-or symlink the installed script to a directory on `PATH`. On Unix-like
-systems:
-
-``` sh
-
-ln -s "$(Rscript -e 'cat(system.file("scripts", "synchrony-moments", package = "facereaderconverter"))')" ~/.local/bin/synchrony-moments
-chmod +x ~/.local/bin/synchrony-moments
-```
+### PowerShell
 
 On Windows, use PowerShell instead of these Unix commands. In
 particular, `chmod` and `~/.local/bin` are not available in Windows
@@ -359,7 +414,7 @@ function synchrony-moments {
 . $PROFILE
 ```
 
-In PowerShell, run the command with the usual CLI options, for example:
+Run the command with the usual CLI options, for example:
 
 ``` powershell
 synchrony-moments --input data/study --output-dir data/synchrony-clips --n 10 --emotion happy
@@ -373,57 +428,39 @@ Get-Command synchrony-moments
 synchrony-moments --help
 ```
 
-``` sh
-command -v synchrony-moments
-synchrony-moments --help
-```
-
-If the shell cannot find the command, check whether R can locate the
-installed CLI script. The command prints its path; an empty result means
-the package is not installed in the R library used by `Rscript`:
-
-``` sh
-Rscript -e 'cat(system.file("scripts", "synchrony-moments", package = "facereaderconverter"))'
-```
-
-In PowerShell, use double quotes around the expression and single quotes
-inside it:
-
 ``` powershell
 Rscript -e "cat(system.file('scripts', 'synchrony-moments', package = 'facereaderconverter'))"
 ```
 
-On Unix-like shells, after the one-time setup, supply a root directory
-with `--input`; use `--output-dir` to keep generated clips separate from
-source files:
+To run the CLI without adding the function to your profile, get the
+installed script location from R and pass it to `Rscript`:
 
-``` sh
-
-synchrony-moments \
-  --input data/study \
-  --output-dir data/synchrony-clips \
-  --n 10 \
-  --emotion happy
+``` powershell
+$cli = & Rscript -e "cat(system.file('scripts', 'synchrony-moments', package = 'facereaderconverter'))"
+& Rscript $cli --input data/study --output-dir data/synchrony-clips --n 10 --emotion happy
 ```
 
-For Brazil-style side-by-side recordings, explicitly supply the source
-video and use export filenames as participant labels:
+For Brazil-style side-by-side recordings, supply the source video and
+use export filenames as participant labels:
 
-``` sh
-
-synchrony-moments \
-
-  --input "$TEST_DATA/brazil" \
-
-  --video "$TEST_DATA/brazil/ID100024_side_by_side.mp4" \
-
-  --subject-from-filename \
-
-  --output-dir "${TMPDIR:-/tmp}/brazil-synchrony-clips" \
-
-  --n 1 \
-
+``` powershell
+synchrony-moments `
+  --input "$env:TEST_DATA/brazil" `
+  --video "$env:TEST_DATA/brazil/ID100024_side_by_side.mp4" `
+  --subject-from-filename `
+  --output-dir "$env:TEMP/brazil-synchrony-clips" `
+  --n 1 `
   --overwrite
+```
+
+#### Run without a profile
+
+To run the CLI without adding the function to your PowerShell profile,
+get the installed script location and pass it to `Rscript`:
+
+``` powershell
+$cli = & Rscript -e "cat(system.file('scripts', 'synchrony-moments', package = 'facereaderconverter'))"
+& Rscript $cli --input data/study --output-dir data/synchrony-clips --n 10 --emotion happy
 ```
 
 CLI option names use lowercase kebab case (`--time-limit-frames` for
