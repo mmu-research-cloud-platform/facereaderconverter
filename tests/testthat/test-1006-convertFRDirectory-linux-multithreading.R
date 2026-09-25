@@ -38,10 +38,15 @@ test_that("convertFRDirectory processes fixtures with Linux workers", {
 
   par_lapply_lb <- parallel::parLapplyLB
   par_lapply_calls <- 0L
+  par_lapply_workers <- NA_integer_
+  par_lapply_succeeded <- FALSE
   testthat::local_mocked_bindings(
-    parLapplyLB = function(...) {
+    parLapplyLB = function(cl, ...) {
       par_lapply_calls <<- par_lapply_calls + 1L
-      par_lapply_lb(...)
+      par_lapply_workers <<- length(cl)
+      result <- par_lapply_lb(cl, ...)
+      par_lapply_succeeded <<- TRUE
+      result
     },
     .package = "parallel"
   )
@@ -53,7 +58,9 @@ test_that("convertFRDirectory processes fixtures with Linux workers", {
     save_metadata = NULL
   )
 
+  expect_true(par_lapply_succeeded)
   expect_identical(par_lapply_calls, 1L)
+  expect_identical(par_lapply_workers, 2L)
   expect_true(all(result$status == "Success"))
   expect_length(result$outpath, 2L)
   expect_true(all(file.exists(result$outpath)))
