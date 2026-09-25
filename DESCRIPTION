@@ -19,10 +19,10 @@ Imports: dplyr,
     tibble,
     Rcpp,
     data.table,
-    tidyr
+    tidyr,
+    openxlsx
 LinkingTo: Rcpp
 Suggests: 
-    openxlsx,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.0
