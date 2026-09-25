@@ -117,6 +117,7 @@ convertFRDirectory <- function(
 
   converter <- convertFRFiles
   loader <- loadFRfile
+  clean_names_args <- list(...)
 
   preflight_indices <- seq_along(ls)
   preflight_data <- lapply(
@@ -131,7 +132,7 @@ convertFRDirectory <- function(
           duplicate_timecodes_as_error = duplicate_timecodes_as_error,
           id = id,
           subject = subject,
-          ...
+          clean_names_args = clean_names_args
         )),
         error = identity
       )
@@ -219,16 +220,21 @@ convertFRDirectory <- function(
               outpath = csv_path
             )
           } else {
-            converter(
-              ls[i],
-              outpath = ls_out[i],
-              values_as_numeric = values_as_numeric,
-              clean_names = clean_names,
-              fail_codes = fail_codes,
-              duplicate_timecodes_as_error = duplicate_timecodes_as_error,
-              id = id,
-              subject = subject,
-              ...
+            do.call(
+              converter,
+              c(
+                list(
+                  inpath = ls[i],
+                  outpath = ls_out[i],
+                  values_as_numeric = values_as_numeric,
+                  clean_names = clean_names,
+                  fail_codes = fail_codes,
+                  duplicate_timecodes_as_error = duplicate_timecodes_as_error,
+                  id = id,
+                  subject = subject
+                ),
+                clean_names_args
+              )
             )
           }
         },

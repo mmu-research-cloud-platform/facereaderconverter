@@ -217,14 +217,13 @@ synchrony_moments_pipeline <- function(
     } else {
       synchrony_report_unmatched_videos(videos, manifest$video_key)
     }
-    unmatched <- setdiff(unique(manifest$video_key), video_keys)
-    if (length(unmatched) > 0L) {
-      stop(
-        "No discovered video matches FaceReader Filename metadata: ",
-        paste(unmatched, collapse = ", "),
-        call. = FALSE
+    manifest[
+      type == "detailed" & !video_key %in% video_keys,
+      `:=`(
+        status = "skipped",
+        error = "Filename metadata is outside the selected video filters."
       )
-    }
+    ]
     manifest[
       type == "detailed" & video_key %in% video_keys,
       video_path := videos[match(video_key, video_keys)]
@@ -305,16 +304,27 @@ synchrony_moments_pipeline <- function(
       call. = FALSE
     )
   }
-  counts <- video_rows[,
-    .(
-      n_outputs = .N,
-      n_matched_outputs = sum(!is.na(participant)),
-      n_valid_fps = sum(is.finite(fps) & fps > 0 & fps == round(fps)),
-      n_unique_fps = data.table::uniqueN(fps[is.finite(fps) & fps > 0]),
-      fps = fps[[1L]]
-    ),
-    by = video_path
-  ]
+  counts <- if (nrow(video_rows) == 0L) {
+    data.table::data.table(
+      video_path = character(),
+      n_outputs = integer(),
+      n_matched_outputs = integer(),
+      n_valid_fps = integer(),
+      n_unique_fps = integer(),
+      fps = numeric()
+    )
+  } else {
+    video_rows[,
+      .(
+        n_outputs = .N,
+        n_matched_outputs = sum(!is.na(participant)),
+        n_valid_fps = sum(is.finite(fps) & fps > 0 & fps == round(fps)),
+        n_unique_fps = data.table::uniqueN(fps[is.finite(fps) & fps > 0]),
+        fps = fps[[1L]]
+      ),
+      by = video_path
+    ]
+  }
   invalid <- counts[
     n_outputs != 2L |
       n_matched_outputs != 2L |

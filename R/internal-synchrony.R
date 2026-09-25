@@ -157,6 +157,9 @@ prepare_synchrony_inputs <- function(
   if (!subject %in% names(episodes) && "denominator" %in% names(episodes)) {
     data.table::setnames(episodes, "denominator", subject)
   }
+  if (!id %in% names(episodes) && "id" %in% names(episodes)) {
+    data.table::setnames(episodes, "id", id)
+  }
   required_episodes <- c(
     id,
     subject,

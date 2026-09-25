@@ -12,7 +12,7 @@ export_shared_synchrony_clips(
   emotion = "happy",
   optimised_subject = "both",
   only_synchronies = TRUE,
-  buffer = c(before = 5, after = 3),
+  buffer = NULL,
   buffer_units = c("seconds", "frames"),
   buffer_frames = 0L,
   buffer_seconds = 0,
@@ -47,7 +47,8 @@ synchronies by their combined value.}
 \item{buffer}{A non-negative number for a symmetric buffer, or a named
 two-element vector with names \code{before} and \code{after} for asymmetric buffers.
 Units are controlled by \code{buffer_units}. Defaults to 5 seconds before and
-3 seconds after.}
+3 seconds after. Use \code{NULL} internally to select these defaults while
+preserving the legacy buffer arguments.}
 
 \item{buffer_units}{Buffer units: \code{"seconds"} or \code{"frames"}.}
 

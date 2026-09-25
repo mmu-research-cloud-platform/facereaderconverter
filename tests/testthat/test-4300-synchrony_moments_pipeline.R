@@ -97,16 +97,24 @@ test_that("synchrony_moments_pipeline strictly filters explicit videos by metada
   )
 })
 
-test_that("synchrony_moments_pipeline rejects unmatched FaceReader video metadata", {
+test_that("synchrony_moments_pipeline skips unmatched FaceReader video metadata", {
   root <- tempfile("synchrony-pipeline-")
   dir.create(root)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
   file.create(file.path(root, "recording.mp4"))
   write_detailed_export(file.path(root, "parent.txt"), "other.mp4", "parent")
 
-  expect_error(
-    synchrony_moments_pipeline(root),
-    "No discovered video matches FaceReader Filename metadata"
+  expect_message(
+    result <- synchrony_moments_pipeline(root),
+    "Skipped videos without matching detailed FaceReader exports"
+  )
+  expect_equal(result$videos$status, "unmatched")
+  expect_equal(result$videos$n_matched_outputs, 0L)
+  expect_length(result$results, 0L)
+  expect_equal(result$manifest$status, "skipped")
+  expect_equal(
+    result$manifest$error,
+    "Filename metadata is outside the selected video filters."
   )
 })
 
@@ -293,12 +301,8 @@ test_that("synchrony_moments_pipeline exports ten Brazil happy clips to a folder
     "Brazil fixture must contain ID100024_side_by_side.mp4."
   )
 
-  inspection_root <- file.path(TEST_DATA, "synchrony_moments_inspection")
-  output_dir <- file.path(inspection_root, "brazil_happy_clips")
-  dir.create(inspection_root, recursive = TRUE, showWarnings = FALSE)
-  if (dir.exists(output_dir)) {
-    age_files(list.files(output_dir, recursive = TRUE, full.names = TRUE))
-  }
+  output_dir <- tempfile("brazil-happy-clips-")
+  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
   test_started <- Sys.time()
 
   result <- synchrony_moments_pipeline(

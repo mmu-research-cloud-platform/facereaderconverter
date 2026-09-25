@@ -52,6 +52,33 @@ test_that("synchrony accepts synchrony_by_episode output as episodes", {
   expect_equal(result, episode_result)
 })
 
+test_that("synchrony reuses episode results with custom identifiers", {
+  custom_identifier_data <- data.table::copy(custom_data)
+  setnames(custom_identifier_data$coding, "id", "dyad")
+  setnames(custom_identifier_data$episodes, "id", "dyad")
+  custom_identifier_episodes <- data.table::copy(custom_episodes)
+  setnames(custom_identifier_episodes, "id", "dyad")
+
+  episode_result <- synchrony_by_episode(
+    custom_identifier_data,
+    episodes = custom_identifier_episodes,
+    subject = "subject",
+    id = "dyad",
+    exclude_emotions = NULL
+  )
+
+  expect_equal(
+    synchrony_by_episode(
+      custom_identifier_data,
+      episodes = episode_result,
+      subject = "subject",
+      id = "dyad",
+      exclude_emotions = NULL
+    ),
+    episode_result
+  )
+})
+
 test_that("synchrony preserves historical positional arguments", {
   positional <- synchrony(
     custom_data,

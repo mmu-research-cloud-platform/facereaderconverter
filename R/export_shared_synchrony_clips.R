@@ -63,7 +63,7 @@ export_shared_synchrony_clips <- function(
   emotion = "happy",
   optimised_subject = "both",
   only_synchronies = TRUE,
-  buffer = c(before = 5, after = 3),
+  buffer = NULL,
   buffer_units = c("seconds", "frames"),
   buffer_frames = 0L,
   buffer_seconds = 0,
@@ -362,7 +362,7 @@ prepare_shared_synchrony_clips <- function(
   emotion,
   optimised_subject = "both",
   only_synchronies = TRUE,
-  buffer = c(before = 5, after = 3),
+  buffer = NULL,
   buffer_units = c("seconds", "frames"),
   buffer_frames = 0L,
   buffer_seconds = 0,
@@ -429,29 +429,31 @@ prepare_shared_synchrony_clips <- function(
     stop("`only_synchronies` must be TRUE or FALSE.", call. = FALSE)
   }
   buffer_units <- match.arg(buffer_units)
-  if (is.null(buffer)) {
-    buffer <- c(before = 5, after = 3)
-  }
-  if (
-    !is.numeric(buffer) || anyNA(buffer) ||
-      any(!is.finite(buffer)) || any(buffer < 0)
-  ) {
-    stop("`buffer` must contain finite non-negative numbers.", call. = FALSE)
-  }
-  if (length(buffer) == 1L) {
-    buffer <- c(before = buffer, after = buffer)
-  } else if (
-    length(buffer) == 2L &&
-      !is.null(names(buffer)) &&
-      identical(names(buffer), c("before", "after"))
-  ) {
-    buffer <- unname(buffer)
-    names(buffer) <- c("before", "after")
-  } else {
-    stop(
-      "`buffer` must be one number or a named vector with `before` and `after`.",
-      call. = FALSE
-    )
+  buffer_supplied <- !is.null(buffer)
+  if (buffer_supplied) {
+    if (
+      !is.numeric(buffer) ||
+        anyNA(buffer) ||
+        any(!is.finite(buffer)) ||
+        any(buffer < 0)
+    ) {
+      stop("`buffer` must contain finite non-negative numbers.", call. = FALSE)
+    }
+    if (length(buffer) == 1L) {
+      buffer <- c(before = buffer, after = buffer)
+    } else if (
+      length(buffer) == 2L &&
+        !is.null(names(buffer)) &&
+        identical(names(buffer), c("before", "after"))
+    ) {
+      buffer <- unname(buffer)
+      names(buffer) <- c("before", "after")
+    } else {
+      stop(
+        "`buffer` must be one number or a named vector with `before` and `after`.",
+        call. = FALSE
+      )
+    }
   }
   if (
     !is.numeric(buffer_frames) ||
@@ -466,9 +468,13 @@ prepare_shared_synchrony_clips <- function(
     !is.numeric(buffer_seconds) ||
       length(buffer_seconds) != 1L ||
       is.na(buffer_seconds) ||
+      !is.finite(buffer_seconds) ||
       buffer_seconds < 0
   ) {
-    stop("`buffer_seconds` must be a non-negative number.", call. = FALSE)
+    stop(
+      "`buffer_seconds` must be a finite non-negative number.",
+      call. = FALSE
+    )
   }
   if (buffer_frames > 0 && buffer_seconds > 0) {
     stop(
@@ -477,7 +483,7 @@ prepare_shared_synchrony_clips <- function(
     )
   }
   if (buffer_frames > 0 || buffer_seconds > 0) {
-    if (any(buffer != 0)) {
+    if (buffer_supplied && any(buffer != 0)) {
       stop(
         "Supply either `buffer` or the legacy buffer arguments, not both.",
         call. = FALSE
@@ -490,6 +496,8 @@ prepare_shared_synchrony_clips <- function(
       buffer <- c(before = buffer_seconds, after = buffer_seconds)
       buffer_units <- "seconds"
     }
+  } else if (!buffer_supplied) {
+    buffer <- c(before = 5, after = 3)
   }
   if (!is.null(emotion) && (!is.character(emotion) || anyNA(emotion))) {
     stop(
@@ -687,6 +695,12 @@ prepare_shared_synchrony_clips <- function(
         )
       )
     ]
+  }
+  if (any(clips$end_frame < clips$start_frame)) {
+    stop(
+      "One or more selected intervals lie outside the source video duration.",
+      call. = FALSE
+    )
   }
   clips[, `:=`(
     start_seconds = start_frame / fps,

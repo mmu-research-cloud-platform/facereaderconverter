@@ -3,10 +3,21 @@ TEST_DATA <- Sys.getenv("TEST_DATA")
 library(testthat)
 
 load_cli_parser <- function() {
-  script <- readLines(
-    testthat::test_path("..", "..", "inst", "scripts", "synchrony-moments"),
-    warn = FALSE
+  script_path <- testthat::test_path(
+    "..",
+    "..",
+    "inst",
+    "scripts",
+    "synchrony-moments"
   )
+  if (!file.exists(script_path)) {
+    script_path <- system.file(
+      "scripts",
+      "synchrony-moments",
+      package = "facereaderconverter"
+    )
+  }
+  script <- readLines(script_path, warn = FALSE)
   entry_point <- which(script == "if (sys.nframe() == 0L) {")
   script <- script[seq_len(entry_point[[1L]] - 1L)]
   environment <- new.env(parent = globalenv())

@@ -66,7 +66,8 @@ test_that("export_shared_synchrony_clips selects individual subject episodes", {
     n = 0,
     emotion = NULL,
     optimised_subject = "^parent$",
-    only_synchronies = FALSE
+    only_synchronies = FALSE,
+    buffer = 0
   )
 
   expect_equal(result$subject1, c("parent", "parent"))

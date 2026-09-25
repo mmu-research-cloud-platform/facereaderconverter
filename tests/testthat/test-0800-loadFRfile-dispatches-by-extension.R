@@ -61,7 +61,7 @@ test_that("loadFRfile dispatches by extension", {
   expect_identical(
     csv,
     readr::read_csv(
-      file.path("testdata", "testdata_detailed.csv"),
+      file.path(TEST_DATA, "testdata_detailed.csv"),
       show_col_types = FALSE
     ) |>
       janitor::clean_names()

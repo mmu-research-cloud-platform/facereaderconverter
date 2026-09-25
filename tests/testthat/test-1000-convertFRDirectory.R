@@ -116,6 +116,10 @@ test_that("convertFRDirectory", {
     file.path(base, "testdata2", "testdata_state2.txt"),
     kind = "state"
   )
+  readr::write_csv(
+    data.frame(`Video Time` = "00:00:00.000", Happy = 0.5),
+    file.path(base, "independent.csv")
+  )
 
   expect_no_error(convertFRDirectory(base, cores = 2L))
   expect_true(file.exists(file.path(base, "metadata.csv")))

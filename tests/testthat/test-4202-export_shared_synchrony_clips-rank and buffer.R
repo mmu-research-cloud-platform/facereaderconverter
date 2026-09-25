@@ -96,3 +96,35 @@ test_that("export_shared_synchrony_clips caps buffered end at source EOF", {
   expect_equal(result$end_frame, 19L)
   expect_equal(result$duration_seconds, 2)
 })
+
+test_that("export_shared_synchrony_clips rejects intervals beyond source EOF", {
+  video <- tempfile(fileext = ".mp4")
+  on.exit(unlink(video, force = TRUE), add = TRUE)
+  file.create(video)
+
+  expect_error(
+    facereaderconverter:::prepare_shared_synchrony_clips(
+      coded_data = make_clip_coding(),
+      shared_synchrony = data.table(
+        id = 1L,
+        emotion = "happy",
+        subject1 = "parent",
+        subject2 = "teen",
+        subject1_run_id = 1L,
+        subject2_run_id = 1L,
+        start_frame = 20L,
+        end_frame = 21L,
+        combined_value = 1.8
+      ),
+      video_paths = c("1" = video),
+      n = 1L,
+      emotion = "happy",
+      buffer = 0,
+      video_durations = stats::setNames(
+        2,
+        normalizePath(video, winslash = "/")
+      )
+    ),
+    "outside the source video duration"
+  )
+})
