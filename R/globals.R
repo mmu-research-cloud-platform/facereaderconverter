@@ -55,6 +55,7 @@ utils::globalVariables(c(
   "max_value",
   "archive_path",
   "clip_filename",
+  "clip_order",
   "clip_path",
   "combined_value",
   "mm",

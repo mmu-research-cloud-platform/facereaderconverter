@@ -78,8 +78,10 @@ also included in the archive as \code{manifest.csv}.
 \description{
 Selects shared synchronous intervals with the largest combined emotion values,
 or a named subject's highest-valued shared or individual episodes, and exports
-the corresponding video segments with FFmpeg. Frame ranges are inclusive: a
-range from frame 0 through frame 0 has duration \code{1 / fps}.
+the corresponding video segments with FFmpeg. Filenames include the value-based
+selection rank and timestamp order among selected clips in each video. Frame
+ranges are inclusive: a range from frame 0 through frame 0 has duration
+\code{1 / fps}.
 }
 \examples{
 \dontrun{

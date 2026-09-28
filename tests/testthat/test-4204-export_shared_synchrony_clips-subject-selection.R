@@ -76,7 +76,7 @@ test_that("export_shared_synchrony_clips selects individual subject episodes", {
   expect_identical(all(is.na(result$subject2)), TRUE)
   expect_match(
     result$clip_filename[[1L]],
-    "^001_id-1_sad_subject-parent_run-2_frames-30-39\\.mp4$"
+    "^001_order-002_id-1_sad_subject-parent_run-2_frames-30-39\\.mp4$"
   )
 })
 
