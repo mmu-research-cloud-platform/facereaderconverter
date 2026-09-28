@@ -676,12 +676,17 @@ prepare_shared_synchrony_clips <- function(
     original_end_frame = as.integer(end_frame),
     start_frame = pmax(0L, as.integer(start_frame) - frame_buffers[["before"]]),
     end_frame = as.integer(end_frame) + frame_buffers[["after"]],
-    fps = as.numeric(fps)
+    fps = as.numeric(fps),
+    video_path = normalizePath(
+      unname(video_paths[as.character(id)]),
+      winslash = "/",
+      mustWork = TRUE
+    )
   )]
   clips[
-    order(id, original_start_frame, original_end_frame, selection_rank),
+    order(video_path, original_start_frame, original_end_frame, selection_rank),
     clip_order := seq_len(.N),
-    by = id
+    by = video_path
   ]
   if (!is.null(video_durations)) {
     clips[,
@@ -690,11 +695,7 @@ prepare_shared_synchrony_clips <- function(
         as.integer(
           ceiling(
             video_durations[
-              normalizePath(
-                unname(video_paths[as.character(id)]),
-                winslash = "/",
-                mustWork = TRUE
-              )
+              video_path
             ] *
               fps
           ) -
@@ -711,12 +712,7 @@ prepare_shared_synchrony_clips <- function(
   }
   clips[, `:=`(
     start_seconds = start_frame / fps,
-    duration_seconds = (end_frame - start_frame + 1) / fps,
-    video_path = normalizePath(
-      unname(video_paths[as.character(id)]),
-      winslash = "/",
-      mustWork = TRUE
-    )
+    duration_seconds = (end_frame - start_frame + 1) / fps
   )]
   clips[,
     clip_filename := if (clip_type == "synchrony") {
