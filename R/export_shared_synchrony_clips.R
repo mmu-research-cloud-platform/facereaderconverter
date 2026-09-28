@@ -2,8 +2,10 @@
 #'
 #' Selects shared synchronous intervals with the largest combined emotion values,
 #' or a named subject's highest-valued shared or individual episodes, and exports
-#' the corresponding video segments with FFmpeg. Frame ranges are inclusive: a
-#' range from frame 0 through frame 0 has duration `1 / fps`.
+#' the corresponding video segments with FFmpeg. Filenames include the value-based
+#' selection rank and timestamp order among selected clips in each video. Frame
+#' ranges are inclusive: a range from frame 0 through frame 0 has duration
+#' `1 / fps`.
 #'
 #' @param coded_data A converted `fr_coding` object with `metadata$fps`.
 #' @param shared_synchrony A table returned by [shared_synchronous_episodes()].
@@ -676,6 +678,11 @@ prepare_shared_synchrony_clips <- function(
     end_frame = as.integer(end_frame) + frame_buffers[["after"]],
     fps = as.numeric(fps)
   )]
+  clips[
+    order(id, original_start_frame, original_end_frame, selection_rank),
+    clip_order := seq_len(.N),
+    by = id
+  ]
   if (!is.null(video_durations)) {
     clips[,
       end_frame := pmin(
@@ -714,8 +721,9 @@ prepare_shared_synchrony_clips <- function(
   clips[,
     clip_filename := if (clip_type == "synchrony") {
       sprintf(
-        "%03d_id-%s_%s_runs-%s-%s_frames-%s-%s.mp4",
+        "%03d_order-%03d_id-%s_%s_runs-%s-%s_frames-%s-%s.mp4",
         selection_rank,
+        clip_order,
         gsub("[^[:alnum:]_-]", "_", as.character(id)),
         gsub("[^[:alnum:]_-]", "_", emotion),
         subject1_run_id,
@@ -725,8 +733,9 @@ prepare_shared_synchrony_clips <- function(
       )
     } else {
       sprintf(
-        "%03d_id-%s_%s_subject-%s_run-%s_frames-%s-%s.mp4",
+        "%03d_order-%03d_id-%s_%s_subject-%s_run-%s_frames-%s-%s.mp4",
         selection_rank,
+        clip_order,
         gsub("[^[:alnum:]_-]", "_", as.character(id)),
         gsub("[^[:alnum:]_-]", "_", emotion),
         gsub("[^[:alnum:]_-]", "_", subject1),

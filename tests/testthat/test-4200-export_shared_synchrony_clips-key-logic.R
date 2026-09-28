@@ -283,7 +283,7 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals to a f
   )
   exported_video_files <- list.files(
     output_dir,
-    pattern = "^[0-9]{3}_id-1_.*\\.mp4$",
+    pattern = "^[0-9]{3}_order-[0-9]{3}_id-1_.*\\.mp4$",
     full.names = TRUE,
     ignore.case = TRUE
   )
@@ -381,7 +381,7 @@ test_that("export_shared_synchrony_clips exports all Brazil happy intervals with
   expect_length(
     list.files(
       output_dir,
-      pattern = "^[0-9]{3}_id-1_.*\\.mp4$",
+      pattern = "^[0-9]{3}_order-[0-9]{3}_id-1_.*\\.mp4$",
       full.names = TRUE,
       ignore.case = TRUE
     ),

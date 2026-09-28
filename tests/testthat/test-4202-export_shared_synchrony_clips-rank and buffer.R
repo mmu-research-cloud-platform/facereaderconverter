@@ -63,7 +63,7 @@ test_that("export_shared_synchrony_clips ranks filtered intervals and buffers fr
   expect_equal(result$duration_seconds, 3.5)
   expect_match(
     result$clip_filename,
-    "^001_id-1_happy_runs-2-2_frames-0-34\\.mp4$"
+    "^001_order-001_id-1_happy_runs-2-2_frames-0-34\\.mp4$"
   )
 })
 

@@ -732,8 +732,18 @@ archive or non-empty output folder. `ffmpeg` is either the FFmpeg
 command available on `PATH` or an executable path.
 
 The manifest records the selected intervals, frame and time boundaries,
-source video paths, generated clip filenames, and output paths. Frame
-ranges are inclusive, so a one-frame interval has duration `1 / fps`.
+source video paths, generated clip filenames, and output paths.
+`selection_rank` is the value-based rank after filtering (highest
+`combined_value` first by default, or the selected subject’s maximum
+value when `optimised_subject` is set). `clip_order` is the timestamp
+order of the **selected** clips within each source video: it starts at 1
+for each video and uses the original start frame, then original end
+frame and selection rank to break ties. Buffers do not change this
+order. Both numbers appear in each filename as a zero-padded rank
+followed by `_order-` and a zero-padded clip order, for example
+`001_order-003_id-1_happy_runs-2-2_frames-100-200.mp4`. Thus the
+highest-ranked clip need not occur first in the video. Frame ranges are
+inclusive, so a one-frame interval has duration `1 / fps`.
 
 ### `reaction_rate()`
 
