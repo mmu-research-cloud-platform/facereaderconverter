@@ -38,6 +38,8 @@
 #'   output folder. Defaults to `FALSE`.
 #' @param ffmpeg Path to the FFmpeg executable or its command name.
 #' @param verbose Whether to display FFmpeg output instead of a clip progress bar.
+#' @param cores Maximum number of concurrent clip encoders. `0` (default)
+#'   uses up to four physical cores, leaving one free; `1` runs sequentially.
 #'
 #' @return A `data.table` manifest invisibly. For ZIP output, the manifest is
 #'   also included in the archive as `manifest.csv`.
@@ -73,7 +75,8 @@ export_shared_synchrony_clips <- function(
   output = c("zip", "folder"),
   overwrite = FALSE,
   ffmpeg = "ffmpeg",
-  verbose = FALSE
+  verbose = FALSE,
+  cores = 0L
 ) {
   manifest <- prepare_shared_synchrony_clips(
     coded_data = coded_data,
@@ -120,6 +123,17 @@ export_shared_synchrony_clips <- function(
   }
   if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
     stop("`verbose` must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (
+    !is.numeric(cores) ||
+      length(cores) != 1L ||
+      is.na(cores) ||
+      !is.finite(cores) ||
+      cores < 0 ||
+      cores != floor(cores) ||
+      cores > .Machine$integer.max
+  ) {
+    stop("`cores` must be a non-negative whole number.", call. = FALSE)
   }
   if (
     !is.character(ffmpeg) ||
@@ -242,7 +256,15 @@ export_shared_synchrony_clips <- function(
   if (!is.null(progress)) {
     on.exit(close(progress), add = TRUE)
   }
-  for (i in seq_len(nrow(manifest))) {
+  physical_cores <- parallel::detectCores(logical = FALSE)
+  if (is.na(physical_cores)) {
+    physical_cores <- 1L
+  }
+  workers <- if (cores == 0L) min(4L, max(1L, physical_cores - 1L)) else cores
+  workers <- min(as.integer(workers), nrow(manifest))
+  executable <- if (nzchar(ffmpeg_path)) ffmpeg_path else ffmpeg
+  clip_indices <- seq_len(nrow(manifest))
+  encode <- function(i) {
     clip_path <- file.path(staging_dir, manifest$clip_filename[[i]])
     args <- c(
       "-y",
@@ -265,7 +287,6 @@ export_shared_synchrony_clips <- function(
     if (!verbose) {
       args <- c("-loglevel", "error", "-nostats", args)
     }
-    executable <- if (nzchar(ffmpeg_path)) ffmpeg_path else ffmpeg
     status <- if (verbose) {
       system2(executable, args = args)
     } else {
@@ -277,14 +298,36 @@ export_shared_synchrony_clips <- function(
     ) {
       stop(sprintf("FFmpeg failed while creating clip %d.", i), call. = FALSE)
     }
-    if (!is.null(progress)) {
-      utils::setTxtProgressBar(progress, i)
-    }
-    manifest$clip_path[[i]] <- normalizePath(
-      clip_path,
-      winslash = "/",
-      mustWork = FALSE
+    normalizePath(clip_path, winslash = "/", mustWork = FALSE)
+  }
+  if (workers > 1L && !verbose) {
+    shared_synchrony_file_exists <- shared_synchrony_file_exists
+    cluster <- parallel::makeCluster(workers)
+    on.exit(parallel::stopCluster(cluster), add = TRUE)
+    parallel::clusterExport(
+      cluster,
+      c(
+        "staging_dir",
+        "manifest",
+        "executable",
+        "verbose",
+        "shared_synchrony_file_exists"
+      ),
+      envir = environment()
     )
+    paths <- parallel::parLapplyLB(cluster, clip_indices, encode)
+  } else {
+    paths <- lapply(clip_indices, function(i) {
+      path <- encode(i)
+      if (!is.null(progress)) {
+        utils::setTxtProgressBar(progress, i)
+      }
+      path
+    })
+  }
+  manifest[, clip_path := unlist(paths, use.names = FALSE)]
+  if (!is.null(progress) && workers > 1L) {
+    utils::setTxtProgressBar(progress, nrow(manifest))
   }
   if (output == "zip") {
     manifest[, `:=`(clip_path = clip_filename, archive_path = destination)]
