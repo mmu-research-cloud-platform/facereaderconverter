@@ -544,6 +544,12 @@ synchrony_moments_pipeline <- function(
       clip_output = clip_path
     )
   }
+  n_videos_exported <- sum(vapply(
+    results,
+    function(video) nrow(video$clip_manifest) > 0L,
+    logical(1)
+  ))
+  manifest[, n_videos_exported := n_videos_exported]
   structure(
     list(
       manifest = data.table::rbindlist(
