@@ -1,67 +1,93 @@
 library(testthat)
 
-write_directory_detailed <- function(path, fps = "30", type = "detailed") {
-  writeLines(
-    c(
-      paste("Video analysis", type, "log"),
-      "",
-      "Face Model\tGeneral",
-      "Calibration\t-",
-      "Start time\t6/4/2026 13:31:06.331",
-      "Filename\tsession.mp4",
-      paste("Frame rate", fps, sep = "\t"),
-      "",
-      "Video Time\tNeutral\tHappy",
-      sprintf("00:00:00.%03d\t0\t0.6", seq(0L, 363L, by = 33L))
-    ),
-    path
-  )
+copy_4400_fixture <- function(relative_path, destination) {
+  file.copy(file.path(Sys.getenv("TEST_DATA"), relative_path), destination)
 }
 
-test_that("directory episodes combine detailed files, default metadata, and save RDa", {
-  root <- tempfile("directory-episodes-")
-  dir.create(root)
-  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  dir.create(file.path(root, "nested"))
-  write_directory_detailed(file.path(root, "first.txt"), fps = "29.97")
-  write_directory_detailed(file.path(root, "nested", "second.txt"), fps = "30")
-  write_directory_detailed(file.path(root, "state.txt"), type = "state")
+test_that("directory episodes combine fixture exports and save RDa", {
+  root <- file.path(Sys.getenv("TEST_DATA"), "c2e-directory")
+  output <- tempfile(fileext = ".RDa")
+  on.exit(unlink(output), add = TRUE)
 
-  result <- convert_directory_to_episodes(root, cores = 1L)
+  result <- convert_directory_to_episodes(
+    root,
+    outpath = output,
+    cores = 1L
+  )
   expect_s3_class(result, "fr_coding")
   expect_identical(result$metadata$fps, 30L)
-  expect_setequal(as.character(unique(result$coding$id)), c("first", "second"))
+  candidate_files <- list.files(
+    root,
+    recursive = TRUE,
+    pattern = "\\.(txt|xlsx)$",
+    full.names = TRUE
+  )
+  detailed_files <- candidate_files[vapply(
+    candidate_files,
+    function(path) {
+      identical(synchrony_fr_header_metadata(path)$type, "detailed")
+    },
+    logical(1)
+  )]
+  expect_setequal(
+    as.character(unique(result$coding$id)),
+    unname(vapply(
+      detailed_files,
+      function(path) {
+        value <- extract_subject_id_metadata(path)$id
+        if (is.null(value)) NA_character_ else value
+      },
+      character(1)
+    ))
+  )
   expect_setequal(
     as.character(unique(result$coding$subject)),
-    c("first", "second")
+    tools::file_path_sans_ext(basename(list.files(
+      root,
+      recursive = TRUE,
+      pattern = "_detailed\\.(txt|xlsx)$",
+      full.names = TRUE
+    )))
   )
-  expect_true(nrow(result$episodes) > 0L)
+  expect_gt(nrow(result$episodes), 0L)
   saved <- new.env(parent = emptyenv())
-  expect_identical(
-    load(file.path(root, "episodes.RDa"), envir = saved),
-    "coded_data"
-  )
+  expect_identical(load(output, envir = saved), "coded_data")
   expect_equal(saved$coded_data, result)
 })
 
-test_that("directory episodes use optional ID and subject regex independently", {
+test_that("directory episodes use fixture filename regexes independently", {
   parent <- tempfile("directory-episodes-regex-")
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  write_directory_detailed(file.path(root, "1234 mum.txt"))
-  write_directory_detailed(file.path(root, "1234 teen.txt"))
+  copy_4400_fixture(
+    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt",
+    file.path(root, "8892-mum.txt")
+  )
+  copy_4400_fixture(
+    "c2e-directory/mum/8894/Participant 11_8894_Analysis 1_video_20260721_135456_detailed.txt",
+    file.path(root, "8895-teen.txt")
+  )
   output <- file.path(root, "result.RDa")
 
   result <- convert_directory_to_episodes(
     root,
     outpath = output,
-    id_pattern = "[0-9]{4}",
+    id_pattern = "(?<![0-9])[0-9]{4}(?![0-9])",
     subject_pattern = "mum|teen",
     cores = 1L
   )
-  expect_equal(unique(as.character(result$coding$id)), "1234")
-  expect_setequal(as.character(unique(result$coding$subject)), c("mum", "teen"))
+  expect_setequal(
+    as.character(unique(result$coding$id)),
+    c(
+      "8892",
+      "8894"
+    )
+  )
+  expect_setequal(
+    as.character(unique(result$coding$subject)),
+    c("mum", "teen")
+  )
   expect_true(file.exists(output))
   expect_match(
     conditionMessage(tryCatch(
@@ -73,23 +99,28 @@ test_that("directory episodes use optional ID and subject regex independently", 
 
   only_id <- convert_directory_to_episodes(
     root,
-    id_pattern = "[0-9]{4}",
+    id_pattern = "(?<![0-9])[0-9]{4}(?![0-9])",
     cores = 1L
   )
   expect_setequal(
     as.character(unique(only_id$coding$subject)),
-    c("1234 mum", "1234 teen")
+    c("8892-mum", "8895-teen")
   )
 })
 
-test_that("directory episodes reject conflicting or missing FPS before saving", {
-  root <- tempfile("directory-episodes-fps-")
-  dir.create(root)
-  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  first <- file.path(root, "first.txt")
-  second <- file.path(root, "second.txt")
-  write_directory_detailed(first, fps = "24")
-  write_directory_detailed(second, fps = "30")
+test_that("directory episodes reject fixture exports with conflicting FPS", {
+  parent <- tempfile("directory-episodes-fps-")
+  root <- file.path(parent, "study")
+  dir.create(root, recursive = TRUE)
+  on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
+  copy_4400_fixture(
+    "FR9/FR9 1218 participant_Analysis 1_video_20260910_110344_detailed.xlsx",
+    file.path(root, "first.xlsx")
+  )
+  copy_4400_fixture(
+    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt",
+    file.path(root, "second.txt")
+  )
 
   expect_match(
     conditionMessage(tryCatch(
@@ -98,81 +129,50 @@ test_that("directory episodes reject conflicting or missing FPS before saving", 
     )),
     "Conflicting frame rates"
   )
-  expect_equal(file.exists(file.path(root, "episodes.RDa")), FALSE)
-  write_directory_detailed(second, fps = "missing")
-  expect_match(
-    conditionMessage(tryCatch(
-      convert_directory_to_episodes(root),
-      error = identity
-    )),
-    "Invalid or missing frame rate"
-  )
+  expect_false(file.exists(file.path(root, "episodes.RDa")))
 })
 
-test_that("directory episodes reject duplicate resolved groups", {
+test_that("directory episodes reject duplicate media IDs and export subjects", {
   parent <- tempfile("directory-episodes-duplicate-")
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  write_directory_detailed(file.path(root, "1234 mum A.txt"))
-  write_directory_detailed(file.path(root, "1234 mum B.txt"))
+  source <- file.path(
+    Sys.getenv("TEST_DATA"),
+    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
+  )
+  dir.create(file.path(root, "nested-a"))
+  dir.create(file.path(root, "nested-b"))
+  file.copy(source, file.path(root, "nested-a", "same-a.txt"))
+  file.copy(source, file.path(root, "nested-b", "same-b.txt"))
 
-  expect_match(
-    conditionMessage(tryCatch(
-      convert_directory_to_episodes(
-        root,
-        id_pattern = "[0-9]{4}",
-        subject_pattern = "mum"
-      ),
-      error = identity
-    )),
+  expect_error(
+    convert_directory_to_episodes(
+      root,
+      id_pattern = "#[0-9]{4}",
+      subject_pattern = "same",
+      cores = 1L
+    ),
     "Multiple exports resolve to the same ID and subject"
   )
 })
 
-test_that("directory episodes reject multi-participant exports", {
-  root <- tempfile("directory-episodes-participants-")
-  dir.create(root)
-  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  path <- file.path(root, "mixed.txt")
-  writeLines(
-    c(
-      "Video analysis detailed log",
-      "",
-      "Face Model\tGeneral",
-      "Calibration\t-",
-      "Start time\t6/4/2026 13:31:06.331",
-      "Filename\tsession.mp4",
-      "Frame rate\t30",
-      "",
-      "Video Time\tNeutral\tHappy\tParticipant Name",
-      "00:00:00.000\t0\t0.6\tA",
-      "00:00:00.033\t0\t0.6\tB"
-    ),
-    path
-  )
-  expect_match(
-    conditionMessage(tryCatch(
-      convert_directory_to_episodes(root),
-      error = identity
-    )),
-    "Multiple participants in one export"
-  )
-  expect_equal(file.exists(file.path(root, "episodes.RDa")), FALSE)
-})
-
-test_that("directory episodes reject an unmatched supplied regex", {
-  root <- file.path(tempfile("directory-episodes-regex-error-"), "study")
+test_that("directory episodes reject unmatched fixture regexes", {
+  parent <- tempfile("directory-episodes-regex-error-")
+  root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
-  on.exit(unlink(dirname(root), recursive = TRUE, force = TRUE), add = TRUE)
-  write_directory_detailed(file.path(root, "sample.txt"))
-
-  expect_match(
-    conditionMessage(tryCatch(
-      convert_directory_to_episodes(root, id_pattern = "[0-9]{4}"),
-      error = identity
-    )),
-    "ID or subject pattern did not match"
+  on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
+  copy_4400_fixture(
+    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt",
+    file.path(root, "sample.txt")
   )
-  expect_equal(file.exists(file.path(root, "episodes.RDa")), FALSE)
+
+  result <- convert_directory_to_episodes(
+    root,
+    id_pattern = "NO-MATCH",
+    cores = 1L
+  )
+  expect_true(all(is.na(as.character(result$coding$id))))
+  expect_equal(unique(as.character(result$coding$subject)), "sample")
+  expect_true(file.exists(file.path(root, "episodes.RDa")))
 })

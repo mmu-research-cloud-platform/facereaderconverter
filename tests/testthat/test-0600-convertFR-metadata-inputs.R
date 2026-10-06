@@ -37,10 +37,24 @@ test_that("conversion metadata supports scalar and callback values", {
   expect_true(all(callback_data$subject == basename(path)))
 })
 
-test_that("metadata columns are optional and partial values preserve the stem", {
+test_that("explicit metadata overrides inferred filename metadata", {
+  path <- file.path("testdata", "testdata_detailed.txt")
+  data <- loadFRfile(path, id = "manual-id")
+
+  expect_true(all(data$id == "manual-id"))
+  expect_true(all(data$subject == "testdata_detailed"))
+})
+
+test_that("FaceReader files infer media ID and export subject by default", {
   path <- file.path("testdata", "testdata_detailed.txt")
   x <- convertFRFiles(path, return_data = TRUE)
-  expect_false(any(c("id", "subject") %in% names(x)))
+  expect_true(all(x$id == "randomparent"))
+  expect_true(all(x$subject == "testdata_detailed"))
+
+  csv_path <- file.path(TEST_DATA, "testdata_detailed.csv")
+  csv <- loadFRfile(csv_path)
+  expect_false("id" %in% names(csv))
+  expect_true(all(csv$subject == "testdata_detailed"))
 
   output <- tempfile("metadata_partial_")
   dir.create(output)
@@ -58,10 +72,84 @@ test_that("metadata columns are optional and partial values preserve the stem", 
     outpath = file.path(output, "original.txt"),
     id = 12
   )
-  expect_true(file.exists(file.path(output, "original.csv")))
+  expect_true(file.exists(file.path(
+    output,
+    "12_testdata_detailed_original_detailed.csv"
+  )))
   expect_files_modified_since(md$outpath, test_started)
-  expect_true(grepl("original.csv$", md$outpath))
+  expect_true(grepl("12_testdata_detailed_original_detailed.csv$", md$outpath))
   expect_false("stale output" %in% readLines(md$outpath))
+})
+
+test_that("TXT ingestion can infer metadata from full paths", {
+  input_dir <- tempfile("full_path_txt_")
+  dir.create(file.path(input_dir, "full_path_subject"), recursive = TRUE)
+  on.exit(unlink(input_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  path <- file.path(input_dir, "full_path_subject", "source.txt")
+  file.copy(testthat::test_path("testdata", "testdata_detailed.txt"), path)
+
+  data <- convertFRFiles(
+    path,
+    return_data = TRUE,
+    id_pattern = "1234",
+    subject_pattern = "full_path_subject[/\\\\]source",
+    use_full_path = TRUE
+  )
+
+  expect_true(all(data$id == "1234"))
+  expect_true(all(grepl("full_path_subject[/\\\\]source", data$subject)))
+})
+
+test_that("XLSX ingestion can infer metadata from full paths", {
+  path <- file.path(
+    TEST_DATA,
+    "brazil/Participant 10_Participant 10_Analysis 1_video_20260918_143140_detailed.xlsx"
+  )
+
+  data <- loadFRfile(
+    path,
+    id_pattern = "8883",
+    subject_pattern = "brazil",
+    use_full_path = TRUE
+  )
+
+  expect_true(all(data$id == "8883"))
+  expect_true(all(data$subject == "brazil"))
+})
+
+test_that("Excel conversion can infer metadata from full paths", {
+  path <- file.path(
+    TEST_DATA,
+    "brazil/Participant 10_Participant 10_Analysis 1_video_20260918_143140_detailed.xlsx"
+  )
+
+  data <- convertFRExcelFiles(
+    path,
+    id_pattern = "8883",
+    subject_pattern = "brazil",
+    use_full_path = TRUE
+  )
+
+  expect_true(all(data$id == "8883"))
+  expect_true(all(data$subject == "brazil"))
+})
+
+test_that("CSV ingestion can infer subject from the full path only", {
+  input_dir <- tempfile("brazil_csv_")
+  dir.create(file.path(input_dir, "brazil"), recursive = TRUE)
+  on.exit(unlink(input_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  path <- file.path(input_dir, "brazil", "testdata_detailed.csv")
+  file.copy(file.path(TEST_DATA, "testdata_detailed.csv"), path)
+
+  data <- loadFRfile(
+    path,
+    id_pattern = "8883",
+    subject_pattern = "brazil",
+    use_full_path = TRUE
+  )
+
+  expect_false("id" %in% names(data))
+  expect_true(all(data$subject == "brazil"))
 })
 
 test_that("both metadata values determine output name and collisions fail", {

@@ -13,8 +13,13 @@
 #' @param duplicate_timecodes_as_error Throw an error if duplicate timecodes are
 #'   found.
 #' @param sheet Excel sheet to read. Defaults to the first sheet.
-#' @param id Optional scalar ID or function of `inpath` returning one.
+#' @param id Optional scalar ID or function of `inpath` returning one. If
+#'   omitted, the associated media filename without its extension is used.
 #' @param subject Optional scalar subject or function of `inpath` returning one.
+#'   If omitted, the FaceReader filename without its extension is used.
+#' @param id_pattern,subject_pattern Optional regular expressions for inferring
+#'   metadata from the media filename and FaceReader export filename.
+#' @param use_full_path If `TRUE`, search full paths when patterns are supplied.
 #' @param ... Additional arguments passed to `janitor::clean_names()`.
 #'
 #' @return Invisibly returns the parsed data when `return_data = TRUE`;
@@ -46,12 +51,14 @@ convertFRExcelFiles <- function(
   sheet = 1,
   ...,
   id = NULL,
-  subject = NULL
+  subject = NULL,
+  id_pattern = NULL,
+  subject_pattern = NULL,
+  use_full_path = FALSE
 ) {
   if (!is.character(inpath) || length(inpath) != 1) {
     stop("`inpath` must be a single string to a .xlsx file.")
   }
-  metadata_values <- resolve_conversion_metadata(id, subject, inpath)
   if (!file.exists(inpath)) {
     stop("File does not exist: ", inpath)
   }
@@ -80,13 +87,16 @@ convertFRExcelFiles <- function(
 
   has_metadata <- grepl("video analysis", md_vals[[1]][1], ignore.case = TRUE)
 
-  md_videoname <- if (
-    has_metadata && nrow(md_vals) >= 6 && ncol(md_vals) >= 2
-  ) {
-    md_vals[[2]][6] |> stringr::str_trim()
-  } else {
-    NA_character_
-  }
+  md_videoname <- synchrony_fr_xlsx_filename(md_vals)
+  metadata_values <- resolve_conversion_metadata(
+    id,
+    subject,
+    inpath,
+    video_filename = md_videoname,
+    id_pattern = id_pattern,
+    subject_pattern = subject_pattern,
+    use_full_path = use_full_path
+  )
   md_time <- if (has_metadata && nrow(md_vals) >= 5 && ncol(md_vals) >= 2) {
     md_vals[[2]][5] |>
       stringr::str_trim() |>

@@ -17,7 +17,8 @@ convert_directory_to_episodes(
   delta_window = 0.2,
   min_dur_sec = 0.1,
   consecutive_missing = 150L,
-  cores = 0L
+  cores = 0L,
+  use_full_path = FALSE
 )
 }
 \arguments{
@@ -26,13 +27,13 @@ convert_directory_to_episodes(
 \item{outpath}{Path to the output \code{.RDa} file. Defaults to \code{episodes.RDa}
 inside \code{inpath}.}
 
-\item{id_pattern, subject_pattern}{Optional regular expressions matched using
-\code{\link[=extract_subject_id_metadata]{extract_subject_id_metadata()}}. For each field, the filename is checked
-first, followed by enclosing folder names from nearest to outermost,
-including \code{inpath}. If a rule is \code{NULL}, that field uses the filename
-without its extension. A supplied pattern must match every detailed export.
-If \code{id_pattern} matches distinct IDs anywhere in these names, conversion
-stops rather than choosing one.}
+\item{id_pattern, subject_pattern}{Optional regular expressions applied to the
+associated media filename and FaceReader export filename, respectively.
+If a rule is \code{NULL}, the complete corresponding basename without extension
+is used. A supplied pattern must match every detailed export. Multiple ID
+matches in a media filename are rejected. Set \code{use_full_path = TRUE} to
+search the full media filename stored in metadata for IDs and the full
+FaceReader export path for subjects.}
 
 \item{recursive}{Whether to search subdirectories.}
 
@@ -40,6 +41,9 @@ stops rather than choosing one.}
 \code{FALSE}.}
 
 \item{T_up, T_down, delta, delta_window, min_dur_sec, consecutive_missing, cores}{Passed to \code{\link[=convert_to_episodes]{convert_to_episodes()}}.}
+
+\item{use_full_path}{Search full metadata/export paths when a regex is
+supplied. Basename defaults are unchanged.}
 }
 \value{
 The combined \code{fr_coding} object returned by

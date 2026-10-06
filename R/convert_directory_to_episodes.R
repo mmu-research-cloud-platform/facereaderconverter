@@ -9,18 +9,20 @@
 #' @param inpath Directory containing FaceReader exports.
 #' @param outpath Path to the output `.RDa` file. Defaults to `episodes.RDa`
 #'   inside `inpath`.
-#' @param id_pattern,subject_pattern Optional regular expressions matched using
-#'   [extract_subject_id_metadata()]. For each field, the filename is checked
-#'   first, followed by enclosing folder names from nearest to outermost,
-#'   including `inpath`. If a rule is `NULL`, that field uses the filename
-#'   without its extension. A supplied pattern must match every detailed export.
-#'   If `id_pattern` matches distinct IDs anywhere in these names, conversion
-#'   stops rather than choosing one.
+#' @param id_pattern,subject_pattern Optional regular expressions applied to the
+#'   associated media filename and FaceReader export filename, respectively.
+#'   If a rule is `NULL`, the complete corresponding basename without extension
+#'   is used. A supplied pattern must match every detailed export. Multiple ID
+#'   matches in a media filename are rejected. Set `use_full_path = TRUE` to
+#'   search the full media filename stored in metadata for IDs and the full
+#'   FaceReader export path for subjects.
 #' @param recursive Whether to search subdirectories.
 #' @param overwrite Whether to replace an existing output file. Defaults to
 #'   `FALSE`.
 #' @param T_up,T_down,delta,delta_window,min_dur_sec,consecutive_missing,cores
 #'   Passed to [convert_to_episodes()].
+#' @param use_full_path Search full metadata/export paths when a regex is
+#'   supplied. Basename defaults are unchanged.
 #'
 #' @return The combined `fr_coding` object returned by
 #'   [convert_to_episodes()], invisibly. The same object is saved as
@@ -47,7 +49,8 @@ convert_directory_to_episodes <- function(
   delta_window = 0.2,
   min_dur_sec = 0.1,
   consecutive_missing = 150L,
-  cores = 0L
+  cores = 0L,
+  use_full_path = FALSE
 ) {
   if (
     !is.character(inpath) ||
@@ -71,6 +74,13 @@ convert_directory_to_episodes <- function(
   }
   if (!is.logical(overwrite) || length(overwrite) != 1L || is.na(overwrite)) {
     stop("`overwrite` must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (
+    !is.logical(use_full_path) ||
+      length(use_full_path) != 1L ||
+      is.na(use_full_path)
+  ) {
+    stop("`use_full_path` must be TRUE or FALSE.", call. = FALSE)
   }
   if (file.exists(outpath) && !overwrite) {
     stop("Output already exists: ", outpath, call. = FALSE)
@@ -129,82 +139,60 @@ convert_directory_to_episodes <- function(
     )
   }
 
-  stems <- tools::file_path_sans_ext(basename(files))
-  input_root <- normalizePath(inpath, winslash = "/", mustWork = TRUE)
   identifiers <- lapply(seq_along(files), function(i) {
-    file_dir <- normalizePath(
-      dirname(files[[i]]),
-      winslash = "/",
-      mustWork = TRUE
-    )
-    relative_dir <- if (identical(file_dir, input_root)) {
-      ""
-    } else {
-      substring(file_dir, nchar(input_root) + 2L)
+    media_filename <- headers[[i]]$video_filename
+    media_name <- fr_media_id(media_filename)
+    subject_name <- fr_filename_stem(files[[i]])
+    if (use_full_path && !is.null(id_pattern)) {
+      media_name <- media_filename
     }
-    folder_names <- if (nzchar(relative_dir)) {
-      rev(strsplit(relative_dir, "/", fixed = TRUE)[[1L]])
-    } else {
-      character()
+    if (use_full_path && !is.null(subject_pattern)) {
+      subject_name <- files[[i]]
     }
-    candidates <- c(basename(files[[i]]), folder_names, basename(input_root))
-    if (!is.null(id_pattern)) {
-      id_matches <- unique(unlist(
-        lapply(candidates, function(candidate) {
-          stringr::str_trim(stringr::str_extract_all(candidate, id_pattern)[[
-            1L
-          ]])
-        }),
-        use.names = FALSE
-      ))
-      id_matches <- id_matches[nzchar(id_matches)]
-      if (length(id_matches) > 1L) {
+    extract_one <- function(source, pattern, field) {
+      if (is.null(source)) {
+        return(NA_character_)
+      }
+      if (is.null(pattern)) {
+        return(source)
+      }
+      matches <- unique(stringr::str_extract_all(source, pattern)[[1L]])
+      matches <- matches[!is.na(matches) & nzchar(matches)]
+      if (length(matches) > 1L && identical(field, "id")) {
         stop(
-          "Multiple different IDs match `id_pattern` in: ",
+          "Multiple different IDs match `id_pattern` in media filename for: ",
           files[[i]],
           ": ",
-          paste(id_matches, collapse = ", "),
+          paste(matches, collapse = ", "),
           call. = FALSE
         )
       }
-    }
-    find_match <- function(pattern, field, fallback) {
-      if (is.null(pattern)) {
-        return(fallback)
-      }
-      for (candidate in candidates) {
-        result <- extract_subject_id_metadata(
-          candidate,
-          id_pattern = if (field == "id") pattern else "(?!)",
-          subject_pattern = if (field == "subject") pattern else "(?!)"
-        )[[field]]
-        if (!is.na(result) && nzchar(result)) {
-          return(result)
-        }
-      }
-      NA_character_
+      if (length(matches)) matches[[1L]] else NA_character_
     }
     list(
-      id = find_match(id_pattern, "id", stems[[i]]),
-      subject = find_match(subject_pattern, "subject", stems[[i]])
+      id = extract_one(media_name, id_pattern, "id"),
+      subject = extract_one(subject_name, subject_pattern, "subject")
     )
   })
   for (i in seq_along(files)) {
-    if (
-      anyNA(unlist(identifiers[[i]])) ||
-        any(!nzchar(unlist(identifiers[[i]])))
-    ) {
-      stop("ID or subject pattern did not match: ", files[[i]], call. = FALSE)
+    if (is.na(identifiers[[i]]$subject) || !nzchar(identifiers[[i]]$subject)) {
+      stop("Subject pattern did not match: ", files[[i]], call. = FALSE)
     }
   }
 
   groups <- vapply(
     identifiers,
-    function(x) paste(x$id, x$subject, sep = "\r"),
+    function(x) paste(if (is.na(x$id)) "<NA>" else x$id, x$subject, sep = "\r"),
     character(1)
   )
-  if (anyDuplicated(groups)) {
-    duplicate <- which(duplicated(groups) | duplicated(groups, fromLast = TRUE))
+  has_id <- !vapply(identifiers, function(x) is.na(x$id), logical(1))
+  duplicate_groups <- groups[has_id]
+  duplicate_local <- which(
+    duplicated(duplicate_groups) |
+      duplicated(duplicate_groups, fromLast = TRUE)
+  )
+  if (length(duplicate_local)) {
+    duplicate <- which(has_id)[duplicate_local]
     stop(
       "Multiple exports resolve to the same ID and subject: ",
       paste(files[duplicate], collapse = ", "),
@@ -245,7 +233,11 @@ convert_directory_to_episodes <- function(
       stop("No emotion columns in: ", files[[i]], call. = FALSE)
     }
     data.frame(
-      id = identifiers[[i]]$id,
+      id = if (is.na(identifiers[[i]]$id)) {
+        NA_character_
+      } else {
+        identifiers[[i]]$id
+      },
       subject = identifiers[[i]]$subject,
       video_time = data$video_time,
       data[, columns, drop = FALSE],

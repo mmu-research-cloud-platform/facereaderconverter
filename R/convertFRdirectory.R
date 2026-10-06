@@ -11,7 +11,14 @@
 #' @param fail_codes adds a column with the fail reason, True or False. Column then has 0 for success, 1 for fit_failed, 2 for find_failed
 #' @param duplicate_timecodes_as_error throws an error if there are duplicate timecodes, if FALSE then throws warning
 #' @param id Optional scalar ID or function of each input path returning one.
-#' @param subject Optional scalar subject or function of each input path returning one.
+#'   If omitted, TXT/XLSX inputs use the associated media filename without its
+#'   extension; CSV inputs have no inferred ID.
+#' @param subject Optional scalar subject or function of each input path
+#'   returning one. If omitted, the input filename without its extension is
+#'   used.
+#' @param id_pattern,subject_pattern Optional regular expressions for inferring
+#'   metadata from the media filename and FaceReader export filename.
+#' @param use_full_path If `TRUE`, search full paths when patterns are supplied.
 #' @param save_metadata save the metadata as a csv in the outpath, set to NULL to not save
 #' @param metadata_filename filename of the metadata csv
 #' @param cores integer Number of threads to use. Default 0 is auto.
@@ -45,7 +52,10 @@ convertFRDirectory <- function(
   cores = 0L,
   ...,
   id = NULL,
-  subject = NULL
+  subject = NULL,
+  id_pattern = NULL,
+  subject_pattern = NULL,
+  use_full_path = FALSE
 ) {
   ls <- list.files(
     inpath,
@@ -132,6 +142,9 @@ convertFRDirectory <- function(
           duplicate_timecodes_as_error = duplicate_timecodes_as_error,
           id = id,
           subject = subject,
+          id_pattern = id_pattern,
+          subject_pattern = subject_pattern,
+          use_full_path = use_full_path,
           clean_names_args = clean_names_args
         )),
         error = identity
@@ -148,7 +161,7 @@ convertFRDirectory <- function(
       tryCatch(
         fr_output_path(
           ls_out[i],
-          resolve_conversion_metadata(id, subject, ls[i]),
+          metadata_columns(data),
           fr_conversion_type(data)
         ),
         error = function(e) NA_character_
@@ -190,7 +203,7 @@ convertFRDirectory <- function(
             }
             csv_path <- fr_output_path(
               ls_out[i],
-              resolve_conversion_metadata(id, subject, ls[i]),
+              metadata_columns(data),
               fr_conversion_type(data)
             )
             readr::write_csv(data, csv_path)
@@ -208,7 +221,7 @@ convertFRDirectory <- function(
             }
             csv_path <- fr_output_path(
               ls_out[i],
-              resolve_conversion_metadata(id, subject, ls[i]),
+              metadata_columns(data),
               fr_conversion_type(data)
             )
             readr::write_csv(data, csv_path)
@@ -231,7 +244,10 @@ convertFRDirectory <- function(
                   fail_codes = fail_codes,
                   duplicate_timecodes_as_error = duplicate_timecodes_as_error,
                   id = id,
-                  subject = subject
+                  subject = subject,
+                  id_pattern = id_pattern,
+                  subject_pattern = subject_pattern,
+                  use_full_path = use_full_path
                 ),
                 clean_names_args
               )

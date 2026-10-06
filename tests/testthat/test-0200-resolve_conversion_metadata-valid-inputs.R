@@ -1,6 +1,6 @@
 library(testthat)
 
-test_that("resolve_conversion_metadata returns optional scalar metadata", {
+test_that("resolve_conversion_metadata infers filename subject when ID is absent", {
   path <- file.path("input", "sample.txt")
 
   expect_identical(
@@ -17,7 +17,7 @@ test_that("resolve_conversion_metadata returns optional scalar metadata", {
       subject = NULL,
       inpath = path
     ),
-    list(id = NULL, subject = NULL)
+    list(id = NULL, subject = "sample")
   )
 })
 

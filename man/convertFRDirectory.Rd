@@ -18,7 +18,10 @@ convertFRDirectory(
   cores = 0L,
   ...,
   id = NULL,
-  subject = NULL
+  subject = NULL,
+  id_pattern = NULL,
+  subject_pattern = NULL,
+  use_full_path = FALSE
 )
 }
 \arguments{
@@ -46,9 +49,18 @@ convertFRDirectory(
 
 \item{...}{arguments passed as necessary}
 
-\item{id}{Optional scalar ID or function of each input path returning one.}
+\item{id}{Optional scalar ID or function of each input path returning one.
+If omitted, TXT/XLSX inputs use the associated media filename without its
+extension; CSV inputs have no inferred ID.}
 
-\item{subject}{Optional scalar subject or function of each input path returning one.}
+\item{subject}{Optional scalar subject or function of each input path
+returning one. If omitted, the input filename without its extension is
+used.}
+
+\item{id_pattern, subject_pattern}{Optional regular expressions for inferring
+metadata from the media filename and FaceReader export filename.}
+
+\item{use_full_path}{If \code{TRUE}, search full paths when patterns are supplied.}
 }
 \value{
 Invisibly returns the metadata.

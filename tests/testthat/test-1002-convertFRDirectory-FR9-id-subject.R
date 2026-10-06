@@ -37,27 +37,11 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
   )
 
   metadata <- lapply(input_files, extract_subject_id_metadata)
-  valid <- vapply(
-    metadata,
-    function(x) !is.na(x$id) && !is.na(x$subject),
-    logical(1)
+  expect_identical(
+    vapply(metadata, `[[`, character(1), "subject"),
+    tools::file_path_sans_ext(basename(input_files))
   )
-  expect_true(any(valid))
-  expect_true(all(
-    vapply(metadata[valid], `[[`, character(1), "subject") %in% c("mum", "teen")
-  ))
-  expect_true(all(
-    grepl("^[0-9]{4}$", vapply(metadata[valid], `[[`, character(1), "id"))
-  ))
-
-  # The two 1218 files intentionally lack a mum/teen subject.
-  expect_true(any(!valid))
-  expect_true(all(is.na(vapply(
-    metadata[!valid],
-    `[[`,
-    character(1),
-    "subject"
-  ))))
+  expect_true(all(!is.na(vapply(metadata, `[[`, character(1), "id"))))
 
   selected <- input_files[
     grepl(
@@ -83,8 +67,6 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
     input_dir,
     output_dir,
     pattern = "8895.*(detailed|state)\\.xlsx$",
-    id = function(path) extract_subject_id_metadata(path)$id,
-    subject = function(path) extract_subject_id_metadata(path)$subject,
     cores = 1L,
     save_metadata = NULL
   )
@@ -96,8 +78,6 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
     input_dir,
     output_dir,
     pattern = "8895.*(detailed|state)\\.xlsx$",
-    id = function(path) extract_subject_id_metadata(path)$id,
-    subject = function(path) extract_subject_id_metadata(path)$subject,
     cores = 1L,
     save_metadata = NULL
   )
@@ -112,22 +92,42 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
   )
   expect_setequal(
     basename(result$outpath),
-    c(
-      "8895_mum_8895 mum FR9 Participant 1_00024 mum_Analysis 2_video_20260908_135003_detailed_detailed.csv",
-      "8895_mum_8895 mum FR9_00024 mum_Analysis 2_video_20260908_135003_state_state.csv"
+    vapply(
+      selected,
+      function(path) {
+        data <- loadFRfile(path)
+        basename(fr_output_path(
+          file.path(output_dir, basename(path)),
+          metadata_columns(data),
+          fr_conversion_type(data)
+        ))
+      },
+      character(1)
     )
   )
   expect_true(all(file.exists(result$outpath)))
 
   converted <- lapply(result$outpath, readr::read_csv, show_col_types = FALSE)
   expect_true(all(vapply(
-    converted,
-    function(data) all(as.character(data$id) == "8895"),
+    seq_along(converted),
+    function(i) {
+      all(
+        as.character(converted[[i]]$id) ==
+          fr_media_id(
+            synchrony_fr_header_metadata(selected[[i]])$video_filename
+          )
+      )
+    },
     logical(1)
   )))
   expect_true(all(vapply(
-    converted,
-    function(data) all(data$subject == "mum"),
+    seq_along(converted),
+    function(i) {
+      all(
+        converted[[i]]$subject ==
+          tools::file_path_sans_ext(basename(selected[[i]]))
+      )
+    },
     logical(1)
   )))
   expect_setequal(list.files(output_dir), basename(result$outpath))

@@ -1,41 +1,79 @@
 #' Extract subject and ID metadata from a FaceReader filename
 #'
-#' Extracts an identifier and subject label from a file path using caller-supplied
-#' regular expressions. The identifier is trimmed after extraction, while the
-#' subject is matched case-insensitively.
+#' Extracts the media filename from a FaceReader export's metadata for `id` and
+#' the FaceReader export filename for `subject`. Both values are basenames
+#' without extensions unless an optional regular expression is supplied.
 #'
 #' @param path Path to a FaceReader file.
-#' @param id_pattern Regular expression used to extract the identifier. Defaults
-#'   to a four-digit identifier with optional surrounding whitespace.
-#' @param subject_pattern Regular expression used to extract the subject. Defaults
-#'   to `mum` or `teen` as a standalone word.
+#' @param id_pattern Optional regular expression applied to the associated media
+#'   filename. Defaults to the complete media basename without extension.
+#' @param subject_pattern Optional regular expression applied to the FaceReader
+#'   export basename. Defaults to the complete basename without extension.
+#' @param use_full_path If `TRUE`, supplied patterns search the media filename
+#'   as stored in the export for `id` and the full export path for `subject`.
+#'   Default values remain basenames without extensions.
 #'
 #' @return A list with character elements `id` and `subject`. Each element is
 #'   `NA` when its pattern does not match.
 #' @examples
 #' \dontrun{
-#' extract_subject_id_metadata(
-#'   "8895 mum FR9_00024 mum_Analysis_detailed.xlsx",
-#'   id_pattern = "(?<![0-9])\\s*[0-9]{4}\\s*(?![0-9])",
-#'   subject_pattern = "(?<![a-z])(mum|teen)(?![a-z])"
-#' )
+#' extract_subject_id_metadata("path/to/face_reader_export_detailed.txt")
 #' }
 #' @export
 extract_subject_id_metadata <- function(
   path,
-  id_pattern = "(?<![0-9])\\s*[0-9]{4}\\s*(?![0-9])",
-  subject_pattern = "(?<![a-z])(mum|teen)(?![a-z])"
+  id_pattern = NULL,
+  subject_pattern = NULL,
+  use_full_path = FALSE
 ) {
-  filename <- basename(path)
-  id <- stringr::str_extract(filename, id_pattern) |>
-    stringr::str_trim()
-  subject <- stringr::str_extract(
-    filename,
-    stringr::regex(subject_pattern, ignore_case = TRUE)
-  ) |>
-    tolower()
+  if (!is.character(path) || length(path) != 1L || is.na(path)) {
+    stop("`path` must be one non-missing file path.", call. = FALSE)
+  }
+  if (
+    !is.logical(use_full_path) ||
+      length(use_full_path) != 1L ||
+      is.na(use_full_path)
+  ) {
+    stop("`use_full_path` must be TRUE or FALSE.", call. = FALSE)
+  }
+  media_filename <- if (!file.exists(path)) {
+    NA_character_
+  } else {
+    switch(
+      tolower(tools::file_ext(path)),
+      txt = synchrony_fr_txt_filename(readr::read_lines(path, n_max = 200L)),
+      xlsx = synchrony_fr_xlsx_filename(as.data.frame(
+        suppressMessages(
+          readxl::read_excel(path, n_max = 200L, col_names = FALSE)
+        ),
+        stringsAsFactors = FALSE
+      )),
+      NA_character_
+    )
+  }
+  id_source <- fr_media_id(media_filename)
+  subject_source <- fr_filename_stem(path)
+  if (use_full_path && !is.null(id_pattern)) {
+    id_source <- media_filename
+  }
+  if (use_full_path && !is.null(subject_pattern)) {
+    subject_source <- path
+  }
+  extract_one <- function(source, pattern) {
+    if (is.null(source) || is.na(source) || !nzchar(source)) {
+      return(NA_character_)
+    }
+    if (is.null(pattern)) {
+      return(source)
+    }
+    match <- stringr::str_extract(source, pattern)
+    if (is.na(match)) NA_character_ else stringr::str_trim(match)
+  }
 
-  list(id = id, subject = subject)
+  list(
+    id = extract_one(id_source, id_pattern),
+    subject = extract_one(subject_source, subject_pattern)
+  )
 }
 
 #' Extract ID and subject metadata from a FaceReader filename
@@ -51,8 +89,9 @@ extract_subject_id_metadata <- function(
 #' @export
 extract_id_subject_metadata <- function(
   path,
-  id_pattern = "(?<![0-9])\\s*[0-9]{4}\\s*(?![0-9])",
-  subject_pattern = "(?<![a-z])(mum|teen)(?![a-z])"
+  id_pattern = NULL,
+  subject_pattern = NULL,
+  use_full_path = FALSE
 ) {
-  extract_subject_id_metadata(path, id_pattern, subject_pattern)
+  extract_subject_id_metadata(path, id_pattern, subject_pattern, use_full_path)
 }

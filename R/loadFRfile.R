@@ -12,8 +12,14 @@
 #' @param duplicate_timecodes_as_error Throw an error if duplicate timecodes are
 #'   found.
 #' @param sheet Excel sheet to read when importing `.xlsx` files.
-#' @param id Optional scalar ID or function of `inpath` returning one.
+#' @param id Optional scalar ID or function of `inpath` returning one. If
+#'   omitted, TXT/XLSX inputs use the associated media filename without its
+#'   extension; CSV inputs have no inferred ID.
 #' @param subject Optional scalar subject or function of `inpath` returning one.
+#'   If omitted, the input filename without its extension is used.
+#' @param id_pattern,subject_pattern Optional regular expressions for inferring
+#'   metadata from the media filename and FaceReader export filename.
+#' @param use_full_path If `TRUE`, search full paths when patterns are supplied.
 #' @param csv_args Named list of additional arguments for [readr::read_csv()].
 #' @param clean_names_args Named list of additional arguments for
 #'   [janitor::clean_names()].
@@ -41,7 +47,10 @@ loadFRfile <- function(
   id = NULL,
   subject = NULL,
   csv_args = list(),
-  clean_names_args = list()
+  clean_names_args = list(),
+  id_pattern = NULL,
+  subject_pattern = NULL,
+  use_full_path = FALSE
 ) {
   if (
     !is.list(csv_args) ||
@@ -81,7 +90,10 @@ loadFRfile <- function(
             fail_codes = fail_codes,
             duplicate_timecodes_as_error = duplicate_timecodes_as_error,
             id = id,
-            subject = subject
+            subject = subject,
+            id_pattern = id_pattern,
+            subject_pattern = subject_pattern,
+            use_full_path = use_full_path
           ),
           dots,
           clean_names_args
@@ -109,7 +121,10 @@ loadFRfile <- function(
             duplicate_timecodes_as_error = duplicate_timecodes_as_error,
             sheet = sheet,
             id = id,
-            subject = subject
+            subject = subject,
+            id_pattern = id_pattern,
+            subject_pattern = subject_pattern,
+            use_full_path = use_full_path
           ),
           dots,
           clean_names_args
@@ -131,7 +146,17 @@ loadFRfile <- function(
     if (clean_names) {
       df <- do.call(janitor::clean_names, c(list(dat = df), clean_names_args))
     }
-    df <- add_fr_metadata(df, resolve_conversion_metadata(id, subject, inpath))
+    df <- add_fr_metadata(
+      df,
+      resolve_conversion_metadata(
+        id,
+        subject,
+        inpath,
+        id_pattern = id_pattern,
+        subject_pattern = subject_pattern,
+        use_full_path = use_full_path
+      )
+    )
     invisible(df)
   } else {
     stop("Unsupported file extension: .", ext)

@@ -5,12 +5,13 @@ test_that("convertFRDirectory converts all supported file types", {
 
   test_data <- Sys.getenv("TEST_DATA")
   input_dir <- file.path(test_data, "FR9")
-  output_dir <- file.path(test_data, "converted", "FR9")
+  output_dir <- tempfile("converted_FR9_")
   skip_if(
     !dir.exists(input_dir),
     "The FR9 directory fixture is not available"
   )
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
   input_files <- list.files(
     input_dir,
     pattern = "\\.(txt|xlsx|csv)$",
@@ -20,15 +21,13 @@ test_that("convertFRDirectory converts all supported file types", {
   expect_true(length(input_files) > 0)
   expect_true(any(tolower(tools::file_ext(input_files)) == "xlsx"))
 
-  expect_no_error(convertFRDirectory(
+  first_result <- convertFRDirectory(
     input_dir,
     output_dir,
     cores = 1L
-  ))
-  output_paths <- file.path(
-    output_dir,
-    paste0(tools::file_path_sans_ext(basename(input_files)), ".csv")
   )
+  expect_true(all(first_result$status == "Success"))
+  output_paths <- first_result$outpath
   writeLines("stale output", output_paths[[1]])
   age_files(c(output_paths, file.path(output_dir, "metadata.csv")))
   test_started <- Sys.time()
@@ -44,10 +43,7 @@ test_that("convertFRDirectory converts all supported file types", {
   )
   expect_false("stale output" %in% readLines(output_paths[[1]]))
 
-  expected_outputs <- c(
-    paste0(tools::file_path_sans_ext(basename(input_files)), ".csv"),
-    "metadata.csv"
-  )
+  expected_outputs <- c(basename(output_paths), "metadata.csv")
   expect_setequal(list.files(output_dir), expected_outputs)
   expect_true(file.exists(file.path(output_dir, "metadata.csv")))
   expect_equal(
@@ -68,9 +64,12 @@ test_that("convertFRDirectory converts FR10 supported file types", {
   )
   skip_if(length(files) == 0L, "The FR10 directory contains no supported files")
 
-  output <- file.path(TEST_DATA, "converted", "FR10_all_file_types")
+  output <- tempfile("converted_FR10_")
   dir.create(output, recursive = TRUE, showWarnings = FALSE)
+  on.exit(unlink(output, recursive = TRUE, force = TRUE), add = TRUE)
   result <- convertFRDirectory(path, output, cores = 1L)
+  expect_true(all(result$status == "Success"))
+  expect_true(all(file.exists(result$outpath)))
   writeLines("stale output", result$outpath[[1]])
   age_files(c(result$outpath, file.path(output, "metadata.csv")))
   test_started <- Sys.time()

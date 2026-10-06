@@ -116,3 +116,34 @@ test_that("convertFRDirectory adds metadata across all supported file types", {
     c("mum", "teen", "child")
   )
 })
+
+test_that("convertFRDirectory infers metadata from full paths", {
+  source <- file.path(
+    TEST_DATA,
+    "brazil/Participant 10_Participant 10_Analysis 1_video_20260918_143140_detailed.xlsx"
+  )
+  input_dir <- tempfile("full_path_input_")
+  dir.create(file.path(input_dir, "brazil"), recursive = TRUE)
+  output_dir <- tempfile("full_path_output_")
+  dir.create(output_dir)
+  on.exit(
+    unlink(c(input_dir, output_dir), recursive = TRUE, force = TRUE),
+    add = TRUE
+  )
+  file.copy(source, file.path(input_dir, "brazil", basename(source)))
+
+  result <- convertFRDirectory(
+    input_dir,
+    output_dir,
+    id_pattern = "8883",
+    subject_pattern = "brazil",
+    use_full_path = TRUE,
+    cores = 1L,
+    save_metadata = NULL
+  )
+
+  expect_identical(result$status, "Success")
+  data <- readr::read_csv(result$outpath, show_col_types = FALSE)
+  expect_true(all(data$id == "8883"))
+  expect_true(all(data$subject == "brazil"))
+})
