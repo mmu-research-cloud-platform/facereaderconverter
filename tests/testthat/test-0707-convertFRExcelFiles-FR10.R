@@ -76,5 +76,5 @@ test_that("convertFRExcelFiles converts the FR10 state export", {
   )
 
   expect_gt(nrow(data), 0L)
-  expect_setequal(names(data), c("video_time", "dominant_expression"))
+  expect_setequal(names(data), c("video_time", "dominant_expression", "id", "subject"))
 })

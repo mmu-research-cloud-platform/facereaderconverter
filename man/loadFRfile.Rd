@@ -44,7 +44,9 @@ omitted, TXT/XLSX inputs use the associated media filename without its
 extension; CSV inputs have no inferred ID.}
 
 \item{subject}{Optional scalar subject or function of \code{inpath} returning one.
-If omitted, the input filename without its extension is used.}
+If omitted, TXT/XLSX inputs use the input filename without its extension;
+CSV inputs only infer a subject
+when \code{subject_pattern} is supplied.}
 
 \item{csv_args}{Named list of additional arguments for \code{\link[readr:read_csv]{readr::read_csv()}}.}
 

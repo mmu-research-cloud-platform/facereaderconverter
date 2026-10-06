@@ -12,10 +12,12 @@
 #' @param id_pattern,subject_pattern Optional regular expressions applied to the
 #'   associated media filename and FaceReader export filename, respectively.
 #'   If a rule is `NULL`, the complete corresponding basename without extension
-#'   is used. A supplied pattern must match every detailed export. Multiple ID
-#'   matches in a media filename are rejected. Set `use_full_path = TRUE` to
-#'   search the full media filename stored in metadata for IDs and the full
-#'   FaceReader export path for subjects.
+#'   is used. A supplied `subject_pattern` must match every detailed export. An
+#'   `id_pattern` (or media filename) that yields no match gives an `NA` ID;
+#'   exports must still resolve to distinct ID and subject pairs, including
+#'   `NA` IDs. Multiple ID matches in a media filename are rejected. Set
+#'   `use_full_path = TRUE` to search the full media filename stored in
+#'   metadata for IDs and the full FaceReader export path for subjects.
 #' @param recursive Whether to search subdirectories.
 #' @param overwrite Whether to replace an existing output file. Defaults to
 #'   `FALSE`.
@@ -185,14 +187,8 @@ convert_directory_to_episodes <- function(
     function(x) paste(if (is.na(x$id)) "<NA>" else x$id, x$subject, sep = "\r"),
     character(1)
   )
-  has_id <- !vapply(identifiers, function(x) is.na(x$id), logical(1))
-  duplicate_groups <- groups[has_id]
-  duplicate_local <- which(
-    duplicated(duplicate_groups) |
-      duplicated(duplicate_groups, fromLast = TRUE)
-  )
-  if (length(duplicate_local)) {
-    duplicate <- which(has_id)[duplicate_local]
+  duplicate <- which(duplicated(groups) | duplicated(groups, fromLast = TRUE))
+  if (length(duplicate)) {
     stop(
       "Multiple exports resolve to the same ID and subject: ",
       paste(files[duplicate], collapse = ", "),

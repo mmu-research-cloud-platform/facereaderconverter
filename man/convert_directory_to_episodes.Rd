@@ -30,10 +30,12 @@ inside \code{inpath}.}
 \item{id_pattern, subject_pattern}{Optional regular expressions applied to the
 associated media filename and FaceReader export filename, respectively.
 If a rule is \code{NULL}, the complete corresponding basename without extension
-is used. A supplied pattern must match every detailed export. Multiple ID
-matches in a media filename are rejected. Set \code{use_full_path = TRUE} to
-search the full media filename stored in metadata for IDs and the full
-FaceReader export path for subjects.}
+is used. A supplied \code{subject_pattern} must match every detailed export. An
+\code{id_pattern} (or media filename) that yields no match gives an \code{NA} ID;
+exports must still resolve to distinct ID and subject pairs, including
+\code{NA} IDs. Multiple ID matches in a media filename are rejected. Set
+\code{use_full_path = TRUE} to search the full media filename stored in
+metadata for IDs and the full FaceReader export path for subjects.}
 
 \item{recursive}{Whether to search subdirectories.}
 

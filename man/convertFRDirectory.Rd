@@ -51,11 +51,13 @@ convertFRDirectory(
 
 \item{id}{Optional scalar ID or function of each input path returning one.
 If omitted, TXT/XLSX inputs use the associated media filename without its
-extension; CSV inputs have no inferred ID.}
+extension; CSV inputs have no inferred ID. Output CSV filenames only
+include \code{id}/\code{subject} when they, or their patterns, are supplied.}
 
 \item{subject}{Optional scalar subject or function of each input path
-returning one. If omitted, the input filename without its extension is
-used.}
+returning one. If omitted, TXT/XLSX inputs use the input filename without
+its extension; CSV inputs only infer a subject
+when \code{subject_pattern} is supplied.}
 
 \item{id_pattern, subject_pattern}{Optional regular expressions for inferring
 metadata from the media filename and FaceReader export filename.}

@@ -60,3 +60,8 @@ AGENTS.md
 NUL
 nul
 
+
+# Compiled package objects
+src/*.o
+src/*.so
+src/*.dll

@@ -53,8 +53,7 @@ test_that("FaceReader files infer media ID and export subject by default", {
 
   csv_path <- file.path(TEST_DATA, "testdata_detailed.csv")
   csv <- loadFRfile(csv_path)
-  expect_false("id" %in% names(csv))
-  expect_true(all(csv$subject == "testdata_detailed"))
+  expect_false(any(c("id", "subject") %in% names(csv)))
 
   output <- tempfile("metadata_partial_")
   dir.create(output)
@@ -72,12 +71,10 @@ test_that("FaceReader files infer media ID and export subject by default", {
     outpath = file.path(output, "original.txt"),
     id = 12
   )
-  expect_true(file.exists(file.path(
-    output,
-    "12_testdata_detailed_original_detailed.csv"
-  )))
+  # Inferred subject alone does not rename; only explicit metadata does.
+  expect_true(file.exists(file.path(output, "original.csv")))
   expect_files_modified_since(md$outpath, test_started)
-  expect_true(grepl("12_testdata_detailed_original_detailed.csv$", md$outpath))
+  expect_true(grepl("original.csv$", md$outpath))
   expect_false("stale output" %in% readLines(md$outpath))
 })
 

@@ -67,6 +67,8 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
     input_dir,
     output_dir,
     pattern = "8895.*(detailed|state)\\.xlsx$",
+    id = function(path) extract_subject_id_metadata(path)$id,
+    subject = function(path) extract_subject_id_metadata(path)$subject,
     cores = 1L,
     save_metadata = NULL
   )
@@ -78,6 +80,8 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
     input_dir,
     output_dir,
     pattern = "8895.*(detailed|state)\\.xlsx$",
+    id = function(path) extract_subject_id_metadata(path)$id,
+    subject = function(path) extract_subject_id_metadata(path)$subject,
     cores = 1L,
     save_metadata = NULL
   )
