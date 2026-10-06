@@ -28,7 +28,7 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals", {
   )
   coding_files <- list.files(
     brazil_dir,
-    pattern = "^00024_.*_detailed\\.xlsx$",
+    pattern = "^100024_(child|mum)_.*_detailed\\.xlsx$",
     full.names = TRUE,
     ignore.case = TRUE
   )
@@ -116,7 +116,7 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals to a f
   )
   coding_files <- list.files(
     brazil_dir,
-    pattern = "^00024_.*_detailed\\.xlsx$",
+    pattern = "^100024_(child|mum)_.*_detailed\\.xlsx$",
     full.names = TRUE,
     ignore.case = TRUE
   )
@@ -131,7 +131,6 @@ test_that("export_shared_synchrony_clips exports Brazil fixture intervals to a f
     length(coding_files) != 2L,
     "Brazil fixture must contain two ID100024 FaceReader outputs."
   )
-  skip_if(Sys.which("ffmpeg") == "", "FFmpeg is not available.")
 
   emotions <- c(
     "neutral",
@@ -312,7 +311,7 @@ test_that("export_shared_synchrony_clips exports all Brazil happy intervals with
   )
   coding_files <- list.files(
     brazil_dir,
-    pattern = "^00024_.*_detailed\\.xlsx$",
+    pattern = "^100024_(child|mum)_.*_detailed\\.xlsx$",
     full.names = TRUE,
     ignore.case = TRUE
   )

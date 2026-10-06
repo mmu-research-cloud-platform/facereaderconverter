@@ -14,10 +14,10 @@ test_that("pipeline export matches export_shared_synchrony_clips", {
     full.names = TRUE,
     ignore.case = TRUE
   )
-  skip_if(
-    length(coding_files) != 2L,
-    "Brazil fixture must contain two FaceReader outputs."
-  )
+  # skip_if(
+  #   length(coding_files) != 2L,
+  #   "Brazil fixture must contain two FaceReader outputs."
+  # )
 
   output_pipeline <- tempfile("brazil-pipeline-")
   output_exporter <- tempfile("brazil-exporter-")
