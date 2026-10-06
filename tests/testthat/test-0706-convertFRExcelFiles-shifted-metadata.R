@@ -52,7 +52,12 @@ test_that("convertFRExcelFiles handles shifted metadata lines", {
     clean_names = TRUE,
     values_as_numeric = TRUE
   )
-  expect_equal(excel_line_change, excel_original, tolerance = 1e-4)
+  # subject defaults to each export's own filename, so it differs by design.
+  expect_equal(
+    excel_line_change[names(excel_line_change) != "subject"],
+    excel_original[names(excel_original) != "subject"],
+    tolerance = 1e-4
+  )
 })
 
 test_that("convertFRExcelFiles handles FR10 metadata layouts", {

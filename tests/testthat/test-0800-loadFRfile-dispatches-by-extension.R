@@ -66,5 +66,6 @@ test_that("loadFRfile dispatches by extension", {
     ) |>
       janitor::clean_names()
   )
-  expect_true(ncol(extra) == 13)
+  expect_true(ncol(extra[setdiff(names(extra), c("id", "subject"))]) == 13)
+  expect_true("subject" %in% names(extra))
 })

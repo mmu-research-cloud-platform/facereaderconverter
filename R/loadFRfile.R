@@ -16,7 +16,9 @@
 #'   omitted, TXT/XLSX inputs use the associated media filename without its
 #'   extension; CSV inputs have no inferred ID.
 #' @param subject Optional scalar subject or function of `inpath` returning one.
-#'   If omitted, the input filename without its extension is used.
+#'   If omitted, TXT/XLSX inputs use the input filename without its extension;
+#'   CSV inputs only infer a subject
+#'   when `subject_pattern` is supplied.
 #' @param id_pattern,subject_pattern Optional regular expressions for inferring
 #'   metadata from the media filename and FaceReader export filename.
 #' @param use_full_path If `TRUE`, search full paths when patterns are supplied.

@@ -12,10 +12,12 @@
 #' @param id_pattern,subject_pattern Optional regular expressions applied to the
 #'   associated media filename and FaceReader export filename, respectively.
 #'   If a rule is `NULL`, the complete corresponding basename without extension
-#'   is used. A supplied pattern must match every detailed export. Multiple ID
-#'   matches in a media filename are rejected. Set `use_full_path = TRUE` to
-#'   search the full media filename stored in metadata for IDs and the full
-#'   FaceReader export path for subjects.
+#'   is used. A supplied `subject_pattern` must match every detailed export. An
+#'   `id_pattern` (or media filename) that yields no match gives an `NA` ID;
+#'   exports must still resolve to distinct ID and subject pairs, including
+#'   `NA` IDs. Multiple ID matches in a media filename are rejected. Set
+#'   `use_full_path = TRUE` to search the full media filename stored in
+#'   metadata for IDs and the full FaceReader export path for subjects.
 #' @param recursive Whether to search subdirectories.
 #' @param overwrite Whether to replace an existing output file. Defaults to
 #'   `FALSE`.
@@ -142,8 +144,60 @@ convert_directory_to_episodes <- function(
       " file(s)."
     )
   }
-  if (!length(files)) {
-    stop("No FaceReader TXT or XLSX files were found.", call. = FALSE)
+
+  identifiers <- lapply(seq_along(files), function(i) {
+    media_filename <- headers[[i]]$video_filename
+    media_name <- fr_media_id(media_filename)
+    subject_name <- fr_filename_stem(files[[i]])
+    if (use_full_path && !is.null(id_pattern)) {
+      media_name <- media_filename
+    }
+    if (use_full_path && !is.null(subject_pattern)) {
+      subject_name <- files[[i]]
+    }
+    extract_one <- function(source, pattern, field) {
+      if (is.null(source)) {
+        return(NA_character_)
+      }
+      if (is.null(pattern)) {
+        return(source)
+      }
+      matches <- unique(stringr::str_extract_all(source, pattern)[[1L]])
+      matches <- matches[!is.na(matches) & nzchar(matches)]
+      if (length(matches) > 1L && identical(field, "id")) {
+        stop(
+          "Multiple different IDs match `id_pattern` in media filename for: ",
+          files[[i]],
+          ": ",
+          paste(matches, collapse = ", "),
+          call. = FALSE
+        )
+      }
+      if (length(matches)) matches[[1L]] else NA_character_
+    }
+    list(
+      id = extract_one(media_name, id_pattern, "id"),
+      subject = extract_one(subject_name, subject_pattern, "subject")
+    )
+  })
+  for (i in seq_along(files)) {
+    if (is.na(identifiers[[i]]$subject) || !nzchar(identifiers[[i]]$subject)) {
+      stop("Subject pattern did not match: ", files[[i]], call. = FALSE)
+    }
+  }
+
+  groups <- vapply(
+    identifiers,
+    function(x) paste(if (is.na(x$id)) "<NA>" else x$id, x$subject, sep = "\r"),
+    character(1)
+  )
+  duplicate <- which(duplicated(groups) | duplicated(groups, fromLast = TRUE))
+  if (length(duplicate)) {
+    stop(
+      "Multiple exports resolve to the same ID and subject: ",
+      paste(files[duplicate], collapse = ", "),
+      call. = FALSE
+    )
   }
   emotion_columns <- c(
     "neutral",

@@ -1,1 +1,4 @@
 inst/scripts/synchrony-moments text eol=lf
+DESCRIPTION text eol=lf
+NAMESPACE text eol=lf
+DEPENDENCY_TREE.md text eol=lf

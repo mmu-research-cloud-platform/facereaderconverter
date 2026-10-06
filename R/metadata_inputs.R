@@ -84,11 +84,22 @@ infer_conversion_metadata <- function(
     stop("`use_full_path` must be TRUE or FALSE.", call. = FALSE)
   }
 
+  if (tolower(tools::file_ext(inpath)) == "csv") {
+    # CSVs are usually converted outputs that already carry metadata columns,
+    # so only an explicit subject pattern infers metadata for them.
+    subject_source <- if (use_full_path) inpath else fr_filename_stem(inpath)
+    return(list(
+      id = NULL,
+      subject = if (is.null(subject_pattern)) {
+        NULL
+      } else {
+        extract_metadata_pattern(subject_source, subject_pattern)
+      }
+    ))
+  }
   id_source <- fr_media_id(video_filename)
   subject_source <- fr_filename_stem(inpath)
-  if (tolower(tools::file_ext(inpath)) == "csv") {
-    id_source <- NULL
-  } else if (use_full_path && !is.null(id_pattern)) {
+  if (use_full_path && !is.null(id_pattern)) {
     id_source <- video_filename
   }
   if (use_full_path && !is.null(subject_pattern)) {
@@ -142,6 +153,25 @@ metadata_columns <- function(data) {
     if (length(values) == 1L) values[[1L]] else NULL
   }
   list(id = get_value("id"), subject = get_value("subject"))
+}
+
+# Output filenames only use metadata the caller asked for explicitly, so
+# default inferred metadata does not rename converted CSVs.
+fr_naming_metadata <- function(
+  metadata,
+  id = NULL,
+  subject = NULL,
+  id_pattern = NULL,
+  subject_pattern = NULL
+) {
+  list(
+    id = if (is.null(id) && is.null(id_pattern)) NULL else metadata$id,
+    subject = if (is.null(subject) && is.null(subject_pattern)) {
+      NULL
+    } else {
+      metadata$subject
+    }
+  )
 }
 
 fr_conversion_type <- function(data) {

@@ -41,7 +41,9 @@ read_excel_control <- function(file_stub) {
 
 test_that("convertFRExcelFiles matches state control output", {
   res <- read_excel_control("testdata_excel_state")
-  expect_identical(res$excel, res$control)
+  # subject defaults to each export's own filename, so it differs by design.
+  shared <- setdiff(names(res$control), "subject")
+  expect_identical(res$excel[shared], res$control[shared])
 })
 
 test_that("convertFRExcelFiles converts an FR10 state export", {
@@ -60,5 +62,5 @@ test_that("convertFRExcelFiles converts an FR10 state export", {
   )
 
   data <- convertFRExcelFiles(files[[1]], return_data = TRUE)
-  expect_setequal(names(data), c("video_time", "dominant_expression"))
+  expect_setequal(names(data), c("video_time", "dominant_expression", "id", "subject"))
 })

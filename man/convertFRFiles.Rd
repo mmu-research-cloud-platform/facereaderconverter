@@ -38,7 +38,9 @@ convertFRFiles(
 \item{...}{arguments passed as necessary}
 
 \item{id}{Optional scalar ID or function of \code{inpath} returning one. If
-omitted, the associated media filename without its extension is used.}
+omitted, the associated media filename without its extension is used.
+The output CSV filename only includes \code{id}/\code{subject} when they, or their
+patterns, are supplied.}
 
 \item{subject}{Optional scalar subject or function of \code{inpath} returning one.
 If omitted, the FaceReader filename without its extension is used.}

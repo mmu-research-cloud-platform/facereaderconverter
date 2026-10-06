@@ -53,8 +53,11 @@ test_that("convertFRExcelFiles handles missing metadata", {
     values_as_numeric = TRUE
   ))
 
-  expect_true(ncol(detailed) == 15)
-  expect_true(ncol(state) == 4)
+  # No media filename metadata, so only the inferred subject column is added.
+  expect_true(ncol(detailed) == 16)
+  expect_true(ncol(state) == 5)
+  expect_false("id" %in% names(detailed))
+  expect_identical(unique(detailed$subject), "testdata_extracols_nometadata_detailed")
   expect_true(all(c("participant_name", "analysis_index") %in% names(detailed)))
 })
 

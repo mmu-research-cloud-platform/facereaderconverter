@@ -14,6 +14,8 @@
 #' @param duplicate_timecodes_as_error throws an error if there are duplicate timecodes, if FALSE then throws warning
 #' @param id Optional scalar ID or function of `inpath` returning one. If
 #'   omitted, the associated media filename without its extension is used.
+#'   The output CSV filename only includes `id`/`subject` when they, or their
+#'   patterns, are supplied.
 #' @param subject Optional scalar subject or function of `inpath` returning one.
 #'   If omitted, the FaceReader filename without its extension is used.
 #' @param id_pattern,subject_pattern Optional regular expressions for inferring
@@ -206,7 +208,17 @@ convertFRFiles <- function(
   if (return_data) {
     invisible(df)
   } else {
-    csv_path <- fr_output_path(outpath, metadata_values, md_type)
+    csv_path <- fr_output_path(
+      outpath,
+      fr_naming_metadata(
+        metadata_values,
+        id,
+        subject,
+        id_pattern,
+        subject_pattern
+      ),
+      md_type
+    )
     readr::write_csv(df, csv_path)
 
     metadata <- data.frame(

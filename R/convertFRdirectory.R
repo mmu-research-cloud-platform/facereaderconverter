@@ -12,10 +12,12 @@
 #' @param duplicate_timecodes_as_error throws an error if there are duplicate timecodes, if FALSE then throws warning
 #' @param id Optional scalar ID or function of each input path returning one.
 #'   If omitted, TXT/XLSX inputs use the associated media filename without its
-#'   extension; CSV inputs have no inferred ID.
+#'   extension; CSV inputs have no inferred ID. Output CSV filenames only
+#'   include `id`/`subject` when they, or their patterns, are supplied.
 #' @param subject Optional scalar subject or function of each input path
-#'   returning one. If omitted, the input filename without its extension is
-#'   used.
+#'   returning one. If omitted, TXT/XLSX inputs use the input filename without
+#'   its extension; CSV inputs only infer a subject
+#'   when `subject_pattern` is supplied.
 #' @param id_pattern,subject_pattern Optional regular expressions for inferring
 #'   metadata from the media filename and FaceReader export filename.
 #' @param use_full_path If `TRUE`, search full paths when patterns are supplied.
@@ -92,8 +94,27 @@ convertFRDirectory <- function(
   ]
   source_stems <- tools::file_path_sans_ext(source_files)
   csv_stems <- tools::file_path_sans_ext(ls)
-  is_derived_csv <- tolower(tools::file_ext(ls)) == "csv" &
-    csv_stems %in% source_stems
+  is_csv <- tolower(tools::file_ext(ls)) == "csv"
+  # Outputs named from id/subject look like `<id>_<subject>_<stem>[_<type>]`.
+  is_renamed_output <- vapply(
+    seq_along(ls),
+    function(i) {
+      if (!is_csv[[i]]) {
+        return(FALSE)
+      }
+      same_dir <- dirname(source_files) == dirname(ls[[i]])
+      stems <- basename(source_stems[same_dir])
+      csv_stem <- basename(csv_stems[[i]])
+      suffixes <- c(
+        paste0("_", stems),
+        paste0("_", stems, "_detailed"),
+        paste0("_", stems, "_state")
+      )
+      any(endsWith(csv_stem, suffixes))
+    },
+    logical(1)
+  )
+  is_derived_csv <- is_csv & (csv_stems %in% source_stems | is_renamed_output)
   ls <- ls[!is_derived_csv]
   ls <- ls[!grepl("^metadata.*\\.csv$", basename(ls), ignore.case = TRUE)]
 
@@ -161,7 +182,7 @@ convertFRDirectory <- function(
       tryCatch(
         fr_output_path(
           ls_out[i],
-          metadata_columns(data),
+          fr_naming_metadata(metadata_columns(data), id, subject, id_pattern, subject_pattern),
           fr_conversion_type(data)
         ),
         error = function(e) NA_character_
@@ -203,7 +224,7 @@ convertFRDirectory <- function(
             }
             csv_path <- fr_output_path(
               ls_out[i],
-              metadata_columns(data),
+              fr_naming_metadata(metadata_columns(data), id, subject, id_pattern, subject_pattern),
               fr_conversion_type(data)
             )
             readr::write_csv(data, csv_path)
@@ -221,7 +242,7 @@ convertFRDirectory <- function(
             }
             csv_path <- fr_output_path(
               ls_out[i],
-              metadata_columns(data),
+              fr_naming_metadata(metadata_columns(data), id, subject, id_pattern, subject_pattern),
               fr_conversion_type(data)
             )
             readr::write_csv(data, csv_path)
@@ -314,6 +335,8 @@ convertFRDirectory <- function(
             "add_fr_metadata",
             "fr_conversion_type",
             "fr_output_path",
+            "fr_naming_metadata",
+            "metadata_columns",
             "converter",
             "loader",
             "preflight_data"
