@@ -1,8 +1,8 @@
 #' Convert a directory of detailed FaceReader exports to episodes
 #'
 #' Recursively loads detailed TXT and XLSX exports, combines their emotion
-#' values, and calls [convert_to_episodes()] once. All exports must have the
-#' same valid frame rate in their metadata (rounded to an integer). State
+#' values, and calls [convert_to_episodes()] once. Processed exports must have
+#' the same valid frame rate in their metadata (rounded to an integer). State
 #' exports are ignored. Returns the combined result in memory and saves it
 #' as `coded_data` in one `.RDa` file.
 #'
@@ -19,6 +19,11 @@
 #' @param recursive Whether to search subdirectories.
 #' @param overwrite Whether to replace an existing output file. Defaults to
 #'   `FALSE`.
+#' @param skip_fails Whether to warn and skip individual exports that fail
+#'   parsing, validation, or loading. Defaults to `TRUE`. An error is still
+#'   raised if no detailed exports can be processed.
+#' @param filter_name Optional regular expression matched against the export
+#'   filename (including its extension), not its directory path.
 #' @param T_up,T_down,delta,delta_window,min_dur_sec,consecutive_missing,cores
 #'   Passed to [convert_to_episodes()].
 #' @param use_full_path Search full metadata/export paths when a regex is
@@ -32,7 +37,9 @@
 #' coded_data <- convert_directory_to_episodes(
 #'   "path/to/exports",
 #'   id_pattern = "[0-9]{4}",
-#'   subject_pattern = "mum|teen"
+#'   subject_pattern = "mum|teen",
+#'   filter_name = "_detailed\\.(txt|xlsx)$",
+#'   skip_fails = TRUE
 #' )
 #' }
 #' @export
@@ -50,7 +57,9 @@ convert_directory_to_episodes <- function(
   min_dur_sec = 0.1,
   consecutive_missing = 150L,
   cores = 0L,
-  use_full_path = FALSE
+  use_full_path = FALSE,
+  skip_fails = TRUE,
+  filter_name = NULL
 ) {
   if (
     !is.character(inpath) ||
@@ -74,6 +83,20 @@ convert_directory_to_episodes <- function(
   }
   if (!is.logical(overwrite) || length(overwrite) != 1L || is.na(overwrite)) {
     stop("`overwrite` must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (
+    !is.logical(skip_fails) || length(skip_fails) != 1L || is.na(skip_fails)
+  ) {
+    stop("`skip_fails` must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (
+    !is.null(filter_name) &&
+      (!is.character(filter_name) ||
+        length(filter_name) != 1L ||
+        is.na(filter_name) ||
+        !nzchar(filter_name))
+  ) {
+    stop("`filter_name` must be NULL or one non-empty regex.", call. = FALSE)
   }
   if (
     !is.logical(use_full_path) ||
@@ -107,99 +130,21 @@ convert_directory_to_episodes <- function(
     pattern = "\\.(txt|xlsx)$",
     ignore.case = TRUE
   ))
+  found_count <- length(files)
+  message("Found ", found_count, " FaceReader TXT/XLSX file(s).")
+  if (!is.null(filter_name)) {
+    files <- files[grepl(filter_name, basename(files), perl = TRUE)]
+    message(
+      "Selected ",
+      length(files),
+      " file(s) with `filter_name`; filtered out ",
+      found_count - length(files),
+      " file(s)."
+    )
+  }
   if (!length(files)) {
     stop("No FaceReader TXT or XLSX files were found.", call. = FALSE)
   }
-  headers <- lapply(files, synchrony_fr_header_metadata)
-  detailed <- vapply(
-    headers,
-    function(header) identical(header$type, "detailed"),
-    logical(1)
-  )
-  files <- files[detailed]
-  headers <- headers[detailed]
-  if (!length(files)) {
-    stop("No detailed FaceReader exports were found.", call. = FALSE)
-  }
-
-  fps <- vapply(headers, `[[`, numeric(1), "fps")
-  invalid <- !is.finite(fps) | fps <= 0 | fps != round(fps)
-  if (any(invalid)) {
-    stop(
-      "Invalid or missing frame rate in: ",
-      paste(files[invalid], collapse = ", "),
-      call. = FALSE
-    )
-  }
-  if (length(unique(fps)) != 1L) {
-    stop(
-      "Conflicting frame rates in: ",
-      paste(sprintf("%s (%s FPS)", files, fps), collapse = ", "),
-      call. = FALSE
-    )
-  }
-
-  identifiers <- lapply(seq_along(files), function(i) {
-    media_filename <- headers[[i]]$video_filename
-    media_name <- fr_media_id(media_filename)
-    subject_name <- fr_filename_stem(files[[i]])
-    if (use_full_path && !is.null(id_pattern)) {
-      media_name <- media_filename
-    }
-    if (use_full_path && !is.null(subject_pattern)) {
-      subject_name <- files[[i]]
-    }
-    extract_one <- function(source, pattern, field) {
-      if (is.null(source)) {
-        return(NA_character_)
-      }
-      if (is.null(pattern)) {
-        return(source)
-      }
-      matches <- unique(stringr::str_extract_all(source, pattern)[[1L]])
-      matches <- matches[!is.na(matches) & nzchar(matches)]
-      if (length(matches) > 1L && identical(field, "id")) {
-        stop(
-          "Multiple different IDs match `id_pattern` in media filename for: ",
-          files[[i]],
-          ": ",
-          paste(matches, collapse = ", "),
-          call. = FALSE
-        )
-      }
-      if (length(matches)) matches[[1L]] else NA_character_
-    }
-    list(
-      id = extract_one(media_name, id_pattern, "id"),
-      subject = extract_one(subject_name, subject_pattern, "subject")
-    )
-  })
-  for (i in seq_along(files)) {
-    if (is.na(identifiers[[i]]$subject) || !nzchar(identifiers[[i]]$subject)) {
-      stop("Subject pattern did not match: ", files[[i]], call. = FALSE)
-    }
-  }
-
-  groups <- vapply(
-    identifiers,
-    function(x) paste(if (is.na(x$id)) "<NA>" else x$id, x$subject, sep = "\r"),
-    character(1)
-  )
-  has_id <- !vapply(identifiers, function(x) is.na(x$id), logical(1))
-  duplicate_groups <- groups[has_id]
-  duplicate_local <- which(
-    duplicated(duplicate_groups) |
-      duplicated(duplicate_groups, fromLast = TRUE)
-  )
-  if (length(duplicate_local)) {
-    duplicate <- which(has_id)[duplicate_local]
-    stop(
-      "Multiple exports resolve to the same ID and subject: ",
-      paste(files[duplicate], collapse = ", "),
-      call. = FALSE
-    )
-  }
-
   emotion_columns <- c(
     "neutral",
     "happy",
@@ -209,41 +154,165 @@ convert_directory_to_episodes <- function(
     "scared",
     "disgusted"
   )
-  inputs <- lapply(seq_along(files), function(i) {
-    data <- loadFRfile(files[[i]], values_as_numeric = TRUE, clean_names = TRUE)
-    if (is.null(data) || !"video_time" %in% names(data)) {
-      stop(
-        "Missing detailed coding or video time in: ",
-        files[[i]],
-        call. = FALSE
+  inputs <- list()
+  accepted_files <- character()
+  accepted_groups <- character()
+  shared_fps <- NULL
+  detailed_found <- FALSE
+  non_detailed_count <- 0L
+  failed_count <- 0L
+  for (file in files) {
+    process_file <- function() {
+      header <- synchrony_fr_header_metadata(file)
+      if (!identical(header$type, "detailed")) {
+        non_detailed_count <<- non_detailed_count + 1L
+        return(NULL)
+      }
+      detailed_found <<- TRUE
+      fps <- header$fps
+      if (
+        length(fps) != 1L || !is.finite(fps) || fps <= 0 || fps != round(fps)
+      ) {
+        stop("Invalid or missing frame rate in: ", file, call. = FALSE)
+      }
+      if (!is.null(shared_fps) && fps != shared_fps) {
+        stop(
+          "Conflicting frame rates in: ",
+          accepted_files[[1L]],
+          " (",
+          shared_fps,
+          " FPS), ",
+          file,
+          " (",
+          fps,
+          " FPS)",
+          call. = FALSE
+        )
+      }
+      media_filename <- header$video_filename
+      media_name <- fr_media_id(media_filename)
+      subject_name <- fr_filename_stem(file)
+      if (use_full_path && !is.null(id_pattern)) {
+        media_name <- media_filename
+      }
+      if (use_full_path && !is.null(subject_pattern)) {
+        subject_name <- file
+      }
+      extract_one <- function(source, pattern, field) {
+        if (is.null(source)) {
+          return(NA_character_)
+        }
+        if (is.null(pattern)) {
+          return(source)
+        }
+        matches <- unique(stringr::str_extract_all(source, pattern)[[1L]])
+        matches <- matches[!is.na(matches) & nzchar(matches)]
+        if (length(matches) > 1L && identical(field, "id")) {
+          stop(
+            "Multiple different IDs match `id_pattern` in media filename for: ",
+            file,
+            ": ",
+            paste(matches, collapse = ", "),
+            call. = FALSE
+          )
+        }
+        if (length(matches)) matches[[1L]] else NA_character_
+      }
+      id <- extract_one(media_name, id_pattern, "id")
+      subject <- extract_one(subject_name, subject_pattern, "subject")
+      if (is.na(subject) || !nzchar(subject)) {
+        stop("Subject pattern did not match: ", file, call. = FALSE)
+      }
+      group <- if (!is.na(id)) paste(id, subject, sep = "\r") else NULL
+      if (!is.null(group) && group %in% accepted_groups) {
+        duplicate <- accepted_files[match(group, accepted_groups)]
+        stop(
+          "Multiple exports resolve to the same ID and subject: ",
+          duplicate,
+          ", ",
+          file,
+          call. = FALSE
+        )
+      }
+      data <- loadFRfile(file, values_as_numeric = TRUE, clean_names = TRUE)
+      if (is.null(data) || !"video_time" %in% names(data)) {
+        stop(
+          "Missing detailed coding or video time in: ",
+          file,
+          call. = FALSE
+        )
+      }
+      if (
+        "participant_name" %in%
+          names(data) &&
+          length(unique(stats::na.omit(trimws(as.character(
+            data$participant_name
+          ))))) >
+            1L
+      ) {
+        stop("Multiple participants in one export: ", file, call. = FALSE)
+      }
+      columns <- intersect(emotion_columns, names(data))
+      if (!length(columns)) {
+        stop("No emotion columns in: ", file, call. = FALSE)
+      }
+      list(
+        input = data.frame(
+          id = id,
+          subject = subject,
+          video_time = data$video_time,
+          data[, columns, drop = FALSE],
+          check.names = FALSE
+        ),
+        fps = fps,
+        group = group
       )
     }
-    if (
-      "participant_name" %in%
-        names(data) &&
-        length(unique(stats::na.omit(trimws(as.character(
-          data$participant_name
-        ))))) >
-          1L
-    ) {
-      stop("Multiple participants in one export: ", files[[i]], call. = FALSE)
+    processed <- if (skip_fails) {
+      tryCatch(process_file(), error = function(error) {
+        failed_count <<- failed_count + 1L
+        warning(
+          "Skipping FaceReader export ",
+          file,
+          ": ",
+          conditionMessage(error),
+          call. = FALSE
+        )
+        NULL
+      })
+    } else {
+      process_file()
     }
-    columns <- intersect(emotion_columns, names(data))
-    if (!length(columns)) {
-      stop("No emotion columns in: ", files[[i]], call. = FALSE)
+    if (is.null(processed)) {
+      next
     }
-    data.frame(
-      id = if (is.na(identifiers[[i]]$id)) {
-        NA_character_
-      } else {
-        identifiers[[i]]$id
-      },
-      subject = identifiers[[i]]$subject,
-      video_time = data$video_time,
-      data[, columns, drop = FALSE],
-      check.names = FALSE
+    inputs[[length(inputs) + 1L]] <- processed$input
+    accepted_files <- c(accepted_files, file)
+    accepted_groups <- c(
+      accepted_groups,
+      if (is.null(processed$group)) NA_character_ else processed$group
     )
-  })
+    shared_fps <- processed$fps
+  }
+  message(
+    "Processed ",
+    length(inputs),
+    " detailed file(s); ignored ",
+    non_detailed_count,
+    " non-detailed file(s); skipped ",
+    failed_count,
+    " failed file(s)."
+  )
+  if (!length(inputs)) {
+    stop(
+      if (detailed_found) {
+        "No detailed FaceReader exports could be processed."
+      } else {
+        "No detailed FaceReader exports were found."
+      },
+      call. = FALSE
+    )
+  }
   coding_input <- dplyr::bind_rows(inputs)
   coded_data <- convert_to_episodes(
     coding_input,
@@ -253,7 +322,7 @@ convert_directory_to_episodes <- function(
     delta_window = delta_window,
     min_dur_sec = min_dur_sec,
     consecutive_missing = consecutive_missing,
-    fps = as.integer(fps[[1L]]),
+    fps = as.integer(shared_fps),
     cores = cores
   )
   output_dir <- dirname(outpath)

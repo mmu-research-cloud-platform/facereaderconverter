@@ -108,7 +108,7 @@ test_that("directory episodes use fixture filename regexes independently", {
   )
 })
 
-test_that("directory episodes reject fixture exports with conflicting FPS", {
+test_that("directory episodes reject conflicting FPS when skip_fails is FALSE", {
   parent <- tempfile("directory-episodes-fps-")
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
@@ -124,7 +124,7 @@ test_that("directory episodes reject fixture exports with conflicting FPS", {
 
   expect_match(
     conditionMessage(tryCatch(
-      convert_directory_to_episodes(root),
+      convert_directory_to_episodes(root, skip_fails = FALSE),
       error = identity
     )),
     "Conflicting frame rates"
@@ -132,7 +132,7 @@ test_that("directory episodes reject fixture exports with conflicting FPS", {
   expect_false(file.exists(file.path(root, "episodes.RDa")))
 })
 
-test_that("directory episodes reject duplicate media IDs and export subjects", {
+test_that("directory episodes reject duplicate IDs and subjects when skip_fails is FALSE", {
   parent <- tempfile("directory-episodes-duplicate-")
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
@@ -151,6 +151,7 @@ test_that("directory episodes reject duplicate media IDs and export subjects", {
       root,
       id_pattern = "#[0-9]{4}",
       subject_pattern = "same",
+      skip_fails = FALSE,
       cores = 1L
     ),
     "Multiple exports resolve to the same ID and subject"

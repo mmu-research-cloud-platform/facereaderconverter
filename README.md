@@ -554,6 +554,39 @@ frames tolerated while an episode is active. `fps` is the positive
 integer sampling rate used to convert times and durations. `cores` sets
 the `data.table` thread count; `0` uses its automatic setting.
 
+### `convert_directory_to_episodes()`
+
+`convert_directory_to_episodes()` combines detailed FaceReader TXT and
+XLSX exports into one `fr_coding` result. It saves the result as
+`coded_data` in an `.RDa` file and returns it invisibly. State exports
+are ignored; processed detailed exports must have a common frame rate.
+
+``` r
+library(facereaderconverter)
+
+coded_data <- convert_directory_to_episodes(
+  inpath = file.path(Sys.getenv("TEST_DATA"), "c2e-directory"),
+  outpath = tempfile(fileext = ".RDa"),
+  filter_name = "^Participant 10_8892_.*_detailed\\.txt$",
+  skip_fails = TRUE,
+  cores = 1L
+)
+
+coded_data$episodes
+```
+
+`filter_name` is a regular expression matched against each export
+**basename including the extension**, not the parent directories; it
+filters candidates before their headers are read. With
+`skip_fails = TRUE`, an individual export that fails parsing,
+validation, or loading generates a warning naming the file, and the
+remaining exports are processed. The default `FALSE` stops on the first
+failure. If no detailed export can be processed, the call still errors.
+`id_pattern` matches the media filename in export metadata, while
+`subject_pattern` matches the export filename; both are separate from
+`filter_name`. By default the output is `episodes.RDa` in `inpath`; set
+`outpath` to avoid writing into a source fixture directory.
+
 ## Delta helpers
 
 ### `add_delta_column()`
