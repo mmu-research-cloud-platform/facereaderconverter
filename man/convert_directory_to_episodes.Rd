@@ -18,7 +18,9 @@ convert_directory_to_episodes(
   min_dur_sec = 0.1,
   consecutive_missing = 150L,
   cores = 0L,
-  use_full_path = FALSE
+  use_full_path = FALSE,
+  skip_fails = TRUE,
+  filter_name = NULL
 )
 }
 \arguments{
@@ -46,6 +48,13 @@ metadata for IDs and the full FaceReader export path for subjects.}
 
 \item{use_full_path}{Search full metadata/export paths when a regex is
 supplied. Basename defaults are unchanged.}
+
+\item{skip_fails}{Whether to warn and skip individual exports that fail
+parsing, validation, or loading. Defaults to \code{TRUE}. An error is still
+raised if no detailed exports can be processed.}
+
+\item{filter_name}{Optional regular expression matched against the export
+filename (including its extension), not its directory path.}
 }
 \value{
 The combined \code{fr_coding} object returned by
@@ -54,8 +63,8 @@ The combined \code{fr_coding} object returned by
 }
 \description{
 Recursively loads detailed TXT and XLSX exports, combines their emotion
-values, and calls \code{\link[=convert_to_episodes]{convert_to_episodes()}} once. All exports must have the
-same valid frame rate in their metadata (rounded to an integer). State
+values, and calls \code{\link[=convert_to_episodes]{convert_to_episodes()}} once. Processed exports must have
+the same valid frame rate in their metadata (rounded to an integer). State
 exports are ignored. Returns the combined result in memory and saves it
 as \code{coded_data} in one \code{.RDa} file.
 }
@@ -64,7 +73,9 @@ as \code{coded_data} in one \code{.RDa} file.
 coded_data <- convert_directory_to_episodes(
   "path/to/exports",
   id_pattern = "[0-9]{4}",
-  subject_pattern = "mum|teen"
+  subject_pattern = "mum|teen",
+  filter_name = "_detailed\\\\.(txt|xlsx)$",
+  skip_fails = TRUE
 )
 }
 }
