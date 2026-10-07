@@ -375,3 +375,41 @@ test_that("convert_to_episodes overwrites an existing delta column", {
   expect_false(any(result$coding$delta == 999L, na.rm = TRUE))
   expect_true(all(c(0, 1) %in% result$coding$delta, na.rm = TRUE))
 })
+
+test_that("convert_to_episodes reprocesses fr_coding with supplied parameters", {
+  coding_df <- tibble::tibble(
+    id = 1L,
+    subject = "parent",
+    emotion = "happy",
+    frame = 1:5,
+    value = c(0.1, 0.3, 0.5, 0.3, 0.1)
+  )
+
+  converted <- convert_to_episodes(
+    coding_df,
+    T_up = 0.2,
+    T_down = 0.1,
+    delta = 0.1,
+    delta_window = 1 / 30,
+    min_dur_sec = 1 / 30,
+    fps = 30L
+  )
+  original_coding <- data.table::copy(converted$coding)
+
+  reprocessed <- convert_to_episodes(
+    converted,
+    T_up = 0.4,
+    T_down = 0.1,
+    delta = 0.05,
+    delta_window = 1 / 30,
+    min_dur_sec = 1 / 30,
+    fps = 30L
+  )
+
+  expect_s3_class(reprocessed, "fr_coding")
+  expect_equal(converted$episodes$start_frame, 2L)
+  expect_equal(reprocessed$episodes$start_frame, 3L)
+  expect_equal(reprocessed$metadata$T_up, 0.4)
+  expect_equal(reprocessed$metadata$delta, 0.05)
+  expect_equal(converted$coding, original_coding)
+})

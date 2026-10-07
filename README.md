@@ -482,7 +482,8 @@ episodes using hysteresis thresholds, a delta-based reaction signal, and
 a minimum duration filter. It accepts long data with `id`, `subject`,
 and either `video_time` or `frame`, plus `emotion` and `value`; if
 `emotion` and `value` are missing, wide data are reshaped to long format
-internally.
+internally. It also accepts an `fr_coding` result and reprocesses its
+`$coding` table using the supplied parameters.
 
 The function requires `id` and `subject`. If `frame` is not supplied, it
 is derived from `video_time` using `fps`. `T_up` and `T_down` control
@@ -534,6 +535,20 @@ res <- convert_to_episodes(
 res$episodes
 res$deltas
 res$coding
+
+# Reprocess the coding with a higher episode-entry threshold and new delta rule
+res_updated <- convert_to_episodes(
+  res,
+  T_up = 0.25,
+  T_down = 0.18,
+  delta = 0.15,
+  delta_window = 0.2,
+  min_dur_sec = 0.1,
+  consecutive_missing = 150L,
+  fps = 30L
+)
+
+res_updated$episodes
 ```
 
 Episodes are grouped within each `id`, `subject`, and `emotion`
@@ -544,15 +559,51 @@ functions such as `reaction_rate()`.
 
 **Arguments:** `coding_df` is a data frame containing `id`, `subject`,
 and either `video_time` or `frame`, plus either long-format `emotion`
-and `value` columns or wide emotion columns. `T_up` and `T_down` are
-probabilities in `[0, 1]`; `T_up` must be at least `T_down`. `delta` is
-the positive minimum change used to flag delta-up rows. `delta_window`
-is the positive time window in seconds used to determine the lag for
-that change. `min_dur_sec` removes episodes shorter than this duration.
-`consecutive_missing` is the maximum number of consecutive missing
-frames tolerated while an episode is active. `fps` is the positive
-integer sampling rate used to convert times and durations. `cores` sets
-the `data.table` thread count; `0` uses its automatic setting.
+and `value` columns or wide emotion columns. It can also be an
+`fr_coding` object, in which case its `$coding` table is used as the
+source data and all derived episode and delta fields are recalculated.
+`T_up` and `T_down` are probabilities in `[0, 1]`; `T_up` must be at
+least `T_down`. `delta` is the positive minimum change used to flag
+delta-up rows. `delta_window` is the positive time window in seconds
+used to determine the lag for that change. `min_dur_sec` removes
+episodes shorter than this duration. `consecutive_missing` is the
+maximum number of consecutive missing frames tolerated while an episode
+is active. `fps` is the positive integer sampling rate used to convert
+times and durations. `cores` sets the `data.table` thread count; `0`
+uses its automatic setting.
+
+### `convert_directory_to_episodes()`
+
+`convert_directory_to_episodes()` combines detailed FaceReader TXT and
+XLSX exports into one `fr_coding` result. It saves the result as
+`coded_data` in an `.RDa` file and returns it invisibly. State exports
+are ignored; processed detailed exports must have a common frame rate.
+
+``` r
+library(facereaderconverter)
+
+coded_data <- convert_directory_to_episodes(
+  inpath = file.path(Sys.getenv("TEST_DATA"), "c2e-directory"),
+  outpath = tempfile(fileext = ".RDa"),
+  filter_name = "^Participant 10_8892_.*_detailed\\.txt$",
+  skip_fails = TRUE,
+  cores = 1L
+)
+
+coded_data$episodes
+```
+
+`filter_name` is a regular expression matched against each export
+**basename including the extension**, not the parent directories; it
+filters candidates before their headers are read. With
+`skip_fails = TRUE`, an individual export that fails parsing,
+validation, or loading generates a warning naming the file, and the
+remaining exports are processed. The default `FALSE` stops on the first
+failure. If no detailed export can be processed, the call still errors.
+`id_pattern` matches the media filename in export metadata, while
+`subject_pattern` matches the export filename; both are separate from
+`filter_name`. By default the output is `episodes.RDa` in `inpath`; set
+`outpath` to avoid writing into a source fixture directory.
 
 ## Delta helpers
 

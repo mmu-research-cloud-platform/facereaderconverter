@@ -183,8 +183,10 @@ test_that("convertFRDirectory", {
     case = "all_caps"
   ))
   x <- read.csv(file.path(base, "testdata_detailed.csv"))
+  # Inferred `id`/`subject` metadata columns are added after name cleaning.
+  cleaned <- setdiff(names(x), c("id", "subject"))
   expect_all_true(
-    names(x) == janitor::make_clean_names(names(x), case = "all_caps")
+    cleaned == janitor::make_clean_names(cleaned, case = "all_caps")
   )
 
   x <- convertFRDirectory(base)

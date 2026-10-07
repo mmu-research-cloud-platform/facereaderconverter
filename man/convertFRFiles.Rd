@@ -14,7 +14,10 @@ convertFRFiles(
   duplicate_timecodes_as_error = TRUE,
   ...,
   id = NULL,
-  subject = NULL
+  subject = NULL,
+  id_pattern = NULL,
+  subject_pattern = NULL,
+  use_full_path = FALSE
 )
 }
 \arguments{
@@ -34,9 +37,18 @@ convertFRFiles(
 
 \item{...}{arguments passed as necessary}
 
-\item{id}{Optional scalar ID or function of \code{inpath} returning one.}
+\item{id}{Optional scalar ID or function of \code{inpath} returning one. If
+omitted, the associated media filename without its extension is used.
+The output CSV filename only includes \code{id}/\code{subject} when they, or their
+patterns, are supplied.}
 
-\item{subject}{Optional scalar subject or function of \code{inpath} returning one.}
+\item{subject}{Optional scalar subject or function of \code{inpath} returning one.
+If omitted, the FaceReader filename without its extension is used.}
+
+\item{id_pattern, subject_pattern}{Optional regular expressions for inferring
+metadata from the media filename and FaceReader export filename.}
+
+\item{use_full_path}{If \code{TRUE}, search full paths when patterns are supplied.}
 }
 \value{
 Invisibly returns the metadata.

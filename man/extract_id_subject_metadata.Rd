@@ -6,18 +6,23 @@
 \usage{
 extract_id_subject_metadata(
   path,
-  id_pattern = "(?<![0-9])\\\\s*[0-9]{4}\\\\s*(?![0-9])",
-  subject_pattern = "(?<![a-z])(mum|teen)(?![a-z])"
+  id_pattern = NULL,
+  subject_pattern = NULL,
+  use_full_path = FALSE
 )
 }
 \arguments{
 \item{path}{Path to a FaceReader file.}
 
-\item{id_pattern}{Regular expression used to extract the identifier. Defaults
-to a four-digit identifier with optional surrounding whitespace.}
+\item{id_pattern}{Optional regular expression applied to the associated media
+filename. Defaults to the complete media basename without extension.}
 
-\item{subject_pattern}{Regular expression used to extract the subject. Defaults
-to \code{mum} or \code{teen} as a standalone word.}
+\item{subject_pattern}{Optional regular expression applied to the FaceReader
+export basename. Defaults to the complete basename without extension.}
+
+\item{use_full_path}{If \code{TRUE}, supplied patterns search the media filename
+as stored in the export for \code{id} and the full export path for \code{subject}.
+Default values remain basenames without extensions.}
 }
 \value{
 A list with character elements \code{id} and \code{subject}. Each element is

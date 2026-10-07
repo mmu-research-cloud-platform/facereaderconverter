@@ -41,7 +41,9 @@ read_excel_control <- function(file_stub) {
 
 test_that("convertFRExcelFiles matches detailed control output", {
   res <- read_excel_control("testdata_excel_detailed")
-  expect_equal(res$excel[names(res$control)], res$control, tolerance = 1e-4)
+  # subject defaults to each export's own filename, so it differs by design.
+  shared <- setdiff(names(res$control), "subject")
+  expect_equal(res$excel[shared], res$control[shared], tolerance = 1e-4)
 })
 
 test_that("convertFRExcelFiles converts an FR10 detailed export", {

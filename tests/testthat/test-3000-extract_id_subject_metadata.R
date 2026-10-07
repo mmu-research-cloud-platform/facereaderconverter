@@ -15,41 +15,72 @@ if (inherits(test_data_error, "error")) {
   ))
 }
 
-test_that("extract_subject_id_metadata trims four-digit ids and extracts subjects", {
-  id_pattern <- "(?<![0-9])\\s*[0-9]{4}\\s*(?![0-9])"
-  subject_pattern <- "(?<![a-z])(mum|teen)(?![a-z])"
-
-  mum <- extract_subject_id_metadata(
-    "FR9  1218  mum_Analysis_detailed.xlsx",
-    id_pattern,
-    subject_pattern
+test_that("extract_subject_id_metadata separates media and FaceReader names", {
+  path <- file.path(
+    TEST_DATA,
+    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
   )
-  teen <- extract_subject_id_metadata(
-    "FR9  0042  TEEN_Analysis_state.xlsx",
-    id_pattern,
-    subject_pattern
-  )
+  metadata <- extract_subject_id_metadata(path)
 
-  expect_identical(mum$id, "1218")
-  expect_identical(mum$subject, "mum")
-  expect_identical(teen$id, "0042")
-  expect_identical(teen$subject, "teen")
+  expect_identical(
+    metadata$id,
+    "#8892 Sussed card game teen view point synced 10 minutes_1"
+  )
+  expect_identical(
+    metadata$subject,
+    "Participant 10_8892_Analysis 1_video_20260721_125850_detailed"
+  )
 })
 
-test_that("extract_subject_id_metadata returns missing values when patterns do not match", {
+test_that("extract_subject_id_metadata applies patterns to their source names", {
+  path <- file.path(
+    TEST_DATA,
+    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
+  )
   metadata <- extract_subject_id_metadata(
-    "researcher_Analysis_detailed.xlsx",
-    id_pattern = "(?<![0-9])\\s*[0-9]{4}\\s*(?![0-9])",
-    subject_pattern = "(?<![a-z])(mum|teen)(?![a-z])"
+    path,
+    id_pattern = "8892",
+    subject_pattern = "detailed"
   )
 
+  expect_identical(metadata$id, "8892")
+  expect_identical(metadata$subject, "detailed")
+})
+
+test_that("extract_subject_id_metadata applies patterns to full paths", {
+  path <- list.files(
+    file.path(TEST_DATA, "brazil"),
+    pattern = "Participant 10.*detailed\\.xlsx$",
+    full.names = TRUE
+  )[[1L]]
+  metadata <- extract_subject_id_metadata(
+    path,
+    id_pattern = "Downloads[/\\\\]#8883",
+    subject_pattern = "brazil[/\\\\]Participant 10",
+    use_full_path = TRUE
+  )
+
+  expect_match(metadata$id, "Downloads[/\\\\]#8883")
+  expect_match(metadata$subject, "brazil[/\\\\]Participant 10")
+})
+
+test_that("extract_subject_id_metadata returns NA for missing media filename", {
+  path <- file.path(TEST_DATA, "testdata_detailed.csv")
+  metadata <- extract_subject_id_metadata(path)
+
   expect_true(is.na(metadata$id))
-  expect_true(is.na(metadata$subject))
+  expect_identical(metadata$subject, tools::file_path_sans_ext(basename(path)))
 })
 
 test_that("extract_id_subject_metadata remains a compatibility alias", {
   expect_identical(
-    extract_id_subject_metadata("FR9 1218 mum_Analysis_detailed.xlsx"),
-    extract_subject_id_metadata("FR9 1218 mum_Analysis_detailed.xlsx")
+    extract_id_subject_metadata(file.path(
+      TEST_DATA,
+      "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
+    )),
+    extract_subject_id_metadata(file.path(
+      TEST_DATA,
+      "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
+    ))
   )
 })

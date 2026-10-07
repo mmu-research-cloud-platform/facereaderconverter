@@ -1,6 +1,9 @@
 #' Convert coding_df to episodes
 #'
-#' @param coding_df a dataframe or otherwise from a FaceReader output. id and subject should be present.
+#' @param coding_df a dataframe or an \code{fr_coding} object from a
+#'   FaceReader output. For an \code{fr_coding} object, its \code{$coding}
+#'   table is reprocessed using the supplied parameters. id and subject should
+#'   be present.
 #' @param T_up numeric Upper threshold for entering an episode. Default: 0.2.
 #' @param T_down numeric Lower threshold for exiting an episode. Default: 0.1.
 #' @param delta numeric Threshold used when computing the returned
@@ -47,6 +50,10 @@ convert_to_episodes <- function(
   fps = 30L,
   cores = 0L
 ) {
+  if (is_fr_coding(coding_df)) {
+    coding_df <- data.table::copy(coding_df$coding)
+  }
+
   # --- Multithreading ---
   old_threads <- data.table::getDTthreads()
   on.exit(data.table::setDTthreads(old_threads), add = TRUE)

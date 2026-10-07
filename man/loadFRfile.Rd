@@ -15,7 +15,10 @@ loadFRfile(
   id = NULL,
   subject = NULL,
   csv_args = list(),
-  clean_names_args = list()
+  clean_names_args = list(),
+  id_pattern = NULL,
+  subject_pattern = NULL,
+  use_full_path = FALSE
 )
 }
 \arguments{
@@ -36,14 +39,24 @@ found.}
 \item{...}{Legacy additional arguments passed to \code{janitor::clean_names()} for
 TXT and XLSX imports and to \code{\link[readr:read_csv]{readr::read_csv()}} for CSV imports.}
 
-\item{id}{Optional scalar ID or function of \code{inpath} returning one.}
+\item{id}{Optional scalar ID or function of \code{inpath} returning one. If
+omitted, TXT/XLSX inputs use the associated media filename without its
+extension; CSV inputs have no inferred ID.}
 
-\item{subject}{Optional scalar subject or function of \code{inpath} returning one.}
+\item{subject}{Optional scalar subject or function of \code{inpath} returning one.
+If omitted, TXT/XLSX inputs use the input filename without its extension;
+CSV inputs only infer a subject
+when \code{subject_pattern} is supplied.}
 
 \item{csv_args}{Named list of additional arguments for \code{\link[readr:read_csv]{readr::read_csv()}}.}
 
 \item{clean_names_args}{Named list of additional arguments for
 \code{\link[janitor:clean_names]{janitor::clean_names()}}.}
+
+\item{id_pattern, subject_pattern}{Optional regular expressions for inferring
+metadata from the media filename and FaceReader export filename.}
+
+\item{use_full_path}{If \code{TRUE}, search full paths when patterns are supplied.}
 }
 \value{
 Invisibly returns the parsed data frame.

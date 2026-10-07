@@ -12,8 +12,15 @@
 #' @param clean_names returns janitor-style clean names
 #' @param fail_codes adds a column with the fail reason, True or False. Column then has 0 for success, 1 for fit_failed, 2 for find_failed
 #' @param duplicate_timecodes_as_error throws an error if there are duplicate timecodes, if FALSE then throws warning
-#' @param id Optional scalar ID or function of `inpath` returning one.
+#' @param id Optional scalar ID or function of `inpath` returning one. If
+#'   omitted, the associated media filename without its extension is used.
+#'   The output CSV filename only includes `id`/`subject` when they, or their
+#'   patterns, are supplied.
 #' @param subject Optional scalar subject or function of `inpath` returning one.
+#'   If omitted, the FaceReader filename without its extension is used.
+#' @param id_pattern,subject_pattern Optional regular expressions for inferring
+#'   metadata from the media filename and FaceReader export filename.
+#' @param use_full_path If `TRUE`, search full paths when patterns are supplied.
 #' @param ... arguments passed as necessary
 #' @return Invisibly returns the metadata.
 #' @examples
@@ -44,7 +51,10 @@ convertFRFiles <- function(
   duplicate_timecodes_as_error = TRUE,
   ...,
   id = NULL,
-  subject = NULL
+  subject = NULL,
+  id_pattern = NULL,
+  subject_pattern = NULL,
+  use_full_path = FALSE
 ) {
   if (!is.character(inpath) || length(inpath) != 1) {
     stop("`inpath` must be a single string to a .txt file.")
@@ -56,8 +66,6 @@ convertFRFiles <- function(
   if (ext != "txt") {
     stop("Input file must have a .txt extension.")
   }
-
-  metadata_values <- resolve_conversion_metadata(id, subject, inpath)
 
   # metadata
 
@@ -74,7 +82,16 @@ convertFRFiles <- function(
     stop("FaceReader metadata missing")
   }
 
-  md_videoname <- gsub("Filename", "", md[6]) |> stringr::str_trim()
+  md_videoname <- synchrony_fr_txt_filename(md)
+  metadata_values <- resolve_conversion_metadata(
+    id,
+    subject,
+    inpath,
+    video_filename = md_videoname,
+    id_pattern = id_pattern,
+    subject_pattern = subject_pattern,
+    use_full_path = use_full_path
+  )
   md_time <- gsub("Start time", "", md[5]) |>
     stringr::str_trim() |>
     as.POSIXct(format = "%m/%d/%Y %H:%M:%S")
@@ -191,7 +208,17 @@ convertFRFiles <- function(
   if (return_data) {
     invisible(df)
   } else {
-    csv_path <- fr_output_path(outpath, metadata_values, md_type)
+    csv_path <- fr_output_path(
+      outpath,
+      fr_naming_metadata(
+        metadata_values,
+        id,
+        subject,
+        id_pattern,
+        subject_pattern
+      ),
+      md_type
+    )
     readr::write_csv(df, csv_path)
 
     metadata <- data.frame(

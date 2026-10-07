@@ -28,7 +28,7 @@ make_brazil_clip_inputs <- function() {
   )
   coding_files <- list.files(
     brazil_dir,
-    pattern = "^00024_.*_detailed\\.xlsx$",
+    pattern = "^100024_(child|mum)_.*_detailed\\.xlsx$",
     full.names = TRUE,
     ignore.case = TRUE
   )

@@ -14,7 +14,10 @@ convertFRExcelFiles(
   sheet = 1,
   ...,
   id = NULL,
-  subject = NULL
+  subject = NULL,
+  id_pattern = NULL,
+  subject_pattern = NULL,
+  use_full_path = FALSE
 )
 }
 \arguments{
@@ -36,9 +39,16 @@ found.}
 
 \item{...}{Additional arguments passed to \code{janitor::clean_names()}.}
 
-\item{id}{Optional scalar ID or function of \code{inpath} returning one.}
+\item{id}{Optional scalar ID or function of \code{inpath} returning one. If
+omitted, the associated media filename without its extension is used.}
 
-\item{subject}{Optional scalar subject or function of \code{inpath} returning one.}
+\item{subject}{Optional scalar subject or function of \code{inpath} returning one.
+If omitted, the FaceReader filename without its extension is used.}
+
+\item{id_pattern, subject_pattern}{Optional regular expressions for inferring
+metadata from the media filename and FaceReader export filename.}
+
+\item{use_full_path}{If \code{TRUE}, search full paths when patterns are supplied.}
 }
 \value{
 Invisibly returns the parsed data when \code{return_data = TRUE};
