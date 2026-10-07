@@ -19,7 +19,8 @@
 #'   `use_full_path = TRUE` to search the full media filename stored in
 #'   metadata for IDs and the full FaceReader export path for subjects.
 #' @param recursive Whether to search subdirectories.
-#' @param overwrite Whether to replace an existing output file. Defaults to
+#' @param overwrite Whether to replace an existing output file. If `FALSE`, an
+#'   existing output triggers a warning and conversion is skipped. Defaults to
 #'   `FALSE`.
 #' @param skip_fails Whether to warn and skip individual exports that fail
 #'   parsing, validation, or loading. Defaults to `TRUE`. An error is still
@@ -33,7 +34,9 @@
 #'
 #' @return The combined `fr_coding` object returned by
 #'   [convert_to_episodes()], invisibly. The same object is saved as
-#'   `coded_data` in `outpath`.
+#'   `coded_data` in `outpath`. If `outpath` already exists and `overwrite` is
+#'   `FALSE`, loads and invisibly returns its saved `coded_data` without
+#'   converting.
 #' @examples
 #' \dontrun{
 #' coded_data <- convert_directory_to_episodes(
@@ -108,7 +111,15 @@ convert_directory_to_episodes <- function(
     stop("`use_full_path` must be TRUE or FALSE.", call. = FALSE)
   }
   if (file.exists(outpath) && !overwrite) {
-    stop("Output already exists: ", outpath, call. = FALSE)
+    warning(
+      "Output already exists: ",
+      outpath,
+      "; skipping conversion.",
+      call. = FALSE
+    )
+    saved_data <- new.env(parent = emptyenv())
+    load(outpath, envir = saved_data)
+    return(invisible(saved_data$coded_data))
   }
   for (pattern in list(id_pattern, subject_pattern)) {
     if (
@@ -145,60 +156,6 @@ convert_directory_to_episodes <- function(
     )
   }
 
-  identifiers <- lapply(seq_along(files), function(i) {
-    media_filename <- headers[[i]]$video_filename
-    media_name <- fr_media_id(media_filename)
-    subject_name <- fr_filename_stem(files[[i]])
-    if (use_full_path && !is.null(id_pattern)) {
-      media_name <- media_filename
-    }
-    if (use_full_path && !is.null(subject_pattern)) {
-      subject_name <- files[[i]]
-    }
-    extract_one <- function(source, pattern, field) {
-      if (is.null(source)) {
-        return(NA_character_)
-      }
-      if (is.null(pattern)) {
-        return(source)
-      }
-      matches <- unique(stringr::str_extract_all(source, pattern)[[1L]])
-      matches <- matches[!is.na(matches) & nzchar(matches)]
-      if (length(matches) > 1L && identical(field, "id")) {
-        stop(
-          "Multiple different IDs match `id_pattern` in media filename for: ",
-          files[[i]],
-          ": ",
-          paste(matches, collapse = ", "),
-          call. = FALSE
-        )
-      }
-      if (length(matches)) matches[[1L]] else NA_character_
-    }
-    list(
-      id = extract_one(media_name, id_pattern, "id"),
-      subject = extract_one(subject_name, subject_pattern, "subject")
-    )
-  })
-  for (i in seq_along(files)) {
-    if (is.na(identifiers[[i]]$subject) || !nzchar(identifiers[[i]]$subject)) {
-      stop("Subject pattern did not match: ", files[[i]], call. = FALSE)
-    }
-  }
-
-  groups <- vapply(
-    identifiers,
-    function(x) paste(if (is.na(x$id)) "<NA>" else x$id, x$subject, sep = "\r"),
-    character(1)
-  )
-  duplicate <- which(duplicated(groups) | duplicated(groups, fromLast = TRUE))
-  if (length(duplicate)) {
-    stop(
-      "Multiple exports resolve to the same ID and subject: ",
-      paste(files[duplicate], collapse = ", "),
-      call. = FALSE
-    )
-  }
   emotion_columns <- c(
     "neutral",
     "happy",

@@ -274,6 +274,21 @@ test_that("README episode and LOCF examples use TEST_DATA CSV", {
     c("episodes", "deltas", "coding", "metadata") %in% names(result)
   ))
   expect_gt(nrow(result$episodes), 0L)
+
+  reprocessed <- convert_to_episodes(
+    result,
+    T_up = 0.25,
+    T_down = 0.18,
+    delta = 0.15,
+    delta_window = 0.2,
+    min_dur_sec = 0.1,
+    consecutive_missing = 150L,
+    fps = 30L
+  )
+  expect_s3_class(reprocessed, "fr_coding")
+  expect_equal(reprocessed$metadata$T_up, 0.25)
+  expect_equal(reprocessed$metadata$delta, 0.15)
+
   expect_s3_class(locf(result), "fr_coding")
 
   test_data_path <- file.path(TEST_DATA, "test_data.RDa")

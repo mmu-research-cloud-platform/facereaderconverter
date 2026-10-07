@@ -41,7 +41,8 @@ metadata for IDs and the full FaceReader export path for subjects.}
 
 \item{recursive}{Whether to search subdirectories.}
 
-\item{overwrite}{Whether to replace an existing output file. Defaults to
+\item{overwrite}{Whether to replace an existing output file. If \code{FALSE}, an
+existing output triggers a warning and conversion is skipped. Defaults to
 \code{FALSE}.}
 
 \item{T_up, T_down, delta, delta_window, min_dur_sec, consecutive_missing, cores}{Passed to \code{\link[=convert_to_episodes]{convert_to_episodes()}}.}
@@ -59,7 +60,9 @@ filename (including its extension), not its directory path.}
 \value{
 The combined \code{fr_coding} object returned by
 \code{\link[=convert_to_episodes]{convert_to_episodes()}}, invisibly. The same object is saved as
-\code{coded_data} in \code{outpath}.
+\code{coded_data} in \code{outpath}. If \code{outpath} already exists and \code{overwrite} is
+\code{FALSE}, loads and invisibly returns its saved \code{coded_data} without
+converting.
 }
 \description{
 Recursively loads detailed TXT and XLSX exports, combines their emotion

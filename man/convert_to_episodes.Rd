@@ -17,7 +17,10 @@ convert_to_episodes(
 )
 }
 \arguments{
-\item{coding_df}{a dataframe or otherwise from a FaceReader output. id and subject should be present.}
+\item{coding_df}{a dataframe or an \code{fr_coding} object from a
+FaceReader output. For an \code{fr_coding} object, its \code{$coding}
+table is reprocessed using the supplied parameters. id and subject should
+be present.}
 
 \item{T_up}{numeric Upper threshold for entering an episode. Default: 0.2.}
 

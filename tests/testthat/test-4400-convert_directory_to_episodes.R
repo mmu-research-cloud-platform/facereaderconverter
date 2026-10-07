@@ -89,13 +89,15 @@ test_that("directory episodes use fixture filename regexes independently", {
     c("mum", "teen")
   )
   expect_true(file.exists(output))
-  expect_match(
-    conditionMessage(tryCatch(
-      convert_directory_to_episodes(root, outpath = output, cores = 1L),
-      error = identity
-    )),
-    "Output already exists"
+  expect_warning(
+    existing_result <- convert_directory_to_episodes(
+      root,
+      outpath = output,
+      cores = 1L
+    ),
+    "Output already exists.*skipping conversion"
   )
+  expect_equal(existing_result, result)
 
   only_id <- convert_directory_to_episodes(
     root,

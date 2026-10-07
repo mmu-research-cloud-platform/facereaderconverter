@@ -482,7 +482,8 @@ episodes using hysteresis thresholds, a delta-based reaction signal, and
 a minimum duration filter. It accepts long data with `id`, `subject`,
 and either `video_time` or `frame`, plus `emotion` and `value`; if
 `emotion` and `value` are missing, wide data are reshaped to long format
-internally.
+internally. It also accepts an `fr_coding` result and reprocesses its
+`$coding` table using the supplied parameters.
 
 The function requires `id` and `subject`. If `frame` is not supplied, it
 is derived from `video_time` using `fps`. `T_up` and `T_down` control
@@ -534,6 +535,20 @@ res <- convert_to_episodes(
 res$episodes
 res$deltas
 res$coding
+
+# Reprocess the coding with a higher episode-entry threshold and new delta rule
+res_updated <- convert_to_episodes(
+  res,
+  T_up = 0.25,
+  T_down = 0.18,
+  delta = 0.15,
+  delta_window = 0.2,
+  min_dur_sec = 0.1,
+  consecutive_missing = 150L,
+  fps = 30L
+)
+
+res_updated$episodes
 ```
 
 Episodes are grouped within each `id`, `subject`, and `emotion`
@@ -544,15 +559,18 @@ functions such as `reaction_rate()`.
 
 **Arguments:** `coding_df` is a data frame containing `id`, `subject`,
 and either `video_time` or `frame`, plus either long-format `emotion`
-and `value` columns or wide emotion columns. `T_up` and `T_down` are
-probabilities in `[0, 1]`; `T_up` must be at least `T_down`. `delta` is
-the positive minimum change used to flag delta-up rows. `delta_window`
-is the positive time window in seconds used to determine the lag for
-that change. `min_dur_sec` removes episodes shorter than this duration.
-`consecutive_missing` is the maximum number of consecutive missing
-frames tolerated while an episode is active. `fps` is the positive
-integer sampling rate used to convert times and durations. `cores` sets
-the `data.table` thread count; `0` uses its automatic setting.
+and `value` columns or wide emotion columns. It can also be an
+`fr_coding` object, in which case its `$coding` table is used as the
+source data and all derived episode and delta fields are recalculated.
+`T_up` and `T_down` are probabilities in `[0, 1]`; `T_up` must be at
+least `T_down`. `delta` is the positive minimum change used to flag
+delta-up rows. `delta_window` is the positive time window in seconds
+used to determine the lag for that change. `min_dur_sec` removes
+episodes shorter than this duration. `consecutive_missing` is the
+maximum number of consecutive missing frames tolerated while an episode
+is active. `fps` is the positive integer sampling rate used to convert
+times and durations. `cores` sets the `data.table` thread count; `0`
+uses its automatic setting.
 
 ### `convert_directory_to_episodes()`
 

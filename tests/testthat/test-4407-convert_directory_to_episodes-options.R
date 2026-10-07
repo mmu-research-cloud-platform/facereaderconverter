@@ -34,7 +34,7 @@ test_that("4407 filter_name matches export basenames before parsing", {
       filter_name = "^keep-parent$",
       outpath = file.path(root, "none.RDa")
     ),
-    "No FaceReader TXT or XLSX files were found"
+    "No detailed FaceReader exports were found"
   )
 })
 
@@ -248,4 +248,170 @@ test_that("4416 skip_fails defaults to warning and keeping good exports", {
   )
   expect_equal(unique(as.character(result$coding$subject)), "b-good")
   expect_true(file.exists(file.path(root, "episodes.RDa")))
+})
+
+copy_4407_fps_fixture <- function(destination) {
+  file.copy(
+    file.path(
+      Sys.getenv("TEST_DATA"),
+      "FR9/FR9 1218 participant_Analysis 1_video_20260910_110344_detailed.xlsx"
+    ),
+    destination
+  )
+}
+
+test_that("4417 subject mismatch errors when skip_fails is FALSE", {
+  root <- tempfile("directory-subject-fail-")
+  dir.create(root)
+  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
+  copy_4407_fixture(file.path(root, "a-bad.txt"))
+  copy_4407_fixture(file.path(root, "b-good.txt"))
+
+  expect_error(
+    convert_directory_to_episodes(
+      root,
+      subject_pattern = "good",
+      skip_fails = FALSE,
+      cores = 1L
+    ),
+    "Subject pattern did not match:.*a-bad\\.txt"
+  )
+  expect_false(file.exists(file.path(root, "episodes.RDa")))
+})
+
+test_that("4418 multiple IDs error when skip_fails is FALSE", {
+  root <- tempfile("directory-multi-id-fail-")
+  dir.create(root)
+  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
+  copy_4407_fixture(file.path(root, "only.txt"))
+
+  expect_error(
+    convert_directory_to_episodes(
+      root,
+      id_pattern = "#[0-9]{4}|card|synced",
+      skip_fails = FALSE,
+      cores = 1L
+    ),
+    "Multiple different IDs"
+  )
+  expect_false(file.exists(file.path(root, "episodes.RDa")))
+})
+
+test_that("4419 multiple IDs are skipped with a warning when skip_fails is TRUE", {
+  root <- tempfile("directory-multi-id-skip-")
+  dir.create(root)
+  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
+  copy_4407_fixture(file.path(root, "only.txt"))
+
+  expect_warning(
+    expect_error(
+      convert_directory_to_episodes(
+        root,
+        id_pattern = "#[0-9]{4}|card|synced",
+        skip_fails = TRUE,
+        cores = 1L
+      ),
+      "No detailed FaceReader exports could be processed"
+    ),
+    "Multiple different IDs"
+  )
+  expect_false(file.exists(file.path(root, "episodes.RDa")))
+})
+
+test_that("4420 duplicate ID and subject is skipped when skip_fails is TRUE", {
+  root <- tempfile("directory-duplicate-skip-")
+  dir.create(file.path(root, "nested-a"), recursive = TRUE)
+  dir.create(file.path(root, "nested-b"))
+  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
+  copy_4407_fixture(file.path(root, "nested-a", "same-a.txt"))
+  copy_4407_fixture(file.path(root, "nested-b", "same-b.txt"))
+
+  expect_warning(
+    result <- convert_directory_to_episodes(
+      root,
+      id_pattern = "#[0-9]{4}",
+      subject_pattern = "same",
+      skip_fails = TRUE,
+      cores = 1L
+    ),
+    "Multiple exports resolve to the same ID and subject.*same-a\\.txt"
+  )
+  expect_equal(unique(as.character(result$coding$subject)), "same")
+  expect_equal(unique(as.character(result$coding$id)), "#8892")
+  expect_true(file.exists(file.path(root, "episodes.RDa")))
+})
+
+test_that("4421 duplicate ID and subject errors when skip_fails is FALSE", {
+  root <- tempfile("directory-duplicate-fail-")
+  dir.create(root)
+  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
+  copy_4407_fixture(file.path(root, "same-a.txt"))
+  copy_4407_fixture(file.path(root, "same-b.txt"))
+
+  expect_error(
+    convert_directory_to_episodes(
+      root,
+      id_pattern = "#[0-9]{4}",
+      subject_pattern = "same",
+      skip_fails = FALSE,
+      cores = 1L
+    ),
+    "Multiple exports resolve to the same ID and subject"
+  )
+  expect_false(file.exists(file.path(root, "episodes.RDa")))
+})
+
+test_that("4422 conflicting FPS is skipped when skip_fails is TRUE", {
+  root <- tempfile("directory-fps-skip-")
+  dir.create(root)
+  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
+  copy_4407_fps_fixture(file.path(root, "first.xlsx"))
+  copy_4407_fixture(file.path(root, "second.txt"))
+
+  expect_warning(
+    result <- convert_directory_to_episodes(
+      root,
+      skip_fails = TRUE,
+      cores = 1L
+    ),
+    "Conflicting frame rates.*second\\.txt"
+  )
+  expect_equal(unique(as.character(result$coding$subject)), "first")
+  expect_true(file.exists(file.path(root, "episodes.RDa")))
+})
+
+test_that("4423 conflicting FPS errors when skip_fails is FALSE", {
+  root <- tempfile("directory-fps-fail-")
+  dir.create(root)
+  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
+  copy_4407_fps_fixture(file.path(root, "first.xlsx"))
+  copy_4407_fixture(file.path(root, "second.txt"))
+
+  expect_error(
+    convert_directory_to_episodes(root, skip_fails = FALSE, cores = 1L),
+    "Conflicting frame rates"
+  )
+  expect_false(file.exists(file.path(root, "episodes.RDa")))
+})
+
+test_that("4424 existing output warns and skips conversion by default", {
+  root <- tempfile("directory-existing-output-")
+  dir.create(root)
+  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
+  output <- file.path(root, "episodes.RDa")
+  coded_data <- list(test_value = "preserve existing output")
+  save(coded_data, file = output)
+
+  expect_warning(
+    result <- withVisible(convert_directory_to_episodes(
+      root,
+      outpath = output
+    )),
+    "Output already exists.*skipping conversion"
+  )
+  expect_false(result$visible)
+  expect_identical(result$value, coded_data)
+  saved <- new.env(parent = emptyenv())
+  load(output, envir = saved)
+  expect_identical(saved$coded_data, coded_data)
 })
