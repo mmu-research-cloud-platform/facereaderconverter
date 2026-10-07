@@ -25,9 +25,10 @@
 #'   detailed exports and display FFmpeg output. Videos without matching detailed
 #'   exports are always reported as skipped; otherwise, clip progress is shown.
 #' @param T_up,T_down,delta,delta_window,min_dur_sec,consecutive_missing,cores
-#'   Arguments passed to [convert_to_episodes()]. The frame rate is read from each
-#'   FaceReader export's `Frame rate` metadata, rounded to the nearest integer,
-#'   and must agree within a video.
+#'   Arguments passed to [convert_to_episodes()]. `cores` also controls concurrent
+#'   clip encoders in [export_shared_synchrony_clips()]. The frame rate is read
+#'   from each FaceReader export's `Frame rate` metadata, rounded to the nearest
+#'   integer, and must agree within a video.
 #' @param time_limit,time_limit_frames,constraint_method,missing_threshold,exclude_emotions
 #'   Arguments passed to [shared_synchronous_episodes()].
 #' @param n,emotion,optimised_subject,only_synchronies,buffer,buffer_units,output,overwrite,ffmpeg
@@ -533,7 +534,8 @@ synchrony_moments_pipeline <- function(
         output = output,
         overwrite = overwrite,
         ffmpeg = ffmpeg,
-        verbose = verbose
+        verbose = verbose,
+        cores = cores
       )
     }
     results[[i]] <- list(
