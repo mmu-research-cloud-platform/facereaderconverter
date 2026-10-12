@@ -605,6 +605,36 @@ failure. If no detailed export can be processed, the call still errors.
 `filter_name`. By default the output is `episodes.RDa` in `inpath`; set
 `outpath` to avoid writing into a source fixture directory.
 
+### `merge_episodes()`
+
+`merge_episodes()` combines several `fr_coding` objects, for example
+from separate `convert_to_episodes()` runs, into one. The `coding`,
+`episodes`, and `deltas` tables are row-bound and the `metadata` is
+carried through once. `run_id` and `delta_id` are offset for each later
+object so they remain unique and consistent across the tables.
+
+``` r
+library(facereaderconverter)
+
+# Objects held in memory, passed by name
+merged <- merge_episodes(c("coded_a", "coded_b"))
+
+# Or passed directly as a list
+merged <- merge_episodes(list(coded_a, coded_b))
+
+merged$episodes
+```
+
+The function stops with an error if the metadata differs between any of
+the objects, or if any `subject`, `id`, and `emotion` combination
+appears in more than one object.
+
+**Arguments:** `x` is either a character vector of names of `fr_coding`
+objects in memory (the default way of supplying objects) or a list of
+`fr_coding` objects; a list may also contain names, which are looked up.
+`envir` is the environment used to look up names and defaults to the
+calling environment.
+
 ## Delta helpers
 
 ### `add_delta_column()`
@@ -987,6 +1017,7 @@ dependency, so both are listed separately.
 | `loadFRfile()` | `convertFRFiles()`, `convertFRExcelFiles()` | none | none |
 | `convertFRDirectory()` | `convertFRFiles()`, `map_paths()` | none | none |
 | `convert_to_episodes()` | `parse_time_to_frame()` | creates `fr_coding` | none |
+| `merge_episodes()` | none | requires a list (or names) of `fr_coding` objects with identical metadata and no shared `id`/`subject`/`emotion` | `convert_to_episodes()` |
 | `add_delta_column()` | `parse_time_to_frame()` | accepts `fr_coding`; otherwise needs a coding table with `id`, `subject`, `emotion`, `frame` or `video_time`, and `value` | `convert_to_episodes()` |
 | `delta_episodes()` | none | needs `delta` plus `id`, `subject`, `emotion`, `frame` (and optionally `video_time`, `value`) | `add_delta_column()` |
 | `locf()` | none | accepts `fr_coding`; otherwise needs a coding table with `id`, `subject`, `emotion`, `video_time`, `value`, and `run_id` | `convert_to_episodes()` |

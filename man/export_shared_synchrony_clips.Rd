@@ -20,7 +20,8 @@ export_shared_synchrony_clips(
   output = c("zip", "folder"),
   overwrite = FALSE,
   ffmpeg = "ffmpeg",
-  verbose = FALSE
+  verbose = FALSE,
+  cores = 0L
 )
 }
 \arguments{
@@ -70,6 +71,9 @@ output folder. Defaults to \code{FALSE}.}
 \item{ffmpeg}{Path to the FFmpeg executable or its command name.}
 
 \item{verbose}{Whether to display FFmpeg output instead of a clip progress bar.}
+
+\item{cores}{Maximum number of concurrent clip encoders. \code{0} (default)
+uses up to four physical cores, leaving one free; \code{1} runs sequentially.}
 }
 \value{
 A \code{data.table} manifest invisibly. For ZIP output, the manifest is

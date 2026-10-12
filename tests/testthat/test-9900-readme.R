@@ -383,6 +383,33 @@ test_that("README downstream examples run on TEST_DATA coded fixture", {
   expect_true(file.exists(archive_path))
 })
 
+test_that("README merge_episodes example merges by name and by list", {
+  test_data_path <- file.path(TEST_DATA, "test_data.RDa")
+  skip_if(
+    !file.exists(test_data_path),
+    "The TEST_DATA RDA fixture is not available."
+  )
+  fixture_env <- new.env(parent = globalenv())
+  load(test_data_path, envir = fixture_env)
+
+  coded_a <- convert_to_episodes(fixture_env$test_coding, fps = 12L, cores = 1L)
+  coded_b <- convert_to_episodes(fixture_env$test_coding, fps = 12L, cores = 1L)
+  new_id <- max(coded_a$coding$id) + 1000
+  coded_b$coding[, id := new_id]
+  coded_b$episodes[, id := new_id]
+  coded_b$deltas[, id := new_id]
+
+  by_name <- merge_episodes(c("coded_a", "coded_b"))
+  by_list <- merge_episodes(list(coded_a, coded_b))
+
+  expect_s3_class(by_name, "fr_coding")
+  expect_equal(by_name, by_list)
+  expect_equal(
+    nrow(by_name$episodes),
+    nrow(coded_a$episodes) + nrow(coded_b$episodes)
+  )
+})
+
 test_that("README utility examples run with valid mapped paths", {
   expect_equal(
     to_seconds(
