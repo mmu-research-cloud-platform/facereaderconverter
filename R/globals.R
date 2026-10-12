@@ -122,6 +122,8 @@ utils::globalVariables(c(
   "episodes",
   "unmatched",
   "video_time",
+  "version",
+  "versions",
   "x.frame",
   "x.value"
 ))

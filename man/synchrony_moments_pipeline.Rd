@@ -61,9 +61,10 @@ mapped names override \verb{Participant Name}.}
 detailed exports and display FFmpeg output. Videos without matching detailed
 exports are always reported as skipped; otherwise, clip progress is shown.}
 
-\item{T_up, T_down, delta, delta_window, min_dur_sec, consecutive_missing, cores}{Arguments passed to \code{\link[=convert_to_episodes]{convert_to_episodes()}}. The frame rate is read from each
-FaceReader export's \verb{Frame rate} metadata, rounded to the nearest integer,
-and must agree within a video.}
+\item{T_up, T_down, delta, delta_window, min_dur_sec, consecutive_missing, cores}{Arguments passed to \code{\link[=convert_to_episodes]{convert_to_episodes()}}. \code{cores} also controls concurrent
+clip encoders in \code{\link[=export_shared_synchrony_clips]{export_shared_synchrony_clips()}}. The frame rate is read
+from each FaceReader export's \verb{Frame rate} metadata, rounded to the nearest
+integer, and must agree within a video.}
 
 \item{time_limit, time_limit_frames, constraint_method, missing_threshold, exclude_emotions}{Arguments passed to \code{\link[=shared_synchronous_episodes]{shared_synchronous_episodes()}}.}
 
