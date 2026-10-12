@@ -85,3 +85,22 @@ test_that("merge_episodes validates input", {
   expect_error(merge_episodes(list(a, 1)), "not fr_coding")
   expect_error(merge_episodes(list()), "at least one")
 })
+
+test_that("merge_episodes real fixtures", {
+  FR10 <- convert_directory_to_episodes(
+    inpath = file.path(TEST_DATA, "FR10"),
+    T_up = 0.15,
+    T_down = 0.05,
+    filter_name = "^.*8895.*$",
+    overwrite = TRUE
+  )
+  FR9 <- convert_directory_to_episodes(
+    inpath = file.path(TEST_DATA, "FR9"),
+    T_up = 0.15,
+    T_down = 0.05,
+    filter_name = "^.*8895.*$",
+    overwrite = TRUE
+  )
+  expect_no_error(merge_episodes(list(FR10, FR9)))
+  expect_no_error(merge_episodes(c("FR10", "FR9")))
+})
