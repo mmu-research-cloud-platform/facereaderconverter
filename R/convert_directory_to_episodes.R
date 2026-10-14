@@ -234,7 +234,7 @@ convert_directory_to_episodes <- function(
       if (is.na(subject) || !nzchar(subject)) {
         stop("Subject pattern did not match: ", file, call. = FALSE)
       }
-      group <- paste(id, subject, sep = "")
+      group <- paste(id, subject, sep = "\r")
       if (group %in% accepted_groups) {
         duplicate <- accepted_files[match(group, accepted_groups)]
         stop(
