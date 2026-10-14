@@ -234,15 +234,22 @@ convert_directory_to_episodes <- function(
       if (is.na(subject) || !nzchar(subject)) {
         stop("Subject pattern did not match: ", file, call. = FALSE)
       }
-      group <- if (!is.na(id)) paste(id, subject, sep = "\r") else NULL
-      if (!is.null(group) && group %in% accepted_groups) {
+      group <- paste(id, subject, sep = "")
+      if (group %in% accepted_groups) {
         duplicate <- accepted_files[match(group, accepted_groups)]
         stop(
-          "Multiple exports resolve to the same ID and subject: ",
-          duplicate,
-          ", ",
-          file,
-          call. = FALSE
+          structure(
+            class = c("fr_duplicate_export_error", "error", "condition"),
+            list(
+              message = paste0(
+                "Multiple exports resolve to the same ID and subject: ",
+                duplicate,
+                ", ",
+                file
+              ),
+              call = NULL
+            )
+          )
         )
       }
       data <- loadFRfile(file, values_as_numeric = TRUE, clean_names = TRUE)
@@ -281,6 +288,10 @@ convert_directory_to_episodes <- function(
     }
     processed <- if (skip_fails) {
       tryCatch(process_file(), error = function(error) {
+        # Duplicate ID/subject pairs would collide in the output, so never skip them
+        if (inherits(error, "fr_duplicate_export_error")) {
+          stop(error)
+        }
         failed_count <<- failed_count + 1L
         warning(
           "Skipping FaceReader export ",
