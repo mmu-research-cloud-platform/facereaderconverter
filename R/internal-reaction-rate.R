@@ -14,7 +14,7 @@ prepare_reaction_rate_inputs <- function(
   time_limit_frames = NULL,
   exclude_start = 0.1,
   exclude_start_frames = NULL,
-  fps = 30L,
+  fps = NULL,
   subject_names = NULL,
   exclude_emotions = "neutral",
   minimum_threshold = 0,
@@ -24,13 +24,19 @@ prepare_reaction_rate_inputs <- function(
     !is.null(coded_data$coding) &&
     !is.null(coded_data$episodes)
 
-  fps <- resolve_fr_metadata(fps, coded_data, "fps", default = 30L)
-
   if (is.null(coded_data)) {
     stop("`coded_data` is missing required column(s): delta.", call. = FALSE)
   }
 
-  if (!is_reaction_rate_whole(fps) || fps <= 0) {
+  if (
+    is.numeric(fps) &&
+      length(fps) == 1L &&
+      is.null(names(fps)) &&
+      (!is.finite(fps) || fps <= 0)
+  ) {
+    stop("`fps` must be a positive integer scalar.", call. = FALSE)
+  }
+  if (!is.null(fps) && !is.numeric(fps) && !is.data.frame(fps)) {
     stop("`fps` must be a positive integer scalar.", call. = FALSE)
   }
   if (
@@ -349,6 +355,12 @@ prepare_reaction_rate_inputs <- function(
     reaction = logical()
   )
 
+  fps_tbl <- resolve_fr_fps(
+    fps,
+    x = coded_data,
+    ids = coding$id,
+    data = fps_inference_data(coding)
+  )
   limit_frames <- if (!is.null(time_limit_frames)) {
     if (is.infinite(time_limit_frames)) {
       Inf
@@ -358,16 +370,19 @@ prepare_reaction_rate_inputs <- function(
   } else if (is.null(time_limit) || is.infinite(time_limit)) {
     Inf
   } else {
-    as.integer(round(time_limit * fps))
+    # Scalar when all ids agree, otherwise integer limits named by id
+    seconds_to_frames_by_id(time_limit, coding$id, fps_tbl)
   }
   start_frames <- if (!is.null(exclude_start_frames)) {
     as.integer(exclude_start_frames)
   } else {
-    as.integer(round(exclude_start * fps))
+    seconds_to_frames_by_id(exclude_start, coding$id, fps_tbl)
   }
 
   if (
-    constraint_method %in% c("loose", "frames") && is.infinite(limit_frames)
+    constraint_method %in%
+      c("loose", "frames") &&
+      any(is.infinite(limit_frames))
   ) {
     stop(
       paste0(
@@ -477,11 +492,9 @@ build_reaction_rate_episode_table <- function(inputs) {
 
       denominator_episodes[, n_frames := as.integer(n_frames)]
       denominator_episodes[,
-        limit_end := if (is.infinite(inputs$limit_frames)) {
-          Inf
-        } else {
-          start_frame + inputs$limit_frames - 1L
-        }
+        limit_end := start_frame +
+          frames_for_ids(current_id, inputs$limit_frames)[[1L]] -
+          1L
       ]
 
       if (inputs$constraint_method == "strict") {
@@ -496,7 +509,8 @@ build_reaction_rate_episode_table <- function(inputs) {
 
       denominator_episodes[, reaction_window_start := start_frame]
       denominator_episodes[,
-        eligible_start_frame := start_frame + inputs$start_frames
+        eligible_start_frame := start_frame +
+          frames_for_ids(current_id, inputs$start_frames)[[1L]]
       ]
 
       for (numerator_subject in id_subjects[

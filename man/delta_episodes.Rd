@@ -4,12 +4,16 @@
 \alias{delta_episodes}
 \title{Add create delta episodes}
 \usage{
-delta_episodes(coding, fps = 30L, cores = 0L)
+delta_episodes(coding, fps = NULL, cores = 0L)
 }
 \arguments{
 \item{coding}{Data frame with columns: id, subject, emotion, frame (or video_time), value, or an \code{fr_coding} object}
 
-\item{fps}{Frames per second}
+\item{fps}{Frames per second; may be non-integer. A single number applies
+to all ids, a named numeric vector or a data frame with columns \code{id} and
+\code{fps} sets it per id. Rates stored in an \code{fr_coding} object's metadata
+take precedence (a conflicting value warns). If omitted, it is inferred
+from \code{video_time}, falling back to 30.}
 
 \item{cores}{integer Number of threads to use. Default 0 is auto.}
 }

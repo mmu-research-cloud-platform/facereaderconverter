@@ -361,12 +361,24 @@ test_that("4421 duplicate ID and subject errors when skip_fails is FALSE", {
   expect_false(file.exists(file.path(root, "episodes.RDa")))
 })
 
-test_that("4422 conflicting FPS is skipped when skip_fails is TRUE", {
+copy_4407_same_id_other_fps <- function(destination, fps = "25.000000000") {
+  fixture <- file.path(
+    Sys.getenv("TEST_DATA"),
+    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
+  )
+  lines <- readLines(fixture, warn = FALSE)
+  writeLines(
+    sub("^Frame rate.*", paste0("Frame rate\t", fps), lines),
+    destination
+  )
+}
+
+test_that("4422 conflicting FPS for the same id is skipped when skip_fails is TRUE", {
   root <- tempfile("directory-fps-skip-")
   dir.create(root)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_4407_fps_fixture(file.path(root, "first.xlsx"))
-  copy_4407_fixture(file.path(root, "second.txt"))
+  copy_4407_fixture(file.path(root, "first.txt"))
+  copy_4407_same_id_other_fps(file.path(root, "second.txt"))
 
   expect_warning(
     result <- convert_directory_to_episodes(
@@ -380,12 +392,12 @@ test_that("4422 conflicting FPS is skipped when skip_fails is TRUE", {
   expect_true(file.exists(file.path(root, "episodes.RDa")))
 })
 
-test_that("4423 conflicting FPS errors when skip_fails is FALSE", {
+test_that("4423 conflicting FPS for the same id errors when skip_fails is FALSE", {
   root <- tempfile("directory-fps-fail-")
   dir.create(root)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_4407_fps_fixture(file.path(root, "first.xlsx"))
-  copy_4407_fixture(file.path(root, "second.txt"))
+  copy_4407_fixture(file.path(root, "first.txt"))
+  copy_4407_same_id_other_fps(file.path(root, "second.txt"))
 
   expect_error(
     convert_directory_to_episodes(root, skip_fails = FALSE, cores = 1L),

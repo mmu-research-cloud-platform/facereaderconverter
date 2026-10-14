@@ -110,23 +110,24 @@ test_that("directory episodes use fixture filename regexes independently", {
   )
 })
 
-test_that("directory episodes reject conflicting FPS when skip_fails is FALSE", {
+test_that("directory episodes reject conflicting FPS for the same id when skip_fails is FALSE", {
   parent <- tempfile("directory-episodes-fps-")
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_4400_fixture(
-    "FR9/FR9 1218 participant_Analysis 1_video_20260910_110344_detailed.xlsx",
-    file.path(root, "first.xlsx")
+  fixture <- file.path(
+    Sys.getenv("TEST_DATA"),
+    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
   )
-  copy_4400_fixture(
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt",
-    file.path(root, "second.txt")
-  )
+  # Same media file (so the same id) but a different recorded frame rate
+  file.copy(fixture, file.path(root, "first.txt"))
+  lines <- readLines(fixture, warn = FALSE)
+  lines <- sub("^Frame rate.*", "Frame rate\t25.000000000", lines)
+  writeLines(lines, file.path(root, "second.txt"))
 
   expect_match(
     conditionMessage(tryCatch(
-      convert_directory_to_episodes(root, skip_fails = FALSE),
+      convert_directory_to_episodes(root, skip_fails = FALSE, cores = 1L),
       error = identity
     )),
     "Conflicting frame rates"

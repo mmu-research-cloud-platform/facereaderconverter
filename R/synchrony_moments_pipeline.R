@@ -319,8 +319,8 @@ synchrony_moments_pipeline <- function(
       .(
         n_outputs = .N,
         n_matched_outputs = sum(!is.na(participant)),
-        n_valid_fps = sum(is.finite(fps) & fps > 0 & fps == round(fps)),
-        n_unique_fps = data.table::uniqueN(fps[is.finite(fps) & fps > 0]),
+        n_valid_fps = sum(is.finite(fps) & fps > 0),
+        n_unique_fps = data.table::uniqueN(round(fps[is.finite(fps) & fps > 0], 6)),
         fps = fps[[1L]]
       ),
       by = video_path
@@ -375,8 +375,8 @@ synchrony_moments_pipeline <- function(
     .(
       n_matched_outputs = .N,
       n_validated_outputs = sum(status == "validated"),
-      n_valid_fps = sum(is.finite(fps) & fps > 0 & fps == round(fps)),
-      n_unique_fps = data.table::uniqueN(fps[is.finite(fps) & fps > 0]),
+      n_valid_fps = sum(is.finite(fps) & fps > 0),
+      n_unique_fps = data.table::uniqueN(round(fps[is.finite(fps) & fps > 0], 6)),
       fps = if (any(is.finite(fps) & fps > 0)) {
         fps[which(is.finite(fps) & fps > 0)[[1L]]]
       } else {
@@ -651,6 +651,7 @@ synchrony_fr_txt_fps <- function(lines) {
     return(NA_real_)
   }
   fps_line <- fps_lines[[1L]]
+  # Header rates are kept unrounded (e.g. 29.97)
   synchrony_fr_parse_fps(trimws(sub(
     "^[[:space:]]*Frame rate[[:space:]]*[:\\t]*",
     "",
@@ -678,7 +679,7 @@ synchrony_fr_parse_fps <- function(value) {
   if (length(value) != 1L || !is.finite(value) || value <= 0) {
     return(NA_real_)
   }
-  round(value)
+  value
 }
 
 synchrony_fr_xlsx_fps <- function(values) {

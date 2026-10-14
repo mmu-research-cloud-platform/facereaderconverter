@@ -66,8 +66,11 @@ converting.
 }
 \description{
 Recursively loads detailed TXT and XLSX exports, combines their emotion
-values, and calls \code{\link[=convert_to_episodes]{convert_to_episodes()}} once. Processed exports must have
-the same valid frame rate in their metadata (rounded to an integer). State
+values, and calls \code{\link[=convert_to_episodes]{convert_to_episodes()}} once. Each export's frame rate is
+inherited from its header (non-integer rates such as 29.97 are kept) and
+stored per \code{id} in \code{metadata$fps}; frame rates may differ between ids but
+exports that resolve to the same \code{id} must agree. When a header has no
+usable frame rate it is inferred from the time stamps with \code{\link[=infer_fps]{infer_fps()}}. State
 exports are ignored. Returns the combined result in memory and saves it
 as \code{coded_data} in one \code{.RDa} file.
 }

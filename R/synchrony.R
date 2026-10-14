@@ -17,8 +17,13 @@
 #' @param constraint_method Character scalar controlling how the episode window
 #'   ends: `"strict"`, `"episode"`, `"loose"`, or `"frames"`. Default is
 #'   `"episode"`.
-#' @param fps Frames per second used to convert `time_limit` to frames.
-#'   Default is `30`.
+#' @param fps Frames per second used to convert `time_limit` to frames; may be
+#'   non-integer. A single number applies to all ids; a named numeric vector
+#'   or a data frame with columns `id` and `fps` sets it per id. Rates stored
+#'   in `coded_data$metadata$fps` take precedence (a conflicting value
+#'   warns). If neither is available it is inferred from `video_time`,
+#'   falling back to 30. `time_limit` is converted to frames separately for
+#'   each id.
 #' @param missing_threshold Numeric scalar in `[0, 1]`. Denominator and numerator episodes are
 #'   kept only when the comparison subject is present for at least this
 #'   proportion of frames within the episode. Default is `0`.
@@ -61,7 +66,7 @@ synchrony <- function(
   time_limit = 3,
   time_limit_frames = NULL,
   constraint_method = "episode",
-  fps = 30L,
+  fps = NULL,
   missing_threshold = 0,
   exclude_emotions = "neutral",
   episodes = NULL
@@ -184,7 +189,7 @@ synchrony_by_episode <- function(
   time_limit = 3,
   time_limit_frames = NULL,
   constraint_method = "episode",
-  fps = 30L,
+  fps = NULL,
   missing_threshold = 0,
   exclude_emotions = "neutral",
   episodes = NULL
@@ -237,7 +242,7 @@ shared_synchronous_episodes <- function(
   time_limit = 3,
   time_limit_frames = NULL,
   constraint_method = "episode",
-  fps = 30L,
+  fps = NULL,
   missing_threshold = 0,
   exclude_emotions = "neutral"
 ) {

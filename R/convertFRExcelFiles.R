@@ -165,6 +165,11 @@ convertFRExcelFiles <- function(
     df <- janitor::clean_names(df, ...)
   }
   df <- add_fr_metadata(df, metadata_values)
+  # Inherit the frame rate recorded in the file header (kept unrounded)
+  header_fps <- fr_metadata_attr(synchrony_fr_xlsx_fps(md_vals))
+  if (!is.null(header_fps)) {
+    attr(df, "fr_metadata") <- header_fps
+  }
 
   if (return_data) {
     invisible(df)

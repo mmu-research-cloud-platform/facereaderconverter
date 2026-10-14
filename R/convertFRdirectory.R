@@ -182,7 +182,13 @@ convertFRDirectory <- function(
       tryCatch(
         fr_output_path(
           ls_out[i],
-          fr_naming_metadata(metadata_columns(data), id, subject, id_pattern, subject_pattern),
+          fr_naming_metadata(
+            metadata_columns(data),
+            id,
+            subject,
+            id_pattern,
+            subject_pattern
+          ),
           fr_conversion_type(data)
         ),
         error = function(e) NA_character_
@@ -224,7 +230,13 @@ convertFRDirectory <- function(
             }
             csv_path <- fr_output_path(
               ls_out[i],
-              fr_naming_metadata(metadata_columns(data), id, subject, id_pattern, subject_pattern),
+              fr_naming_metadata(
+                metadata_columns(data),
+                id,
+                subject,
+                id_pattern,
+                subject_pattern
+              ),
               fr_conversion_type(data)
             )
             readr::write_csv(data, csv_path)
@@ -242,7 +254,13 @@ convertFRDirectory <- function(
             }
             csv_path <- fr_output_path(
               ls_out[i],
-              fr_naming_metadata(metadata_columns(data), id, subject, id_pattern, subject_pattern),
+              fr_naming_metadata(
+                metadata_columns(data),
+                id,
+                subject,
+                id_pattern,
+                subject_pattern
+              ),
               fr_conversion_type(data)
             )
             readr::write_csv(data, csv_path)
@@ -333,6 +351,10 @@ convertFRDirectory <- function(
           c(
             "resolve_conversion_metadata",
             "add_fr_metadata",
+            "fr_metadata_attr",
+            "synchrony_fr_txt_fps",
+            "synchrony_fr_xlsx_fps",
+            "synchrony_fr_parse_fps",
             "fr_conversion_type",
             "fr_output_path",
             "fr_naming_metadata",

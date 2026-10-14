@@ -24,8 +24,13 @@
 #'   start, before numerator `delta == 1` values count as a reaction.
 #' @param exclude_start_frames Optional minimum delay in frames. If supplied,
 #'   this takes precedence over `exclude_start`.
-#' @param fps Frames per second used to convert between seconds and frames when
-#'   `coded_data$metadata$fps` is unavailable.
+#' @param fps Frames per second used to convert between seconds and frames;
+#'   may be non-integer. A single number applies to all ids; a named numeric
+#'   vector or a data frame with columns `id` and `fps` sets it per id. Rates
+#'   in `coded_data$metadata$fps` take precedence (a conflicting value
+#'   warns). If neither is available it is inferred from `video_time`,
+#'   falling back to 30. `time_limit` and `exclude_start` are converted to
+#'   frames separately for each id.
 #' @param subject_names Character vector of subject labels to compare. If
 #'   `NULL`, all unique subjects in `coded_data$coding` are used.
 #' @param exclude_emotions Character vector of emotions to exclude from the
@@ -50,7 +55,7 @@ reaction_rate <- function(
   constraint_method = "episode",
   exclude_start = 0.1,
   exclude_start_frames = NULL,
-  fps = 30L,
+  fps = NULL,
   subject_names = NULL,
   exclude_emotions = "neutral",
   minimum_threshold = 0
@@ -127,7 +132,7 @@ reaction_rate_by_episode <- function(
   constraint_method = "episode",
   exclude_start = 0.1,
   exclude_start_frames = NULL,
-  fps = 30L,
+  fps = NULL,
   subject_names = NULL,
   exclude_emotions = "neutral",
   minimum_threshold = 0

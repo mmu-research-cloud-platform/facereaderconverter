@@ -14,7 +14,19 @@
 #'   column. It no longer controls episode boundaries. Default: 0.1.
 #' @param min_dur_sec numeric Minimum episode duration (in seconds). Default: 0.1.
 #' @param consecutive_missing integer Maximum allowed consecutive missing (NA) frames while in-state before forcing episode end. Default: 150L.
-#' @param fps integer Frames per second (sampling rate of the data). Default: 30L.
+#' @param fps Frames per second (sampling rate of the data); may be
+#'   non-integer (e.g. 29.97). A single number applies to all ids; a named
+#'   numeric vector or a data frame with columns \code{id} and \code{fps} sets
+#'   it per \code{id}. Used only for ids whose rate is not already stored in
+#'   metadata (a warning is issued on conflict). If omitted, the rate is
+#'   inferred from \code{video_time} (see \code{\link{infer_fps}}), falling back
+#'   to 30. Data returned by \code{loadFRfile()} and the \code{convertFR*}
+#'   functions carry the frame rate from the file header (as an
+#'   \code{fr_metadata} attribute) and this is used before \code{fps}; supply
+#'   \code{fps} only when the file has no frame rate. (Combining several files
+#'   with e.g. \code{rbind()} drops the attribute; use
+#'   \code{convert_directory_to_episodes()} for mixed rates.) A single shared rate is stored in \code{metadata$fps} as a scalar;
+#'   mixed rates are stored as a table with columns \code{id} and \code{fps}.
 #' @param cores integer Number of threads to use. Default 0 is auto.
 #' @return A list with four elements:
 #' \describe{
@@ -47,11 +59,14 @@ convert_to_episodes <- function(
   delta_window = 0.2,
   min_dur_sec = 0.1,
   consecutive_missing = 150L,
-  fps = 30L,
+  fps = NULL,
   cores = 0L
 ) {
   if (is_fr_coding(coding_df)) {
+    source_obj <- coding_df
     coding_df <- data.table::copy(coding_df$coding)
+  } else {
+    source_obj <- NULL
   }
 
   # --- Multithreading ---
@@ -66,7 +81,12 @@ convert_to_episodes <- function(
     is.numeric(x) && is_scalar(x) && abs(x - round(x)) < .Machine$double.eps^0.5
   }
 
-  if (!is_whole(fps) || fps <= 0) {
+  if (
+    is.numeric(fps) &&
+      length(fps) == 1L &&
+      is.null(names(fps)) &&
+      (!is.finite(fps) || fps <= 0)
+  ) {
     stop("`fps` must be a positive integer scalar.")
   }
   if (
@@ -118,8 +138,18 @@ convert_to_episodes <- function(
   dt <- data.table::as.data.table(coding_df)
   is_long <- all(c("emotion", "value") %in% names(dt))
   delta_threshold <- delta
-  k <- as.integer(round(delta_window * fps))
-  min_len <- as.integer(ceiling(min_dur_sec * fps))
+
+  # fps per id: stored metadata, then `fps`, then inferred from time stamps,
+  # then 30. Rounding to whole frames happens only where an integer is needed.
+  fps_tbl <- resolve_fr_fps(
+    value = fps,
+    x = source_obj,
+    ids = dt$id,
+    data = if ("video_time" %in% names(dt)) dt else NULL,
+    inherited = fr_inherited_fps(coding_df)
+  )
+  lag_k <- function(f) as.integer(round(delta_window * f))
+  min_len_for <- function(f) as.integer(ceiling(min_dur_sec * f))
 
   if ("video_time" %in% names(dt)) {
     duplicate_by <- c("id", "subject", "video_time")
@@ -148,7 +178,12 @@ convert_to_episodes <- function(
     if (!"video_time" %in% names(dt)) {
       stop("Need either 'frame' or 'video_time' column.")
     }
-    dt[, frame := parse_time_to_frame(video_time, fps = fps)]
+    dt[,
+      frame := parse_time_to_frame(
+        video_time,
+        fps = fps_for_ids(id, fps_tbl)
+      )
+    ]
   }
 
   if (!is_long) {
@@ -173,11 +208,12 @@ convert_to_episodes <- function(
   }
 
   data.table::setkey(dt, id, subject, emotion, frame)
+  dt[, fps_row := fps_for_ids(id, fps_tbl)]
   if ("delta" %in% names(dt)) {
     dt[, delta := NULL]
   }
   dt[,
-    delta := all_deltas(value, k, delta_threshold),
+    delta := all_deltas(value, lag_k(fps_row[1L]), delta_threshold),
     by = .(id, subject, emotion)
   ]
 
@@ -188,11 +224,11 @@ convert_to_episodes <- function(
   dt[,
     state := hysteresis_state(
       value,
-      k,
+      lag_k(fps_row[1L]),
       T_up,
       T_down,
       delta_threshold,
-      min_len,
+      min_len_for(fps_row[1L]),
       consecutive_missing
     ),
     by = .(id, subject, emotion)
@@ -258,10 +294,11 @@ convert_to_episodes <- function(
   data.table::setorder(episodes, id, subject, emotion, start_frame)
   episodes[, run_id := as.integer(.I)]
   episodes[, n_frames := as.integer(end_frame - start_frame + 1L)]
-  episodes[, duration_s := n_frames / fps]
+  episodes[, fps_row := fps_for_ids(id, fps_tbl)]
+  episodes[, duration_s := n_frames / fps_row]
 
   if (nrow(episodes) > 0L) {
-    episodes <- episodes[n_frames >= min_len]
+    episodes <- episodes[n_frames >= min_len_for(fps_row)]
   }
   if (!"max_value" %in% names(episodes)) {
     episodes[, max_value := numeric()]
@@ -276,7 +313,7 @@ convert_to_episodes <- function(
       start_row <- rep(NA_integer_, .N)
       if (length(hit) > 0L) {
         for (hit_idx in hit) {
-          window <- seq.int(max(1L, hit_idx - k), hit_idx)
+          window <- seq.int(max(1L, hit_idx - lag_k(fps_row[1L])), hit_idx)
           valid <- window[!is.na(value[window])]
           if (length(valid) > 0L) {
             min_idx <- valid[[which.min(value[valid])]]
@@ -350,16 +387,23 @@ convert_to_episodes <- function(
   deltas[, n_frames := as.integer(end_frame - start_frame + 1L)]
   deltas <- deltas[n_frames > 1L]
   deltas[, delta_id := as.integer(.I)]
-  deltas[, duration_s := n_frames / fps]
-  deltas[,
-    max_delta := max_delta_ranges(
-      dt$value,
-      start_row,
-      end_row,
-      group_start_row,
-      k
-    )
-  ]
+  deltas[, fps_row := fps_for_ids(id, fps_tbl)]
+  deltas[, duration_s := n_frames / fps_row]
+  deltas[, max_delta := NA_real_]
+  deltas[, k_row := lag_k(fps_row)]
+  for (k_value in unique(deltas$k_row)) {
+    rows <- which(deltas$k_row == k_value)
+    deltas[
+      rows,
+      max_delta := max_delta_ranges(
+        dt$value,
+        start_row,
+        end_row,
+        group_start_row,
+        k_value
+      )
+    ]
+  }
 
   dt[, `:=`(
     status = NA_integer_,
@@ -461,13 +505,16 @@ convert_to_episodes <- function(
     "status",
     "in_state"
   ))
+  # A single shared rate stays a scalar (compatible with older objects);
+  # mixed rates are stored as a per-id table
+  fps_meta <- fps_to_metadata(fps_tbl)
   fr_coding(
     coding = dt[, .SD, .SDcols = coding_cols],
     episodes = episodes,
     deltas = deltas,
     metadata = list(
       schema_version = 1L,
-      fps = as.integer(fps),
+      fps = fps_meta,
       consecutive_missing = consecutive_missing,
       delta = delta_threshold,
       delta_window = delta_window,

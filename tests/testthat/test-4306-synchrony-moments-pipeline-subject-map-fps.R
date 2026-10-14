@@ -47,14 +47,14 @@ test_that("pipeline subject map overrides export participant names", {
   expect_equal(result$videos$participant2, "mapped-teen")
 })
 
-test_that("XLSX frame-rate metadata is rounded to an integer", {
+test_that("XLSX frame-rate metadata keeps a non-integer rate", {
   metadata <- data.frame(
     V1 = "Frame rate",
     V2 = "29.97",
     stringsAsFactors = FALSE
   )
 
-  expect_equal(synchrony_fr_xlsx_fps(metadata), 30)
+  expect_equal(synchrony_fr_xlsx_fps(metadata), 29.97)
 })
 
 test_that("pipeline skips videos when export frame rates disagree", {
@@ -81,7 +81,7 @@ test_that("pipeline skips videos when export frame rates disagree", {
   expect_length(result$results, 0L)
 })
 
-test_that("pipeline inherits rounded frame rate from export metadata", {
+test_that("pipeline inherits the unrounded frame rate from export metadata", {
   root <- tempfile("synchrony-pipeline-fps-")
   dir.create(root)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
@@ -99,6 +99,6 @@ test_that("pipeline inherits rounded frame rate from export metadata", {
 
   result <- synchrony_moments_pipeline(root)
 
-  expect_equal(result$videos$fps, 30)
-  expect_equal(result$results[[1]]$coded_data$metadata$fps, 30L)
+  expect_equal(result$videos$fps, 29.97)
+  expect_equal(result$results[[1]]$coded_data$metadata$fps, 29.97)
 })

@@ -66,7 +66,7 @@ test_that("merge_episodes keeps run_id and delta_id unique", {
 test_that("merge_episodes errors on metadata mismatch", {
   a <- make_part(9001)
   b <- make_part(9002)
-  b$metadata$fps <- 30L
+  b$metadata$T_up <- 0.5
 
   expect_error(merge_episodes(list(a, b)), "Metadata mismatch")
 })
