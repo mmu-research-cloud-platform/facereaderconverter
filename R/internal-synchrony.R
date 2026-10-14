@@ -6,15 +6,13 @@ prepare_synchrony_inputs <- function(
   time_limit = 3,
   time_limit_frames = NULL,
   constraint_method = "episode",
-  fps = 30L,
+  fps = NULL,
   missing_threshold = 0,
   exclude_emotions = "neutral"
 ) {
   is_scalar <- function(x) {
     length(x) == 1L && !is.na(x)
   }
-
-  fps <- resolve_fr_metadata(fps, coded_data, "fps", default = 30L)
 
   if (
     !is.list(coded_data) ||
@@ -27,9 +25,32 @@ prepare_synchrony_inputs <- function(
     )
   }
 
-  if (!is.numeric(fps) || !is_scalar(fps) || fps <= 0) {
+  if (
+    is.numeric(fps) &&
+      length(fps) == 1L &&
+      is.null(names(fps)) &&
+      (!is.finite(fps) || fps <= 0)
+  ) {
     stop("`fps` must be a positive numeric scalar.", call. = FALSE)
   }
+  if (!is.null(fps) && !is.numeric(fps) && !is.data.frame(fps)) {
+    stop("`fps` must be a positive numeric scalar.", call. = FALSE)
+  }
+  if (!is.null(id) && is.character(id) && id %in% names(coded_data$coding)) {
+    fps_ids <- coded_data$coding[[id]]
+  } else {
+    fps_ids <- coded_data$coding$id
+  }
+  fps_tbl <- resolve_fr_fps(
+    fps,
+    x = coded_data,
+    ids = fps_ids,
+    data = fps_inference_data(
+      coded_data$coding,
+      id = if (id %in% names(coded_data$coding)) id else "id",
+      subject = subject
+    )
+  )
   if (
     !is.null(time_limit) &&
       (!is.numeric(time_limit) || !is_scalar(time_limit) || time_limit <= 0)
@@ -125,11 +146,12 @@ prepare_synchrony_inputs <- function(
     data.table::as.data.table(data.table::copy(episodes))
   }
   if (!"frame" %in% names(coding)) {
+    row_fps <- fps_for_ids(coding[[id]], fps_tbl)
     coding[,
       frame := if (is.numeric(video_time)) {
         as.integer(video_time)
       } else {
-        parse_time_to_frame(video_time, fps = fps)
+        parse_time_to_frame(video_time, fps = row_fps)
       }
     ]
   }
@@ -259,10 +281,13 @@ prepare_synchrony_inputs <- function(
   } else if (is.null(time_limit) || is.infinite(time_limit)) {
     Inf
   } else {
-    as.integer(round(time_limit * fps))
+    # Scalar when all ids agree, otherwise integer limits named by id
+    seconds_to_frames_by_id(time_limit, coding$id, fps_tbl)
   }
   if (
-    constraint_method %in% c("loose", "frames") && is.infinite(limit_frames)
+    constraint_method %in%
+      c("loose", "frames") &&
+      any(is.infinite(limit_frames))
   ) {
     stop(
       paste0(
@@ -349,11 +374,7 @@ build_synchrony_episode_table <- function(inputs) {
     return(empty_episode_result)
   }
   denominator_episodes[,
-    limit_end := if (is.infinite(limit_frames)) {
-      Inf
-    } else {
-      start_frame + limit_frames - 1L
-    }
+    limit_end := start_frame + frames_for_ids(id, limit_frames) - 1L
   ]
   denominator_episodes[,
     constraint_end := if (constraint_method == "strict") {

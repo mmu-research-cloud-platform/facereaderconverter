@@ -8,7 +8,7 @@ add_delta_column(
   coding,
   delta = 0.1,
   delta_window = 0.2,
-  fps = 30L,
+  fps = NULL,
   cores = 0L
 )
 }
@@ -20,7 +20,11 @@ video_time), value, or an \code{fr_coding} object.}
 
 \item{delta_window}{Window size in seconds.}
 
-\item{fps}{Frames per second.}
+\item{fps}{Frames per second; may be non-integer. A single number applies
+to all ids, a named numeric vector or a data frame with columns \code{id} and
+\code{fps} sets it per id. Rates stored in an \code{fr_coding} object's metadata
+take precedence (a conflicting value warns). If omitted, it is inferred
+from \code{video_time}, falling back to 30.}
 
 \item{cores}{integer Number of threads to use. Default 0 is auto.}
 }

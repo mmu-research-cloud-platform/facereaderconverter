@@ -7,7 +7,11 @@
 #'   video_time), value, or an `fr_coding` object.
 #' @param delta Threshold for both up and down.
 #' @param delta_window Window size in seconds.
-#' @param fps Frames per second.
+#' @param fps Frames per second; may be non-integer. A single number applies
+#'   to all ids, a named numeric vector or a data frame with columns `id` and
+#'   `fps` sets it per id. Rates stored in an `fr_coding` object's metadata
+#'   take precedence (a conflicting value warns). If omitted, it is inferred
+#'   from `video_time`, falling back to 30.
 #' @param cores integer Number of threads to use. Default 0 is auto.
 #' @return coding_df with a `delta` column where 1 means up and 0 means down.
 #' @examples
@@ -27,7 +31,7 @@ add_delta_column <- function(
   coding,
   delta = 0.1,
   delta_window = 0.2,
-  fps = 30L,
+  fps = NULL,
   cores = 0L
 ) {
   .Deprecated("convert_to_episodes", package = "facereaderconverter")
@@ -37,17 +41,20 @@ add_delta_column <- function(
   data.table::setDTthreads(threads = cores)
 
   is_scalar <- function(x) length(x) == 1 && !is.na(x)
-  is_whole <- function(x) {
-    is.numeric(x) && is_scalar(x) && abs(x - round(x)) < .Machine$double.eps^0.5
-  }
   stopifnot(requireNamespace("data.table"))
   if (is_fr_coding(coding)) {
+    source_obj <- coding
     coding_df <- coding$coding
-    fps <- resolve_fr_metadata(fps, coding, "fps", default = 30L)
   } else {
+    source_obj <- NULL
     coding_df <- coding
   }
-  if (!is_whole(fps) || fps <= 0) {
+  if (
+    is.numeric(fps) &&
+      length(fps) == 1L &&
+      is.null(names(fps)) &&
+      (!is.finite(fps) || fps <= 0)
+  ) {
     stop("`fps` must be a positive integer scalar.")
   }
   if (
@@ -75,11 +82,19 @@ add_delta_column <- function(
   }
   requireNamespace("data.table")
   dt <- data.table::as.data.table(coding_df)
+  fps_tbl <- resolve_fr_fps(
+    fps,
+    x = source_obj,
+    ids = dt$id,
+    data = fps_inference_data(dt)
+  )
   if (!"frame" %in% names(dt)) {
     if (!"video_time" %in% names(dt)) {
       stop("Need either 'frame' or 'video_time' column.")
     }
-    dt[, frame := parse_time_to_frame(video_time, fps = fps)]
+    dt[,
+      frame := parse_time_to_frame(video_time, fps = fps_for_ids(id, fps_tbl))
+    ]
   }
 
   has_duplicate_frame <- dt[,
@@ -104,11 +119,17 @@ add_delta_column <- function(
       )
     }
   }
-  k <- as.integer(round(delta_window * fps))
   if ("delta" %in% names(dt)) {
     dt[, delta := NULL]
   }
-  dt[, delta := all_deltas(value, k, delta), by = .(id, subject, emotion)]
+  dt[,
+    delta := all_deltas(
+      value,
+      as.integer(round(delta_window * fps_for_ids(id[[1L]], fps_tbl))),
+      delta
+    ),
+    by = .(id, subject, emotion)
+  ]
   dt
 }
 
@@ -135,7 +156,7 @@ delta <- function(
   coding,
   delta = 0.1,
   delta_window = 0.2,
-  fps = 30L,
+  fps = NULL,
   cores = 0L
 ) {
   .Deprecated("convert_to_episodes", package = "facereaderconverter")

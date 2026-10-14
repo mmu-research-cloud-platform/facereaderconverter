@@ -4,12 +4,16 @@
 \alias{locf}
 \title{Apply LOCF and Extract Episodes}
 \usage{
-locf(coding, fps = 30, consecutive_missing = NULL)
+locf(coding, fps = NULL, consecutive_missing = NULL)
 }
 \arguments{
 \item{coding}{A datatable, dataframe or fr_coding object as returned by \code{convert_to_episodes}, containing columns: \code{id}, \code{subject}, \code{emotion}, \code{video_time}, \code{value}, and \code{run_id}.}
 
-\item{fps}{Frames per second (sampling rate of the data). Default: 30L or inherited from an fr_coding object}
+\item{fps}{Frames per second; may be non-integer. A single number applies
+to all ids, a named numeric vector or a data frame with columns \code{id} and
+\code{fps} sets it per id. Rates inherited from an fr_coding object take
+precedence (a conflicting value warns). If omitted and not inherited, it
+is inferred from \code{video_time}, falling back to 30.}
 
 \item{consecutive_missing}{Maximum allowed consecutive missing (NA) frames while in-state before forcing episode end. Default: 150L or inherited from an fr_coding object}
 }

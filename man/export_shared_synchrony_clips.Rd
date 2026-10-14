@@ -25,7 +25,10 @@ export_shared_synchrony_clips(
 )
 }
 \arguments{
-\item{coded_data}{A converted \code{fr_coding} object with \code{metadata$fps}.}
+\item{coded_data}{A converted \code{fr_coding} object with \code{metadata$fps}. The
+frame rate may be a single number (applied to every id) or a table with
+one rate per \code{id}, in which case buffers, clip limits and start times are
+computed with each clip's own rate. Non-integer rates are allowed.}
 
 \item{shared_synchrony}{A table returned by \code{\link[=shared_synchronous_episodes]{shared_synchronous_episodes()}}.}
 

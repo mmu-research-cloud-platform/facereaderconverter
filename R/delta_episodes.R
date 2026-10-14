@@ -1,7 +1,11 @@
 #' Add create delta episodes
 #'
 #' @param coding Data frame with columns: id, subject, emotion, frame (or video_time), value, or an `fr_coding` object
-#' @param fps Frames per second
+#' @param fps Frames per second; may be non-integer. A single number applies
+#'   to all ids, a named numeric vector or a data frame with columns `id` and
+#'   `fps` sets it per id. Rates stored in an `fr_coding` object's metadata
+#'   take precedence (a conflicting value warns). If omitted, it is inferred
+#'   from `video_time`, falling back to 30.
 #' @param cores integer Number of threads to use. Default 0 is auto.
 #' @return episodes data.table of detected episodes with columns \code{start_frame}, \code{end_frame},\code{start_time}, \code{end_time}, \code{n_frames}, \code{duration_s}, \code{id}, \code{subject}, \code{emotion}, and \code{run_id}.
 #' @examples
@@ -21,14 +25,14 @@
 #'
 delta_episodes <- function(
   coding,
-  fps = 30L,
+  fps = NULL,
   cores = 0L
 ) {
   old_threads <- data.table::getDTthreads()
   on.exit(data.table::setDTthreads(old_threads), add = TRUE)
   data.table::setDTthreads(threads = cores)
   metadata <- get_fr_metadata(coding)
-  fps <- resolve_fr_metadata(fps, coding, "fps", default = 30L)
+  source_obj <- if (is_fr_coding(coding)) coding else NULL
   if (is_fr_coding(coding)) {
     coding <- data.table::copy(coding$coding)
   }
@@ -36,6 +40,12 @@ delta_episodes <- function(
     stop("`delta` column required")
   }
   dt <- setDT(coding)
+  fps_tbl <- resolve_fr_fps(
+    fps,
+    x = source_obj,
+    ids = dt$id,
+    data = fps_inference_data(dt)
+  )
   dt[, delta_run := data.table::rleid(delta), by = .(id, subject, emotion)]
 
   episodes <- dt[
@@ -46,7 +56,7 @@ delta_episodes <- function(
       start_time = first(video_time),
       end_time = last(video_time),
       n_frames = .N,
-      duration_s = .N / fps
+      duration_s = .N / fps_for_ids(first(id), fps_tbl)
     ),
     by = .(id, subject, emotion, delta_run)
   ]
@@ -94,13 +104,13 @@ delta_episodes <- function(
     ]
 
     episodes[n_map, on = "run_id", n := i.n]
-    episodes[, duration_s := n / fps]
+    episodes[, duration_s := n / fps_for_ids(id, fps_tbl)]
   }
 
   episodes[, `:=`(
     n_frames = as.integer(end_frame - start_frame + 1L)
   )]
-  episodes[, duration_s := n_frames / fps]
+  episodes[, duration_s := n_frames / fps_for_ids(id, fps_tbl)]
 
   if ("n" %in% names(episodes)) {
     episodes[, n := NULL]

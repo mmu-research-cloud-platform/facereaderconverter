@@ -1,8 +1,11 @@
 #' Convert a directory of detailed FaceReader exports to episodes
 #'
 #' Recursively loads detailed TXT and XLSX exports, combines their emotion
-#' values, and calls [convert_to_episodes()] once. Processed exports must have
-#' the same valid frame rate in their metadata (rounded to an integer). State
+#' values, and calls [convert_to_episodes()] once. Each export's frame rate is
+#' inherited from its header (non-integer rates such as 29.97 are kept) and
+#' stored per `id` in `metadata$fps`; frame rates may differ between ids but
+#' exports that resolve to the same `id` must agree. When a header has no
+#' usable frame rate it is inferred from the time stamps with [infer_fps()]. State
 #' exports are ignored. Returns the combined result in memory and saves it
 #' as `coded_data` in one `.RDa` file.
 #'
@@ -168,7 +171,13 @@ convert_directory_to_episodes <- function(
   inputs <- list()
   accepted_files <- character()
   accepted_groups <- character()
-  shared_fps <- NULL
+  accepted_fps <- data.frame(
+    id = character(),
+    fps = numeric(),
+    file = character(),
+    source = character(),
+    stringsAsFactors = FALSE
+  )
   detailed_found <- FALSE
   non_detailed_count <- 0L
   failed_count <- 0L
@@ -180,25 +189,13 @@ convert_directory_to_episodes <- function(
         return(NULL)
       }
       detailed_found <<- TRUE
+      # Inherit the frame rate from the file header; if the file has none it is
+      # inferred from the time stamps once the data are loaded.
       fps <- header$fps
-      if (
-        length(fps) != 1L || !is.finite(fps) || fps <= 0 || fps != round(fps)
-      ) {
-        stop("Invalid or missing frame rate in: ", file, call. = FALSE)
-      }
-      if (!is.null(shared_fps) && fps != shared_fps) {
-        stop(
-          "Conflicting frame rates in: ",
-          accepted_files[[1L]],
-          " (",
-          shared_fps,
-          " FPS), ",
-          file,
-          " (",
-          fps,
-          " FPS)",
-          call. = FALSE
-        )
+      fps_source <- "header"
+      if (length(fps) != 1L || !is.finite(fps) || fps <= 0) {
+        fps <- NA_real_
+        fps_source <- "inferred"
       }
       media_filename <- header$video_filename
       media_name <- fr_media_id(media_filename)
@@ -234,19 +231,29 @@ convert_directory_to_episodes <- function(
       if (is.na(subject) || !nzchar(subject)) {
         stop("Subject pattern did not match: ", file, call. = FALSE)
       }
-      group <- if (!is.na(id)) paste(id, subject, sep = "\r") else NULL
-      if (!is.null(group) && group %in% accepted_groups) {
+      group <- paste(id, subject, sep = "\r")
+      if (group %in% accepted_groups) {
         duplicate <- accepted_files[match(group, accepted_groups)]
         stop(
-          "Multiple exports resolve to the same ID and subject: ",
-          duplicate,
-          ", ",
-          file,
-          call. = FALSE
+          structure(
+            class = c("fr_duplicate_export_error", "error", "condition"),
+            list(
+              message = paste0(
+                "Multiple exports resolve to the same ID and subject: ",
+                duplicate,
+                ", ",
+                file
+              ),
+              call = NULL
+            )
+          )
         )
       }
       data <- loadFRfile(file, values_as_numeric = TRUE, clean_names = TRUE)
       if (is.null(data) || !"video_time" %in% names(data)) {
+        if (is.na(fps)) {
+          stop("Invalid or missing frame rate in: ", file, call. = FALSE)
+        }
         stop(
           "Missing detailed coding or video time in: ",
           file,
@@ -267,20 +274,65 @@ convert_directory_to_episodes <- function(
       if (!length(columns)) {
         stop("No emotion columns in: ", file, call. = FALSE)
       }
+      input <- data.frame(
+        id = id,
+        subject = subject,
+        video_time = data$video_time,
+        data[, columns, drop = FALSE],
+        check.names = FALSE
+      )
+      if (is.na(fps)) {
+        inferred <- suppressWarnings(infer_fps(input))
+        fps <- inferred$fps[[1L]]
+        if (length(fps) != 1L || !is.finite(fps) || fps <= 0) {
+          stop("Invalid or missing frame rate in: ", file, call. = FALSE)
+        }
+      }
+      # Frame rates only have to agree within one id (one video)
+      same_id <- if (is.na(id)) {
+        is.na(accepted_fps$id)
+      } else {
+        !is.na(accepted_fps$id) & accepted_fps$id == as.character(id)
+      }
+      if (any(same_id)) {
+        first <- accepted_fps[which(same_id)[[1L]], ]
+        tolerance <- if (
+          identical(fps_source, "header") &&
+            identical(first$source, "header")
+        ) {
+          1e-8
+        } else {
+          0.005
+        }
+        if (abs(fps - first$fps) / first$fps > tolerance) {
+          stop(
+            "Conflicting frame rates in: ",
+            first$file,
+            " (",
+            format(first$fps),
+            " FPS), ",
+            file,
+            " (",
+            format(fps),
+            " FPS)",
+            call. = FALSE
+          )
+        }
+      }
       list(
-        input = data.frame(
-          id = id,
-          subject = subject,
-          video_time = data$video_time,
-          data[, columns, drop = FALSE],
-          check.names = FALSE
-        ),
+        input = input,
         fps = fps,
+        fps_source = fps_source,
+        id = if (is.na(id)) NA_character_ else as.character(id),
         group = group
       )
     }
     processed <- if (skip_fails) {
       tryCatch(process_file(), error = function(error) {
+        # Duplicate ID/subject pairs would collide in the output, so never skip them
+        if (inherits(error, "fr_duplicate_export_error")) {
+          stop(error)
+        }
         failed_count <<- failed_count + 1L
         warning(
           "Skipping FaceReader export ",
@@ -303,7 +355,16 @@ convert_directory_to_episodes <- function(
       accepted_groups,
       if (is.null(processed$group)) NA_character_ else processed$group
     )
-    shared_fps <- processed$fps
+    accepted_fps <- rbind(
+      accepted_fps,
+      data.frame(
+        id = processed$id,
+        fps = processed$fps,
+        file = file,
+        source = processed$fps_source,
+        stringsAsFactors = FALSE
+      )
+    )
   }
   message(
     "Processed ",
@@ -325,6 +386,8 @@ convert_directory_to_episodes <- function(
     )
   }
   coding_input <- dplyr::bind_rows(inputs)
+  # One rate per id, inherited from each file's header (or inferred)
+  fps_table <- accepted_fps[!duplicated(accepted_fps$id), c("id", "fps")]
   coded_data <- convert_to_episodes(
     coding_input,
     T_up = T_up,
@@ -333,7 +396,7 @@ convert_directory_to_episodes <- function(
     delta_window = delta_window,
     min_dur_sec = min_dur_sec,
     consecutive_missing = consecutive_missing,
-    fps = as.integer(shared_fps),
+    fps = fps_table,
     cores = cores
   )
   output_dir <- dirname(outpath)

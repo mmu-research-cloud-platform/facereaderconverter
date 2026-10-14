@@ -11,7 +11,7 @@ synchrony(
   time_limit = 3,
   time_limit_frames = NULL,
   constraint_method = "episode",
-  fps = 30L,
+  fps = NULL,
   missing_threshold = 0,
   exclude_emotions = "neutral",
   episodes = NULL
@@ -37,8 +37,13 @@ If supplied, this takes precedence over \code{time_limit}.}
 ends: \code{"strict"}, \code{"episode"}, \code{"loose"}, or \code{"frames"}. Default is
 \code{"episode"}.}
 
-\item{fps}{Frames per second used to convert \code{time_limit} to frames.
-Default is \code{30}.}
+\item{fps}{Frames per second used to convert \code{time_limit} to frames; may be
+non-integer. A single number applies to all ids; a named numeric vector
+or a data frame with columns \code{id} and \code{fps} sets it per id. Rates stored
+in \code{coded_data$metadata$fps} take precedence (a conflicting value
+warns). If neither is available it is inferred from \code{video_time},
+falling back to 30. \code{time_limit} is converted to frames separately for
+each id.}
 
 \item{missing_threshold}{Numeric scalar in \verb{[0, 1]}. Denominator and numerator episodes are
 kept only when the comparison subject is present for at least this

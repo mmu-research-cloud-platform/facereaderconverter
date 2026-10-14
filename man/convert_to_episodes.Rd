@@ -12,7 +12,7 @@ convert_to_episodes(
   delta_window = 0.2,
   min_dur_sec = 0.1,
   consecutive_missing = 150L,
-  fps = 30L,
+  fps = NULL,
   cores = 0L
 )
 }
@@ -38,7 +38,19 @@ column. It no longer controls episode boundaries. Default: 0.1.}
 
 \item{consecutive_missing}{integer Maximum allowed consecutive missing (NA) frames while in-state before forcing episode end. Default: 150L.}
 
-\item{fps}{integer Frames per second (sampling rate of the data). Default: 30L.}
+\item{fps}{Frames per second (sampling rate of the data); may be
+non-integer (e.g. 29.97). A single number applies to all ids; a named
+numeric vector or a data frame with columns \code{id} and \code{fps} sets
+it per \code{id}. Used only for ids whose rate is not already stored in
+metadata (a warning is issued on conflict). If omitted, the rate is
+inferred from \code{video_time} (see \code{\link{infer_fps}}), falling back
+to 30. Data returned by \code{loadFRfile()} and the \code{convertFR*}
+functions carry the frame rate from the file header (as an
+\code{fr_metadata} attribute) and this is used before \code{fps}; supply
+\code{fps} only when the file has no frame rate. (Combining several files
+with e.g. \code{rbind()} drops the attribute; use
+\code{convert_directory_to_episodes()} for mixed rates.) A single shared rate is stored in \code{metadata$fps} as a scalar;
+mixed rates are stored as a table with columns \code{id} and \code{fps}.}
 
 \item{cores}{integer Number of threads to use. Default 0 is auto.}
 }

@@ -13,8 +13,12 @@
 #'   offset for each subsequent object so they stay unique, and remain
 #'   consistent between \code{coding}, \code{episodes} and \code{deltas}.
 #' @details An error is thrown if the metadata of the objects differ in any
-#'   way, or if any \code{subject}, \code{id}, \code{emotion} combination
-#'   occurs in more than one object.
+#'   way other than frame rate, or if any \code{subject}, \code{id},
+#'   \code{emotion} combination occurs in more than one object. Frame rates
+#'   (\code{metadata$fps}) are combined per \code{id}: objects may use
+#'   different rates for different ids and the result stores a per-id table (or
+#'   a single value when all ids share one rate), but an error is thrown if the
+#'   same \code{id} has different rates in different objects.
 #' @examples
 #' \dontrun{
 #' a <- convert_to_episodes(coding_a)
@@ -62,10 +66,16 @@ merge_episodes <- function(x, envir = parent.frame()) {
     )
   }
 
+  # fps is merged per id below; everything else must be identical
   metadata <- get_fr_metadata(objs[[1L]])
+  without_fps <- function(o) {
+    m <- get_fr_metadata(o)
+    m$fps <- NULL
+    m
+  }
   same <- vapply(
     objs[-1L],
-    function(o) identical(get_fr_metadata(o), metadata),
+    function(o) identical(without_fps(o), without_fps(objs[[1L]])),
     logical(1)
   )
   if (!all(same)) {
@@ -76,6 +86,55 @@ merge_episodes <- function(x, envir = parent.frame()) {
       ),
       call. = FALSE
     )
+  }
+
+  fps_tables <- lapply(seq_along(objs), function(i) {
+    o <- objs[[i]]
+    stored <- get_fr_metadata(o)$fps
+    if (is.null(stored)) {
+      return(NULL)
+    }
+    ids <- unique(as.character(c(o$coding$id, o$episodes$id)))
+    tbl <- as_fps_table(stored, ids)
+    tbl[, object := i]
+    tbl
+  })
+  fps_tables <- data.table::rbindlist(fps_tables, use.names = TRUE)
+  if (nrow(fps_tables) > 0L) {
+    clash <- fps_tables[,
+      if (data.table::uniqueN(fps) > 1L) {
+        list(
+          rates = paste(format(unique(fps)), collapse = ", "),
+          objects = toString(object)
+        )
+      },
+      by = id
+    ]
+    if (nrow(clash) > 0L) {
+      shown <- utils::head(clash, 5L)
+      stop(
+        paste0(
+          "Conflicting frame rates for the same id across objects: ",
+          paste(
+            sprintf(
+              "id=%s (%s FPS; objects %s)",
+              shown$id,
+              shown$rates,
+              shown$objects
+            ),
+            collapse = "; "
+          ),
+          if (nrow(clash) > 5L) {
+            sprintf(" ... and %d more", nrow(clash) - 5L)
+          } else {
+            ""
+          }
+        ),
+        call. = FALSE
+      )
+    }
+    merged_fps <- unique(fps_tables[, list(id, fps)])
+    metadata$fps <- fps_to_metadata(merged_fps)
   }
 
   keys <- lapply(seq_along(objs), function(i) {

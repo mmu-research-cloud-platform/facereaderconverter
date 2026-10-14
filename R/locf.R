@@ -3,7 +3,11 @@
 #' Applies Last Observation Carried Forward (LOCF) logic to the `coding` data.table (from `convert_to_episodes`), imputing missing `run_id` values within blocks of non-missing `value`, grouped by `id`, `subject`, and `emotion`. Returns both the imputed coding table and a summary of contiguous episodes.
 #'
 #' @param coding A datatable, dataframe or fr_coding object as returned by `convert_to_episodes`, containing columns: `id`, `subject`, `emotion`, `video_time`, `value`, and `run_id`.
-#' @param fps Frames per second (sampling rate of the data). Default: 30L or inherited from an fr_coding object
+#' @param fps Frames per second; may be non-integer. A single number applies
+#'   to all ids, a named numeric vector or a data frame with columns `id` and
+#'   `fps` sets it per id. Rates inherited from an fr_coding object take
+#'   precedence (a conflicting value warns). If omitted and not inherited, it
+#'   is inferred from `video_time`, falling back to 30.
 #' @param consecutive_missing Maximum allowed consecutive missing (NA) frames while in-state before forcing episode end. Default: 150L or inherited from an fr_coding object
 #' @return A list with four elements:
 #'   \describe{
@@ -14,11 +18,11 @@
 #'   }
 #' @import data.table
 #' @export
-locf <- function(coding, fps = 30, consecutive_missing = NULL) {
+locf <- function(coding, fps = NULL, consecutive_missing = NULL) {
   stopifnot(requireNamespace("data.table"))
   if (is_fr_coding(coding)) {
     table <- coding$coding
-    fps <- resolve_fr_metadata(fps, coding, "fps", default = 30)
+    source_obj <- coding
     if (is.null(consecutive_missing)) {
       consecutive_missing <- coding$metadata$consecutive_missing
     }
@@ -26,8 +30,15 @@ locf <- function(coding, fps = 30, consecutive_missing = NULL) {
     deltas <- coding$deltas
   } else {
     table <- coding
+    source_obj <- NULL
     deltas <- NULL
   }
+  fps_tbl <- resolve_fr_fps(
+    fps,
+    x = source_obj,
+    ids = table$id,
+    data = fps_inference_data(table)
+  )
   dt_sensitivity <- data.table::copy(table)
 
   data.table::setorder(dt_sensitivity, id, subject, emotion, video_time)
@@ -70,7 +81,7 @@ locf <- function(coding, fps = 30, consecutive_missing = NULL) {
       start_time = video_time[1],
       end_time = video_time[.N],
       n_frames = .N,
-      duration_s = .N / fps,
+      duration_s = .N / fps_for_ids(first(id), fps_tbl),
       id = first(id),
       subject = first(subject),
       emotion = first(emotion),
@@ -79,7 +90,10 @@ locf <- function(coding, fps = 30, consecutive_missing = NULL) {
     by = .(id, subject, emotion, run_id)
   ][]
   if (!exists("metadata")) {
-    metadata <- list(fps = fps, consecutive_missing = consecutive_missing)
+    metadata <- list(
+      fps = fps_to_metadata(fps_tbl),
+      consecutive_missing = consecutive_missing
+    )
   } else if (!is.null(consecutive_missing)) {
     metadata$consecutive_missing <- consecutive_missing
   }

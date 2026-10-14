@@ -7,7 +7,10 @@
 #' ranges are inclusive: a range from frame 0 through frame 0 has duration
 #' `1 / fps`.
 #'
-#' @param coded_data A converted `fr_coding` object with `metadata$fps`.
+#' @param coded_data A converted `fr_coding` object with `metadata$fps`. The
+#'   frame rate may be a single number (applied to every id) or a table with
+#'   one rate per `id`, in which case buffers, clip limits and start times are
+#'   computed with each clip's own rate. Non-integer rates are allowed.
 #' @param shared_synchrony A table returned by [shared_synchronous_episodes()].
 #' @param video_paths Named character vector of source video paths. Names must
 #'   match values in the shared-synchrony `id` column.
@@ -419,10 +422,26 @@ prepare_shared_synchrony_clips <- function(
       call. = FALSE
     )
   }
-  fps <- coded_data$metadata$fps
-  if (!is.numeric(fps) || length(fps) != 1L || is.na(fps) || fps <= 0) {
-    stop("`coded_data$metadata$fps` must be a positive number.", call. = FALSE)
-  }
+  # Scalar metadata applies to every id; a table gives one rate per id.
+  # Hand-built objects may lack `coding`/`episodes`, so ids also come from the
+  # intervals themselves.
+  fps_tbl <- as_fps_table(
+    coded_data$metadata$fps,
+    ids = unique(c(
+      as.character(coded_data$coding$id),
+      as.character(coded_data$episodes$id),
+      if (is.data.frame(shared_synchrony)) as.character(shared_synchrony$id)
+    ))
+  )
+  tryCatch(
+    validate_fps_table(fps_tbl),
+    error = function(e) {
+      stop(
+        "`coded_data$metadata$fps` must hold positive numbers, one per id.",
+        call. = FALSE
+      )
+    }
+  )
   required_shared <- c(
     "id",
     "emotion",
@@ -707,19 +726,25 @@ prepare_shared_synchrony_clips <- function(
   if (length(missing_ids) > 0L) {
     stop("`video_paths` is missing one or more selected IDs.", call. = FALSE)
   }
-  frame_buffers <- if (buffer_units == "seconds") {
-    as.integer(round(buffer * fps))
+  clip_fps <- fps_for_ids(id_keys, fps_tbl)
+  # Seconds buffers are rounded to whole frames per clip, using that id's rate
+  buffer_frames_before <- if (buffer_units == "seconds") {
+    as.integer(round(buffer[["before"]] * clip_fps))
   } else {
-    as.integer(buffer)
+    rep(as.integer(buffer[["before"]]), nrow(clips))
   }
-  names(frame_buffers) <- c("before", "after")
+  buffer_frames_after <- if (buffer_units == "seconds") {
+    as.integer(round(buffer[["after"]] * clip_fps))
+  } else {
+    rep(as.integer(buffer[["after"]]), nrow(clips))
+  }
   clips[, `:=`(
     selection_rank = seq_len(.N),
     original_start_frame = as.integer(start_frame),
     original_end_frame = as.integer(end_frame),
-    start_frame = pmax(0L, as.integer(start_frame) - frame_buffers[["before"]]),
-    end_frame = as.integer(end_frame) + frame_buffers[["after"]],
-    fps = as.numeric(fps),
+    start_frame = pmax(0L, as.integer(start_frame) - buffer_frames_before),
+    end_frame = as.integer(end_frame) + buffer_frames_after,
+    fps = as.numeric(clip_fps),
     video_path = normalizePath(
       unname(video_paths[as.character(id)]),
       winslash = "/",
@@ -735,15 +760,7 @@ prepare_shared_synchrony_clips <- function(
     clips[,
       end_frame := pmin(
         end_frame,
-        as.integer(
-          ceiling(
-            video_durations[
-              video_path
-            ] *
-              fps
-          ) -
-            1L
-        )
+        as.integer(ceiling(video_durations[video_path] * fps) - 1L)
       )
     ]
   }

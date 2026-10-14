@@ -26,8 +26,12 @@ several \code{fr_coding} objects. The metadata is carried through once.
 }
 \details{
 An error is thrown if the metadata of the objects differ in any
-way, or if any \code{subject}, \code{id}, \code{emotion} combination
-occurs in more than one object.
+way other than frame rate, or if any \code{subject}, \code{id},
+\code{emotion} combination occurs in more than one object. Frame rates
+(\code{metadata$fps}) are combined per \code{id}: objects may use
+different rates for different ids and the result stores a per-id table (or
+a single value when all ids share one rate), but an error is thrown if the
+same \code{id} has different rates in different objects.
 }
 \examples{
 \dontrun{

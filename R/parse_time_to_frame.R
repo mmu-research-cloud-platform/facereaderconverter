@@ -15,6 +15,12 @@
 # parser: use existing if available, otherwise local
 
 parse_time_to_frame <- function(video_time, fps) {
+  # Round only here, after the unrounded seconds are multiplied by fps
+  as.integer(round(parse_time_to_seconds(video_time) * fps))
+}
+
+# Unrounded seconds from "HH:MM:SS(.fff)", "MM:SS(.fff)" or plain seconds.
+parse_time_to_seconds <- function(video_time) {
   video_time_chr <- as.character(video_time)
   sec <- rep(NA_real_, length(video_time_chr))
 
@@ -52,5 +58,5 @@ parse_time_to_frame <- function(video_time, fps) {
   if (any(!(has_two_colons | has_one_colon | has_no_colon))) {
     stop("Unrecognized video_time format.")
   }
-  as.integer(round(sec * fps))
+  sec
 }

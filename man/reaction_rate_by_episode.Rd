@@ -11,7 +11,7 @@ reaction_rate_by_episode(
   constraint_method = "episode",
   exclude_start = 0.1,
   exclude_start_frames = NULL,
-  fps = 30L,
+  fps = NULL,
   subject_names = NULL,
   exclude_emotions = "neutral",
   minimum_threshold = 0
@@ -42,8 +42,13 @@ start, before numerator \code{delta == 1} values count as a reaction.}
 \item{exclude_start_frames}{Optional minimum delay in frames. If supplied,
 this takes precedence over \code{exclude_start}.}
 
-\item{fps}{Frames per second used to convert between seconds and frames when
-\code{coded_data$metadata$fps} is unavailable.}
+\item{fps}{Frames per second used to convert between seconds and frames;
+may be non-integer. A single number applies to all ids; a named numeric
+vector or a data frame with columns \code{id} and \code{fps} sets it per id. Rates
+in \code{coded_data$metadata$fps} take precedence (a conflicting value
+warns). If neither is available it is inferred from \code{video_time},
+falling back to 30. \code{time_limit} and \code{exclude_start} are converted to
+frames separately for each id.}
 
 \item{subject_names}{Character vector of subject labels to compare. If
 \code{NULL}, all unique subjects in \code{coded_data$coding} are used.}

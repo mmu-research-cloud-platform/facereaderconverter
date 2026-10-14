@@ -42,7 +42,7 @@ negative_controls <- function(
   time_limit = 3,
   time_limit_frames = NULL,
   constraint_method = "episode",
-  fps = 30L,
+  fps = NULL,
   missing_threshold = 0,
   exclude_emotions = "neutral",
   max_tries = 1000L
