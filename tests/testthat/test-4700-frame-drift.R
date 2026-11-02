@@ -1,5 +1,5 @@
 TEST_DATA <- Sys.getenv("TEST_DATA")
-load(file.path(TEST_DATA, "test_data.RDa"))
+load_test_data_fixture()
 
 drift_input <- function(fps, n = 600L) {
   one <- test_coding_wide[test_coding_wide$id == 1, ][seq_len(n), ]

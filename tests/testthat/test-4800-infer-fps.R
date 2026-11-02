@@ -1,5 +1,5 @@
 TEST_DATA <- Sys.getenv("TEST_DATA")
-load(file.path(TEST_DATA, "test_data.RDa"))
+load_test_data_fixture()
 
 # Regenerate time stamps for one id at a given rate
 retime <- function(fps, n = 600L, id = 1) {

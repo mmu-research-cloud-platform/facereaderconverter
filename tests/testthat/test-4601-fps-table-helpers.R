@@ -1,5 +1,5 @@
 TEST_DATA <- Sys.getenv("TEST_DATA")
-load(file.path(TEST_DATA, "test_data.RDa"))
+load_test_data_fixture()
 
 test_that("as_fps_table expands a scalar to all ids", {
   tbl <- as_fps_table(30, ids = c("a", "b", "a"))
