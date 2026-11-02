@@ -9,6 +9,10 @@ xlsx_fixture <- file.path(
   "FR9/FR9 1218 participant_Analysis 1_video_20260910_110344_detailed.xlsx"
 )
 
+if (!file.exists(txt_fixture) || !file.exists(xlsx_fixture)) {
+  testthat::skip("The TEST_DATA FaceReader fixtures are not available.")
+}
+
 write_txt_fixture <- function(destination, fps = NULL, keep_fps_line = TRUE) {
   lines <- readLines(txt_fixture, warn = FALSE)
   if (!keep_fps_line) {

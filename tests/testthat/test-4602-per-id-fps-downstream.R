@@ -1,5 +1,5 @@
 TEST_DATA <- Sys.getenv("TEST_DATA")
-load(file.path(TEST_DATA, "test_data.RDa"))
+load_test_data_fixture()
 
 slice_ids <- function(ids = c(1, 3), n = 3000L) {
   dt <- data.table::as.data.table(test_coding_wide)[id %in% ids]
