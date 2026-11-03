@@ -25,5 +25,8 @@ test_that("reaction_rate inherits fps from fr_coding input", {
   expect_s3_class(test_data_delta, "fr_coding")
   expect_true(nrow(test_data_delta$coding) > 0)
   expect_identical(test_data_delta$metadata$fps, 30L)
-  expect_no_error(reaction_rate(test_data_delta, fps = 12L))
+  expect_warning(
+    expect_no_error(reaction_rate(test_data_delta, fps = 12L)),
+    "conflicts with stored metadata"
+  )
 })

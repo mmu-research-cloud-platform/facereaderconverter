@@ -82,13 +82,13 @@ test_that("clip export validates core counts", {
     end_frame = 1L,
     combined_value = 1
   )
-  expect_snapshot(
-    error = TRUE,
+  expect_error(
     export_shared_synchrony_clips(
       coded_data,
       shared,
       c("1" = video),
       cores = -1L
-    )
+    ),
+    "must be a non-negative whole number"
   )
 })

@@ -6,3 +6,5 @@
 ^testdata$
 ^junk$
 ^facereaderconverter_.*\.pdf$
+^\.github$
+^DEPENDENCY_TREE\.md$

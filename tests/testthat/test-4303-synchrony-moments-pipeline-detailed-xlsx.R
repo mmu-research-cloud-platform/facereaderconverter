@@ -135,14 +135,17 @@ test_that("synchrony_moments_pipeline processes two matched Brazil XLSX video pa
   output_dir <- tempfile("brazil-xlsx-clips-")
   on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
   result <- NULL
-  expect_message(
-    result <- synchrony_moments_pipeline(
-      brazil_dir,
-      output_dir = output_dir,
-      subject_from_filename = TRUE,
-      emotion = "not_an_emotion"
+  expect_warning(
+    expect_message(
+      result <- synchrony_moments_pipeline(
+        brazil_dir,
+        output_dir = output_dir,
+        subject_from_filename = TRUE,
+        emotion = "not_an_emotion"
+      ),
+      "Skipped videos without matching detailed FaceReader exports:\\n.*ID100024_side_by_side - Copy\\.mp4"
     ),
-    "Skipped videos without matching detailed FaceReader exports:\\n.*ID100024_side_by_side - Copy\\.mp4"
+    "Skipping video .*ID100024_side_by_side - Copy \\(2\\)\\.mp4"
   )
 
   expect_equal(sum(result$videos$status == "completed"), 2L)

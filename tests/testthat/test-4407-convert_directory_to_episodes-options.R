@@ -318,7 +318,7 @@ test_that("4419 multiple IDs are skipped with a warning when skip_fails is TRUE"
   expect_false(file.exists(file.path(root, "episodes.RDa")))
 })
 
-test_that("4420 duplicate ID and subject is skipped when skip_fails is TRUE", {
+test_that("4420 duplicate ID and subject errors even when skip_fails is TRUE", {
   root <- tempfile("directory-duplicate-skip-")
   dir.create(file.path(root, "nested-a"), recursive = TRUE)
   dir.create(file.path(root, "nested-b"))
@@ -326,8 +326,8 @@ test_that("4420 duplicate ID and subject is skipped when skip_fails is TRUE", {
   copy_4407_fixture(file.path(root, "nested-a", "same-a.txt"))
   copy_4407_fixture(file.path(root, "nested-b", "same-b.txt"))
 
-  expect_warning(
-    result <- convert_directory_to_episodes(
+  expect_error(
+    convert_directory_to_episodes(
       root,
       id_pattern = "#[0-9]{4}",
       subject_pattern = "same",
@@ -336,9 +336,7 @@ test_that("4420 duplicate ID and subject is skipped when skip_fails is TRUE", {
     ),
     "Multiple exports resolve to the same ID and subject.*same-a\\.txt"
   )
-  expect_equal(unique(as.character(result$coding$subject)), "same")
-  expect_equal(unique(as.character(result$coding$id)), "#8892")
-  expect_true(file.exists(file.path(root, "episodes.RDa")))
+  expect_false(file.exists(file.path(root, "episodes.RDa")))
 })
 
 test_that("4421 duplicate ID and subject errors when skip_fails is FALSE", {

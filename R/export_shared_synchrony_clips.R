@@ -264,6 +264,10 @@ export_shared_synchrony_clips <- function(
     physical_cores <- 1L
   }
   workers <- if (cores == 0L) min(4L, max(1L, physical_cores - 1L)) else cores
+  # R CMD check sets this to cap parallel workers at two
+  if (nzchar(Sys.getenv("_R_CHECK_LIMIT_CORES_"))) {
+    workers <- min(workers, 2L)
+  }
   workers <- min(as.integer(workers), nrow(manifest))
   executable <- if (nzchar(ffmpeg_path)) ffmpeg_path else ffmpeg
   clip_indices <- seq_len(nrow(manifest))

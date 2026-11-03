@@ -16,7 +16,7 @@ if (inherits(test_data_error, "error")) {
 }
 
 library(testthat)
-library(data.table)
+suppressWarnings(library(data.table))
 
 test_that("reaction-rate internals classify scalars and whole numbers", {
   expect_true(facereaderconverter:::is_reaction_rate_scalar(1))

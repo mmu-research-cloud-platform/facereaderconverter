@@ -41,11 +41,14 @@ test_that("convert_to_episodes exports complete metadata", {
 test_that("metadata fps is authoritative for synchrony results", {
   coded_data <- convert_to_episodes(test_coding, fps = 12L)
 
-  result <- synchrony_by_episode(
-    coded_data,
-    time_limit = 1,
-    fps = 30L,
-    exclude_emotions = NULL
+  expect_warning(
+    result <- synchrony_by_episode(
+      coded_data,
+      time_limit = 1,
+      fps = 30L,
+      exclude_emotions = NULL
+    ),
+    "conflicts with stored metadata"
   )
 
   expect_equal(
@@ -68,14 +71,17 @@ test_that("metadata fps is inherited by negative controls", {
   )
 
   set.seed(7349)
-  inherited <- negative_controls(
-    coded_data,
-    episodes,
-    constraint_method = "frames",
-    time_limit = 1,
-    fps = 30L,
-    exclude_emotions = NULL
-  )
+  expect_warning(expect_warning(
+    inherited <- negative_controls(
+      coded_data,
+      episodes,
+      constraint_method = "frames",
+      time_limit = 1,
+      fps = 30L,
+      exclude_emotions = NULL
+    ),
+    "conflicts with stored metadata"
+  ), "conflicts with stored metadata")
   set.seed(7349)
   explicit <- negative_controls(
     coded_data,
@@ -90,10 +96,17 @@ test_that("metadata fps is inherited by negative controls", {
 
 test_that("metadata is preserved through coded-data transformations", {
   coded_data <- convert_to_episodes(test_coding, fps = 12L)
-  locf_data <- locf(coded_data, fps = 30L)
-  delta_data <- delta_episodes(coded_data, fps = 30L)
+  expect_warning(locf_data <- locf(coded_data, fps = 30L), "conflicts")
+  expect_warning(
+    delta_data <- delta_episodes(coded_data, fps = 30L),
+    "conflicts"
+  )
 
   expect_identical(locf_data$metadata$fps, 12L)
   expect_true(is.data.table(delta_data))
-  expect_true(is.data.table(reaction_rate(coded_data, fps = 30L)))
+  expect_warning(
+    rate <- reaction_rate(coded_data, fps = 30L),
+    "conflicts"
+  )
+  expect_true(is.data.table(rate))
 })

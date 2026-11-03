@@ -3,13 +3,20 @@ TEST_DATA <- Sys.getenv("TEST_DATA")
 library(testthat)
 
 load_synchrony_cli <- function() {
-  script_path <- testthat::test_path(
-    "..",
-    "..",
-    "inst",
+  script_path <- system.file(
     "scripts",
-    "synchrony-moments"
+    "synchrony-moments",
+    package = "facereaderconverter"
   )
+  if (!nzchar(script_path)) {
+    script_path <- testthat::test_path(
+      "..",
+      "..",
+      "inst",
+      "scripts",
+      "synchrony-moments"
+    )
+  }
   script <- readLines(script_path, warn = FALSE)
   entry_point <- which(script == "if (sys.nframe() == 0L) {")
   script <- script[seq_len(entry_point[[1L]] - 1L)]
