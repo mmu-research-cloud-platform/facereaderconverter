@@ -34,5 +34,3 @@ jobs:
       - name: Check package
         run: rcmdcheck::rcmdcheck(args = "--no-manual", error_on = "error")
         shell: Rscript {0}
-        env:
-          TEST_DATA: ${{ runner.temp }}/facereaderconverter-test-data
