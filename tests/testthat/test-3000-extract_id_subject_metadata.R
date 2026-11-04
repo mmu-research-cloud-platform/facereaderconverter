@@ -15,72 +15,77 @@ if (inherits(test_data_error, "error")) {
   ))
 }
 
-test_that("extract_subject_id_metadata separates media and FaceReader names", {
-  path <- file.path(
-    TEST_DATA,
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
+new_metadata_test_txt <- function() {
+  directory <- tempfile("metadata-test-")
+  dir.create(directory)
+  path <- file.path(directory, "invented-export_detailed.txt")
+  writeLines(
+    c(
+      "Video analysis detailed log",
+      "Filename\tinvented-media-id.mp4",
+      "Frame rate\t30",
+      "",
+      "Video Time\tNeutral",
+      "00:00:00.000\t0.5"
+    ),
+    path
   )
+  path
+}
+
+test_that("extract_subject_id_metadata separates media and FaceReader names", {
+  path <- new_metadata_test_txt()
+  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
   metadata <- extract_subject_id_metadata(path)
 
-  expect_identical(
-    metadata$id,
-    "#8892 Sussed card game teen view point synced 10 minutes_1"
-  )
-  expect_identical(
-    metadata$subject,
-    "Participant 10_8892_Analysis 1_video_20260721_125850_detailed"
-  )
+  expect_identical(metadata$id, "invented-media-id")
+  expect_identical(metadata$subject, "invented-export_detailed")
 })
 
 test_that("extract_subject_id_metadata applies patterns to their source names", {
-  path <- file.path(
-    TEST_DATA,
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-  )
+  path <- new_metadata_test_txt()
+  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
   metadata <- extract_subject_id_metadata(
     path,
-    id_pattern = "8892",
-    subject_pattern = "detailed"
+    id_pattern = "media",
+    subject_pattern = "export"
   )
 
-  expect_identical(metadata$id, "8892")
-  expect_identical(metadata$subject, "detailed")
+  expect_identical(metadata$id, "media")
+  expect_identical(metadata$subject, "export")
 })
 
 test_that("extract_subject_id_metadata applies patterns to full paths", {
-  path <- list.files(
-    file.path(TEST_DATA, "brazil"),
-    pattern = "Participant 10.*detailed\\.xlsx$",
-    full.names = TRUE
-  )[[1L]]
+  path <- new_metadata_test_txt()
+  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
   metadata <- extract_subject_id_metadata(
     path,
-    id_pattern = "Downloads[/\\\\]#8883",
-    subject_pattern = "brazil[/\\\\]Participant 10",
+    id_pattern = "invented-media-id\\.mp4",
+    subject_pattern = "invented-export",
     use_full_path = TRUE
   )
 
-  expect_match(metadata$id, "Downloads[/\\\\]#8883")
-  expect_match(metadata$subject, "brazil[/\\\\]Participant 10")
+  expect_identical(metadata$id, "invented-media-id.mp4")
+  expect_identical(metadata$subject, "invented-export")
 })
 
 test_that("extract_subject_id_metadata returns NA for missing media filename", {
-  path <- file.path(TEST_DATA, "testdata_detailed.csv")
+  directory <- tempfile("metadata-test-")
+  dir.create(directory)
+  path <- file.path(directory, "invented-export_detailed.csv")
+  writeLines("video_time,neutral\n00:00:00.000,0.5", path)
+  on.exit(unlink(directory, recursive = TRUE), add = TRUE)
   metadata <- extract_subject_id_metadata(path)
 
-  expect_true(is.na(metadata$id))
-  expect_identical(metadata$subject, tools::file_path_sans_ext(basename(path)))
+  expect_identical(metadata$id, NA_character_)
+  expect_identical(metadata$subject, "invented-export_detailed")
 })
 
 test_that("extract_id_subject_metadata remains a compatibility alias", {
+  path <- new_metadata_test_txt()
+  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
   expect_identical(
-    extract_id_subject_metadata(file.path(
-      TEST_DATA,
-      "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-    )),
-    extract_subject_id_metadata(file.path(
-      TEST_DATA,
-      "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-    ))
+    extract_id_subject_metadata(path),
+    list(id = "invented-media-id", subject = "invented-export_detailed")
   )
 })

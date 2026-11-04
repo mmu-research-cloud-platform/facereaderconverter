@@ -1,7 +1,7 @@
 library(testthat)
 
-copy_4400_fixture <- function(relative_path, destination) {
-  file.copy(file.path(Sys.getenv("TEST_DATA"), relative_path), destination)
+copy_4400_fixture <- function(destination, index = 1L) {
+  file.copy(test_fixture_path("c2e_detailed_txt", index), destination)
 }
 
 test_that("directory episodes combine fixture exports and save RDa", {
@@ -60,28 +60,25 @@ test_that("directory episodes use fixture filename regexes independently", {
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_4400_fixture(
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt",
-    file.path(root, "8892-mum.txt")
-  )
-  copy_4400_fixture(
-    "c2e-directory/mum/8894/Participant 11_8894_Analysis 1_video_20260721_135456_detailed.txt",
-    file.path(root, "8895-teen.txt")
-  )
+  copy_4400_fixture(file.path(root, "left-mum.txt"), 1L)
+  copy_4400_fixture(file.path(root, "right-teen.txt"), 2L)
   output <- file.path(root, "result.RDa")
 
   result <- convert_directory_to_episodes(
     root,
     outpath = output,
-    id_pattern = "(?<![0-9])[0-9]{4}(?![0-9])",
+    id_pattern = ".*",
     subject_pattern = "mum|teen",
     cores = 1L
   )
   expect_setequal(
     as.character(unique(result$coding$id)),
-    c(
-      "8892",
-      "8894"
+    vapply(
+      1:2,
+      function(index) extract_subject_id_metadata(
+        test_fixture_path("c2e_detailed_txt", index)
+      )$id,
+      character(1)
     )
   )
   expect_setequal(
@@ -101,12 +98,12 @@ test_that("directory episodes use fixture filename regexes independently", {
 
   only_id <- convert_directory_to_episodes(
     root,
-    id_pattern = "(?<![0-9])[0-9]{4}(?![0-9])",
+    id_pattern = ".*",
     cores = 1L
   )
   expect_setequal(
     as.character(unique(only_id$coding$subject)),
-    c("8892-mum", "8895-teen")
+    c("left-mum", "right-teen")
   )
 })
 
@@ -115,10 +112,7 @@ test_that("directory episodes reject conflicting FPS for the same id when skip_f
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  fixture <- file.path(
-    Sys.getenv("TEST_DATA"),
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-  )
+  fixture <- test_fixture_path("c2e_detailed_txt")
   # Same media file (so the same id) but a different recorded frame rate
   file.copy(fixture, file.path(root, "first.txt"))
   lines <- readLines(fixture, warn = FALSE)
@@ -140,10 +134,7 @@ test_that("directory episodes reject duplicate IDs and subjects when skip_fails 
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  source <- file.path(
-    Sys.getenv("TEST_DATA"),
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-  )
+  source <- test_fixture_path("c2e_detailed_txt")
   dir.create(file.path(root, "nested-a"))
   dir.create(file.path(root, "nested-b"))
   file.copy(source, file.path(root, "nested-a", "same-a.txt"))
@@ -166,10 +157,7 @@ test_that("directory episodes reject unmatched fixture regexes", {
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_4400_fixture(
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt",
-    file.path(root, "sample.txt")
-  )
+  copy_4400_fixture(file.path(root, "sample.txt"))
 
   result <- convert_directory_to_episodes(
     root,

@@ -1,30 +1,27 @@
 library(testthat)
 
-copy_folder_regex_fixture <- function(relative_path, destination) {
-  file.copy(file.path(Sys.getenv("TEST_DATA"), relative_path), destination)
+copy_folder_regex_fixture <- function(destination, index = 1L) {
+  file.copy(test_fixture_path("c2e_detailed_txt", index), destination)
 }
 
 test_that("directory episodes infer IDs and subjects from their own sources", {
   parent <- tempfile("folder-regex-")
   root <- file.path(parent, "study")
-  dir.create(file.path(root, "8892", "mum"), recursive = TRUE)
-  dir.create(file.path(root, "8895", "teen"), recursive = TRUE)
+  dir.create(file.path(root, "1111", "mum"), recursive = TRUE)
+  dir.create(file.path(root, "2222", "teen"), recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_folder_regex_fixture(
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt",
-    file.path(root, "8892", "mum", "mum.txt")
-  )
-  copy_folder_regex_fixture(
-    "c2e-directory/mum/8894/Participant 11_8894_Analysis 1_video_20260721_135456_detailed.txt",
-    file.path(root, "8895", "teen", "teen.txt")
-  )
+  copy_folder_regex_fixture(file.path(root, "1111", "mum", "mum.txt"), 1L)
+  copy_folder_regex_fixture(file.path(root, "2222", "teen", "teen.txt"), 2L)
 
   result <- convert_directory_to_episodes(root, cores = 1L)
   expect_setequal(
     as.character(unique(result$coding$id)),
-    c(
-      "#8892 Sussed card game teen view point synced 10 minutes_1",
-      "#8894 Sussed card game teen view point synced 10 minutes"
+    vapply(
+      1:2,
+      function(index) extract_subject_id_metadata(
+        test_fixture_path("c2e_detailed_txt", index)
+      )$id,
+      character(1)
     )
   )
   expect_setequal(as.character(unique(result$coding$subject)), c("mum", "teen"))
@@ -39,13 +36,10 @@ test_that("directory episodes infer IDs and subjects from their own sources", {
 
 test_that("directory names do not override media and FaceReader filenames", {
   parent <- tempfile("folder-precedence-")
-  root <- file.path(parent, "study-9999-teen")
+  root <- file.path(parent, "study-folder-9999")
   dir.create(file.path(root, "8888", "mum"), recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_folder_regex_fixture(
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt",
-    file.path(root, "8888", "mum", "Participant_teen_detailed.txt")
-  )
+  copy_folder_regex_fixture(file.path(root, "8888", "mum", "Participant_teen_detailed.txt"))
 
   result <- convert_directory_to_episodes(
     root,
@@ -54,7 +48,7 @@ test_that("directory names do not override media and FaceReader filenames", {
   )
   expect_equal(
     unique(as.character(result$coding$id)),
-    "#8892 Sussed card game teen view point synced 10 minutes_1"
+    extract_subject_id_metadata(test_fixture_path("c2e_detailed_txt"))$id
   )
   expect_equal(
     unique(as.character(result$coding$subject)),
@@ -63,18 +57,15 @@ test_that("directory names do not override media and FaceReader filenames", {
 })
 
 test_that("directory regexes do not use parent folders as metadata sources", {
-  parent <- tempfile("outer-8822-")
+  parent <- tempfile("outer-unrelated-")
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_folder_regex_fixture(
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt",
-    file.path(root, "analysis.txt")
-  )
+  copy_folder_regex_fixture(file.path(root, "analysis.txt"))
 
   result <- convert_directory_to_episodes(
     root,
-    id_pattern = "8822",
+    id_pattern = "7777",
     cores = 1L
   )
   expect_true(all(is.na(as.character(result$coding$id))))

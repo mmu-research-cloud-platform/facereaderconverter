@@ -1,0 +1,48 @@
+# Test fixtures
+
+The `synthetic/` tree contains invented FaceReader-compatible records, not
+anonymized or perturbed participant records. No private rows, workbook
+properties, videos, absolute paths, or participant names are inputs to the
+generator.
+
+The deterministic signals include three invented dyads, seven emotions, shifted
+responses, missing intervals, rising/falling values, and quiet control windows.
+CSV, TXT and XLSX exports cover detailed/state formats and extra FR10 columns.
+All export filenames, media labels and workbook properties are invented.
+No videos, project files or large private-only fixtures are distributed.
+Tests use fixture roles rather than participant-specific filenames. Synthetic
+metadata tests retain literal invented expectations.
+
+## Selection
+
+Run `devtools::test()` normally. Test helpers use `TEST_DATA/test_data.RDa` when
+available, otherwise the bundled synthetic fixture. Configure `TEST_DATA` in an
+untracked `.Renviron` (R reads this at startup), or set it in the process.
+
+Set `FACEREADER_TEST_FIXTURE=synthetic` to force public data, even when private
+fixtures exist; CI does this on every push and pull request. Set it to `real` to
+require private data and fail clearly if it is missing. The default is `auto`.
+Invalid settings and missing bundled data are errors, not blanket skips.
+
+All selected real and synthetic fixture files, including media, are copied into
+an ignored, writable directory beneath `tests/testthat/` and removed after the
+suite. Source fixtures are never modified. The bundled synthetic fixtures do
+not include video files, so media-dependent tests run when real media is
+available and the required media tools are installed; otherwise they skip with
+the applicable reason.
+
+## Regeneration
+
+From the repository root, with the package's development dependencies installed:
+
+```r
+source("tools/generate-test-fixtures.R")
+pkgload::load_all(helpers = FALSE)
+generate_test_fixtures()
+```
+
+Or run `Rscript tools/generate-test-fixtures.R`. The generator does not read
+`.Renviron`, `TEST_DATA`, or private files. Review generated content before
+release. `test_data_sync2` is a stored regression reference generated with explicit
+episode parameters; regenerate deliberately, not as part of running tests.
+The fixture generator is deterministic and does not inspect local test data.

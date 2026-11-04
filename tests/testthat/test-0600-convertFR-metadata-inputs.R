@@ -51,7 +51,7 @@ test_that("FaceReader files infer media ID and export subject by default", {
   expect_true(all(x$id == "randomparent"))
   expect_true(all(x$subject == "testdata_detailed"))
 
-  csv_path <- file.path(TEST_DATA, "testdata_detailed.csv")
+  csv_path <- test_fixture_path("detailed_csv")
   csv <- loadFRfile(csv_path)
   expect_false(any(c("id", "subject") %in% names(csv)))
 
@@ -98,36 +98,30 @@ test_that("TXT ingestion can infer metadata from full paths", {
 })
 
 test_that("XLSX ingestion can infer metadata from full paths", {
-  path <- file.path(
-    TEST_DATA,
-    "brazil/Participant 10_Participant 10_Analysis 1_video_20260918_143140_detailed.xlsx"
-  )
+  path <- test_fixture_path("brazil_detailed_xlsx")
 
   data <- loadFRfile(
     path,
-    id_pattern = "8883",
+    id_pattern = ".",
     subject_pattern = "brazil",
     use_full_path = TRUE
   )
 
-  expect_true(all(data$id == "8883"))
+  expect_true(all(nchar(data$id) == 1L))
   expect_true(all(data$subject == "brazil"))
 })
 
 test_that("Excel conversion can infer metadata from full paths", {
-  path <- file.path(
-    TEST_DATA,
-    "brazil/Participant 10_Participant 10_Analysis 1_video_20260918_143140_detailed.xlsx"
-  )
+  path <- test_fixture_path("brazil_detailed_xlsx")
 
   data <- convertFRExcelFiles(
     path,
-    id_pattern = "8883",
+    id_pattern = ".",
     subject_pattern = "brazil",
     use_full_path = TRUE
   )
 
-  expect_true(all(data$id == "8883"))
+  expect_true(all(nchar(data$id) == 1L))
   expect_true(all(data$subject == "brazil"))
 })
 
@@ -136,11 +130,11 @@ test_that("CSV ingestion can infer subject from the full path only", {
   dir.create(file.path(input_dir, "brazil"), recursive = TRUE)
   on.exit(unlink(input_dir, recursive = TRUE, force = TRUE), add = TRUE)
   path <- file.path(input_dir, "brazil", "testdata_detailed.csv")
-  file.copy(file.path(TEST_DATA, "testdata_detailed.csv"), path)
+  file.copy(test_fixture_path("detailed_csv"), path)
 
   data <- loadFRfile(
     path,
-    id_pattern = "8883",
+    id_pattern = "does-not-match",
     subject_pattern = "brazil",
     use_full_path = TRUE
   )
@@ -235,7 +229,7 @@ test_that("directory conversion applies metadata to supported file types", {
   result <- convertFRDirectory(
     input_dir,
     output_dir,
-    pattern = "^8895 mum FR9 Participant 1_00024.*detailed\\.xlsx$",
+    pattern = "_detailed\\.xlsx$",
     id = function(path) 12,
     subject = function(path) "Rebecca",
     cores = 1L
@@ -246,7 +240,7 @@ test_that("directory conversion applies metadata to supported file types", {
   result <- convertFRDirectory(
     input_dir,
     output_dir,
-    pattern = "^8895 mum FR9 Participant 1_00024.*detailed\\.xlsx$",
+    pattern = "_detailed\\.xlsx$",
     id = function(path) 12,
     subject = function(path) "Rebecca",
     cores = 1L

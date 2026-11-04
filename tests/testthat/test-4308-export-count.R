@@ -1,5 +1,3 @@
-TEST_DATA <- Sys.getenv("TEST_DATA")
-
 library(testthat)
 
 load_synchrony_cli <- function() {
@@ -26,9 +24,27 @@ load_synchrony_cli <- function() {
 }
 
 test_that("synchrony-moments manifest reports zero exported videos", {
-  input_dir <- file.path(TEST_DATA, "8895")
-  skip_if_not(dir.exists(input_dir))
-  output_dir <- tempfile("synchrony-8895-output-")
+  input_dir <- tempfile("synchrony-zero-export-input-")
+  dir.create(input_dir)
+  file.create(file.path(input_dir, "zero-export.mp4"))
+  for (participant in c("parent", "teen")) {
+    writeLines(
+      c(
+        "Video analysis detailed log",
+        "",
+        "Face Model\tGeneral",
+        "Filename\tzero-export.mp4",
+        "Frame rate\t30",
+        "",
+        "Video Time\tNeutral\tHappy\tParticipant Name",
+        paste("00:00:00.000\t0\t0.01", participant, sep = "\t"),
+        paste("00:00:00.033\t0\t0.01", participant, sep = "\t")
+      ),
+      file.path(input_dir, paste0(participant, "_detailed.txt"))
+    )
+  }
+  on.exit(unlink(input_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  output_dir <- tempfile("synchrony-zero-export-output-")
   on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
   cli <- load_synchrony_cli()
 

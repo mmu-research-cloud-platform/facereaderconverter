@@ -1,5 +1,3 @@
-TEST_DATA <- Sys.getenv("TEST_DATA")
-
 library(testthat)
 
 skip_if_not_installed("openxlsx")
@@ -118,39 +116,63 @@ test_that("synchrony_moments_pipeline matches detailed XLSX files and skips copi
   )))
 })
 
-test_that("synchrony_moments_pipeline processes two matched Brazil XLSX video pairs", {
-  brazil_dir <- file.path(TEST_DATA, "brazil")
-  skip_if_not(dir.exists(brazil_dir))
-  detailed_files <- list.files(
-    brazil_dir,
-    pattern = "detailed\\.xlsx$",
-    full.names = TRUE,
-    ignore.case = TRUE
+test_that("synchrony_moments_pipeline processes matched detailed XLSX video pairs", {
+  root <- tempfile("synchrony-pipeline-xlsx-pairs-")
+  dir.create(file.path(root, "videos"), recursive = TRUE)
+  dir.create(file.path(root, "exports", "nested"), recursive = TRUE)
+  on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
+  video_names <- c(
+    "session-a.mp4",
+    "session-b.mp4",
+    "session-unmatched.mp4",
+    "session-partial.mp4"
   )
-  skip_if(
-    length(detailed_files) != 4L,
-    "Brazil fixture must contain two matched detailed XLSX pairs."
+  file.create(file.path(root, "videos", video_names))
+  for (video_name in video_names[1:2]) {
+    for (participant in c("parent", "teen")) {
+      write_pipeline_detailed_xlsx(
+        file.path(
+          root,
+          "exports",
+          "nested",
+          paste(video_name, participant, "detailed.xlsx", sep = "-")
+        ),
+        paste0("C:\\FaceReader\\source\\", video_name),
+        participant
+      )
+    }
+  }
+  write_pipeline_detailed_xlsx(
+    file.path(root, "exports", "nested", "session-partial-parent-detailed.xlsx"),
+    "C:\\FaceReader\\source\\session-partial.mp4",
+    "parent"
   )
 
-  output_dir <- tempfile("brazil-xlsx-clips-")
+  output_dir <- tempfile("xlsx-pair-clips-")
   on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
   result <- NULL
-  expect_warning(
-    expect_message(
-      result <- synchrony_moments_pipeline(
-        brazil_dir,
-        output_dir = output_dir,
-        subject_from_filename = TRUE,
-        emotion = "not_an_emotion"
-      ),
-      "Skipped videos without matching detailed FaceReader exports:\\n.*ID100024_side_by_side - Copy\\.mp4"
+  expect_message(
+    result <- synchrony_moments_pipeline(
+      root,
+      output_dir = output_dir,
+      subject_from_filename = TRUE,
+      emotion = "not_an_emotion"
     ),
-    "Skipping video .*ID100024_side_by_side - Copy \\(2\\)\\.mp4"
+    "Skipped videos without matching detailed FaceReader exports"
   )
 
   expect_equal(sum(result$videos$status == "completed"), 2L)
   expect_equal(sum(result$videos$status == "failed"), 1L)
+  expect_equal(sum(result$videos$status == "unmatched"), 1L)
   expect_length(result$results, 2L)
+  expect_equal(
+    result$videos[video_filename == "session-partial.mp4", n_matched_outputs],
+    1L
+  )
+  expect_equal(
+    result$videos[video_filename == "session-unmatched.mp4", status],
+    "unmatched"
+  )
   expect_true(all(vapply(
     result$results,
     function(video) nrow(video$clip_manifest) == 0L,
@@ -158,7 +180,7 @@ test_that("synchrony_moments_pipeline processes two matched Brazil XLSX video pa
   )))
   expect_equal(
     result$videos[
-      video_filename == "ID100024_side_by_side - Copy.mp4",
+      video_filename == "session-unmatched.mp4",
       status
     ],
     "unmatched"

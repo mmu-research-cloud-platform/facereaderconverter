@@ -1,13 +1,9 @@
 library(testthat)
 
-copy_4407_fixture <- function(destination) {
-  file.copy(
-    file.path(
-      Sys.getenv("TEST_DATA"),
-      "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-    ),
-    destination
-  )
+copy_4407_fixture <- function(destination, index = 1L, video = "#4831_fixture.mp4") {
+  lines <- readLines(test_fixture_path("c2e_detailed_txt", index), warn = FALSE)
+  lines <- sub("^Filename\\t.*$", paste0("Filename\t", video), lines)
+  writeLines(lines, destination)
 }
 
 test_that("4407 filter_name matches export basenames before parsing", {
@@ -142,13 +138,19 @@ test_that("4412 skip_fails skips a subject pattern mismatch", {
 
 test_that("4413 README directory episode example runs on fixture", {
   root <- file.path(Sys.getenv("TEST_DATA"), "c2e-directory")
+  detailed_files <- list.files(
+    root,
+    recursive = TRUE,
+    pattern = "_detailed\\.txt$",
+    full.names = TRUE
+  )
   output <- tempfile(fileext = ".RDa")
   on.exit(unlink(output), add = TRUE)
 
   coded_data <- convert_directory_to_episodes(
     inpath = root,
     outpath = output,
-    filter_name = "^Participant 10_8892_.*_detailed\\.txt$",
+    filter_name = "_detailed\\.txt$",
     skip_fails = TRUE,
     cores = 1L
   )
@@ -156,9 +158,9 @@ test_that("4413 README directory episode example runs on fixture", {
   expect_s3_class(coded_data, "fr_coding")
   expect_gt(nrow(coded_data$episodes), 0L)
   expect_true(file.exists(output))
-  expect_equal(
+  expect_setequal(
     unique(as.character(coded_data$coding$subject)),
-    "Participant 10_8892_Analysis 1_video_20260721_125850_detailed"
+    tools::file_path_sans_ext(basename(detailed_files))
   )
 })
 
@@ -252,10 +254,7 @@ test_that("4416 skip_fails defaults to warning and keeping good exports", {
 
 copy_4407_fps_fixture <- function(destination) {
   file.copy(
-    file.path(
-      Sys.getenv("TEST_DATA"),
-      "FR9/FR9 1218 participant_Analysis 1_video_20260910_110344_detailed.xlsx"
-    ),
+    test_fixture_path("fr9_16fps_detailed_xlsx"),
     destination
   )
 }
@@ -283,7 +282,7 @@ test_that("4418 multiple IDs error when skip_fails is FALSE", {
   root <- tempfile("directory-multi-id-fail-")
   dir.create(root)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_4407_fixture(file.path(root, "only.txt"))
+  copy_4407_fixture(file.path(root, "only.txt"), video = "#4831-card-synced.mp4")
 
   expect_error(
     convert_directory_to_episodes(
@@ -301,7 +300,7 @@ test_that("4419 multiple IDs are skipped with a warning when skip_fails is TRUE"
   root <- tempfile("directory-multi-id-skip-")
   dir.create(root)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_4407_fixture(file.path(root, "only.txt"))
+  copy_4407_fixture(file.path(root, "only.txt"), video = "#4831-card-synced.mp4")
 
   expect_warning(
     expect_error(
@@ -360,11 +359,8 @@ test_that("4421 duplicate ID and subject errors when skip_fails is FALSE", {
 })
 
 copy_4407_same_id_other_fps <- function(destination, fps = "25.000000000") {
-  fixture <- file.path(
-    Sys.getenv("TEST_DATA"),
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-  )
-  lines <- readLines(fixture, warn = FALSE)
+  lines <- readLines(test_fixture_path("c2e_detailed_txt"), warn = FALSE)
+  lines <- sub("^Filename\\t.*$", "Filename\\t#4831_fixture.mp4", lines)
   writeLines(
     sub("^Frame rate.*", paste0("Frame rate\t", fps), lines),
     destination

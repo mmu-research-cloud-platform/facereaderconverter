@@ -44,7 +44,7 @@ test_that("convertFRDirectory adds metadata across all supported file types", {
   input_files <- c(
     testthat::test_path("testdata", "testdata_detailed.txt"),
     testthat::test_path("testdata", "testdata_excel_detailed.xlsx"),
-    file.path(TEST_DATA, "testdata_detailed.csv")
+    test_fixture_path("detailed_csv")
   )
   input_names <- c("source_txt.txt", "source_xlsx.xlsx", "source_csv.csv")
   file.copy(input_files, file.path(input_dir, input_names))
@@ -118,10 +118,7 @@ test_that("convertFRDirectory adds metadata across all supported file types", {
 })
 
 test_that("convertFRDirectory infers metadata from full paths", {
-  source <- file.path(
-    TEST_DATA,
-    "brazil/Participant 10_Participant 10_Analysis 1_video_20260918_143140_detailed.xlsx"
-  )
+  source <- test_fixture_path("brazil_detailed_xlsx")
   input_dir <- tempfile("full_path_input_")
   dir.create(file.path(input_dir, "brazil"), recursive = TRUE)
   output_dir <- tempfile("full_path_output_")
@@ -135,7 +132,7 @@ test_that("convertFRDirectory infers metadata from full paths", {
   result <- convertFRDirectory(
     input_dir,
     output_dir,
-    id_pattern = "8883",
+    id_pattern = ".",
     subject_pattern = "brazil",
     use_full_path = TRUE,
     cores = 1L,
@@ -144,6 +141,6 @@ test_that("convertFRDirectory infers metadata from full paths", {
 
   expect_identical(result$status, "Success")
   data <- readr::read_csv(result$outpath, show_col_types = FALSE)
-  expect_true(all(data$id == "8883"))
+  expect_true(all(nchar(data$id) == 1L))
   expect_true(all(data$subject == "brazil"))
 })

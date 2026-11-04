@@ -65,3 +65,6 @@ nul
 src/*.o
 src/*.so
 src/*.dll
+
+# Writable copies of public test fixtures
+tests/testthat/.fixture-work-*/

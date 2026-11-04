@@ -86,20 +86,62 @@ test_that("merge_episodes validates input", {
   expect_error(merge_episodes(list()), "at least one")
 })
 
-test_that("merge_episodes real fixtures", {
+test_that("merge_episodes accepts compatible exports from fixture roles", {
+  fr10_files <- list.files(
+    file.path(TEST_DATA, "FR10"),
+    pattern = "_detailed\\.(txt|xlsx)$",
+    recursive = TRUE,
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  fr9_files <- list.files(
+    file.path(TEST_DATA, "FR9"),
+    pattern = "_detailed\\.xlsx$",
+    recursive = TRUE,
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  fr10_fps <- vapply(
+    fr10_files,
+    function(path) synchrony_fr_header_metadata(path)$fps,
+    numeric(1)
+  )
+  fr9_fps <- vapply(
+    fr9_files,
+    function(path) synchrony_fr_header_metadata(path)$fps,
+    numeric(1)
+  )
+  compatible <- which(outer(
+    fr10_fps,
+    fr9_fps,
+    function(first, second) is.finite(first) & is.finite(second) &
+      abs(first - second) < 1e-4
+  ), arr.ind = TRUE)
+  expect_gt(nrow(compatible), 0L)
+
+  inputs <- tempfile("merge-fixture-")
+  fr10_dir <- file.path(inputs, "fr10")
+  fr9_dir <- file.path(inputs, "fr9")
+  dir.create(fr10_dir, recursive = TRUE)
+  dir.create(fr9_dir)
+  on.exit(unlink(inputs, recursive = TRUE, force = TRUE), add = TRUE)
+  file.copy(fr10_files[[compatible[1L, 1L]]], fr10_dir)
+  file.copy(fr9_files[[compatible[1L, 2L]]], fr9_dir)
   FR10 <- convert_directory_to_episodes(
-    inpath = file.path(TEST_DATA, "FR10"),
+    inpath = fr10_dir,
     T_up = 0.15,
     T_down = 0.05,
-    filter_name = "^.*8895.*$",
-    overwrite = TRUE
+    filter_name = "_detailed",
+    overwrite = TRUE,
+    cores = 1L
   )
   FR9 <- convert_directory_to_episodes(
-    inpath = file.path(TEST_DATA, "FR9"),
+    inpath = fr9_dir,
     T_up = 0.15,
     T_down = 0.05,
-    filter_name = "^.*8895.*$",
-    overwrite = TRUE
+    filter_name = "_detailed",
+    overwrite = TRUE,
+    cores = 1L
   )
   expect_no_error(merge_episodes(list(FR10, FR9)))
   expect_no_error(merge_episodes(c("FR10", "FR9")))

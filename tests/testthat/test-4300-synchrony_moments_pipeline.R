@@ -233,10 +233,10 @@ test_that("synchrony_moments_pipeline processes Brazil video and exports", {
   video_files <- list.files(
     brazil_dir,
     pattern = "\\.(mp4|mov|avi|mkv|webm)$",
+    recursive = TRUE,
     full.names = TRUE,
     ignore.case = TRUE
   )
-  video_files <- video_files[dirname(video_files) == brazil_dir]
   video_file <- video_files[
     basename(video_files) == "ID100024_side_by_side.mp4"
   ]
@@ -283,10 +283,10 @@ test_that("synchrony_moments_pipeline exports ten Brazil happy clips to a folder
   video_files <- list.files(
     brazil_dir,
     pattern = "\\.(mp4|mov|avi|mkv|webm)$",
+    recursive = TRUE,
     full.names = TRUE,
     ignore.case = TRUE
   )
-  video_files <- video_files[dirname(video_files) == brazil_dir]
   video_file <- video_files[
     basename(video_files) == "ID100024_side_by_side.mp4"
   ]
@@ -347,6 +347,17 @@ test_that("synchrony_moments_pipeline exports ten Brazil happy clips to a folder
 test_that("synchrony_moments_pipeline processes Brazil video directory and exports", {
   brazil_dir <- file.path(TEST_DATA, "brazil")
   skip_if_not(dir.exists(brazil_dir))
+  video_files <- list.files(
+    brazil_dir,
+    pattern = "\\.(mp4|mov|avi|mkv|webm)$",
+    recursive = TRUE,
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  skip_if(
+    length(video_files) < 2L,
+    "This integration test requires two Brazil video fixtures."
+  )
 
   output_dir <- tempfile("brazil-clips-")
   on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
