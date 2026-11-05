@@ -2,7 +2,7 @@ name: Set up R
 description: Install R and package dependencies without external setup actions.
 inputs:
   extra-package:
-    description: Additional R package required by the calling workflow.
+    description: Additional comma-separated R packages required by the calling workflow.
     required: true
 runs:
   using: composite
@@ -48,4 +48,5 @@ runs:
         options(repos = c(CRAN = "https://cloud.r-project.org"))
         install.packages("pak")
         pak::local_install_deps(dependencies = TRUE)
-        pak::pkg_install(Sys.getenv("EXTRA_R_PACKAGE"))
+        extra_packages <- strsplit(Sys.getenv("EXTRA_R_PACKAGE"), ",[[:space:]]*")[[1]]
+        pak::pkg_install(extra_packages)
