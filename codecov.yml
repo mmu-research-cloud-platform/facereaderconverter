@@ -1,5 +1,12 @@
 comment: false
 
+flags:
+  synthetic:
+    paths:
+      - R/
+      - src/
+    carryforward: false
+
 coverage:
   status:
     project:

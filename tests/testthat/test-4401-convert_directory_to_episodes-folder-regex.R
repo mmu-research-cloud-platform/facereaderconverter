@@ -151,7 +151,10 @@ test_that("directory episodes default IDs and subjects to fixture filenames - br
   if (test_fixture_mode() == "synthetic") {
     expect_setequal(
       observed_groups$id,
-      paste0("#", test_fixture_id("8883"), "_invented-session")
+      tools::file_path_sans_ext(unlist(
+        test_fixture_brazil_media_names()[c("matched", "partial")],
+        use.names = FALSE
+      ))
     )
   }
   expect_true(anyDuplicated(observed_groups$id) > 0L)

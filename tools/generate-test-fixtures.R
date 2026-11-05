@@ -3,6 +3,10 @@
 source(file.path("tools", "fixture-id-map.R"))
 
 generate_test_fixtures <- function(destination = file.path("tests", "fixtures", "synthetic")) {
+  ffmpeg <- Sys.which("ffmpeg")
+  if (!nzchar(ffmpeg)) {
+    stop("FFmpeg is required to generate the artificial Brazil video fixtures.")
+  }
   dir.create(destination, recursive = TRUE, showWarnings = FALSE)
   obsolete <- file.path(destination, c(
     "FR9/synthetic_fr9_detailed.xlsx",
@@ -25,11 +29,11 @@ generate_test_fixtures <- function(destination = file.path("tests", "fixtures", 
   unlink(obsolete, force = TRUE)
   ids <- stats::setNames(
     vapply(
-      c(8883, 8892, 8894, 8895, 1218, 1267),
+      c(8883, 8884, 8892, 8894, 8895, 1218, 1267),
       map_synthetic_fixture_id,
       character(1)
     ),
-    c("8883", "8892", "8894", "8895", "1218", "1267")
+    c("8883", "8884", "8892", "8894", "8895", "1218", "1267")
   )
   emotions <- c("neutral", "happy", "sad", "angry", "surprised", "scared", "disgusted")
   frames <- 0:899
@@ -218,26 +222,46 @@ generate_test_fixtures <- function(destination = file.path("tests", "fixtures", 
     ),
     paste0("#", ids[["1267"]], "_invented-failure.mp4")
   )
+  matched_media <- paste0("#", ids[c("8883", "8884")], "_invented-session.mp4")
+  for (i in seq_along(matched_media)) {
+    for (suffix in c("", "_teen")) {
+      write_export(
+        paste0(
+          "brazil/Participant 10_", ids[[c("8883", "8884")[[i]]]],
+          "_Participant 10_Analysis 1_video_20260101_120000",
+          suffix, "_detailed.xlsx"
+        ),
+        paste0("C:\\Users\\Public\\Downloads\\", matched_media[[i]])
+      )
+    }
+  }
+  unmatched_media <- sub("[.]mp4$", " - Copy.mp4", matched_media[[1L]])
+  partial_media <- sub("[.]mp4$", " - Copy (2).mp4", matched_media[[1L]])
   write_export(
-    paste0(
-      "brazil/Participant 10_", ids[["8883"]],
-      "_Participant 10_Analysis 1_video_20260101_120000_detailed.xlsx"
+    file.path(
+      "brazil", "partial",
+      paste0(
+        "Participant 10_", ids[["8883"]],
+        "_Participant 10_Analysis 1_video_20260101_120000_partial_detailed.xlsx"
+      )
     ),
-    paste0(
-      "C:\\Users\\Public\\Downloads\\#", ids[["8883"]],
-      "_invented-session.mp4"
-    )
+    paste0("C:\\Users\\Public\\Downloads\\", partial_media)
   )
-  write_export(
-    paste0(
-      "brazil/Participant 10_", ids[["8883"]],
-      "_Participant 10_Analysis 1_video_20260101_120000_teen_detailed.xlsx"
-    ),
-    paste0(
-      "C:\\Users\\Public\\Downloads\\#", ids[["8883"]],
-      "_invented-session.mp4"
+  for (media in c(matched_media, unmatched_media, partial_media)) {
+    path <- file.path(destination, "brazil", media)
+    status <- system2(
+      ffmpeg,
+      c(
+        "-hide_banner", "-loglevel", "error", "-y",
+        "-f", "lavfi", "-i", shQuote("testsrc2=size=32x32:rate=30:duration=70"),
+        "-an", "-c:v", "libx264", "-threads", "1", "-pix_fmt", "yuv420p",
+        "-map_metadata", "-1", shQuote(path)
+      )
     )
-  )
+    if (status != 0L || !file.exists(path) || file.info(path)$size == 0) {
+      stop("Could not generate the artificial Brazil video fixture: ", media)
+    }
+  }
   invisible(destination)
 }
 

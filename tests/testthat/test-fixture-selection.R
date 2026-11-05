@@ -92,6 +92,66 @@ test_that("the common fixture loader populates its caller", {
   expect_true(all(c("id", "subject", "video_time", "emotion", "value") %in% names(fixture)))
 })
 
+test_that("synthetic Brazil has two mapped XLSX pairs and valid artificial media", {
+  skip_if_not_installed("readxl")
+  public <- testthat::test_path("..", "fixtures", "synthetic", "brazil")
+  media <- test_fixture_brazil_media_names(public, "synthetic")
+  top_level <- list.files(public, pattern = "detailed\\.xlsx$", full.names = TRUE)
+  expect_length(top_level, 4L)
+  headers <- lapply(top_level, synchrony_fr_header_metadata)
+  metadata_names <- vapply(headers, `[[`, character(1), "video_filename")
+  filenames <- basename(gsub("\\\\", "/", metadata_names))
+  expected_ids <- map_synthetic_fixture_id(c("8883", "8884"))
+  expect_length(unique(expected_ids), 2L)
+  expect_setequal(
+    media$matched,
+    paste0("#", expected_ids, "_invented-session.mp4")
+  )
+  expect_setequal(filenames, media$matched)
+  expect_equal(as.integer(table(filenames)), c(2L, 2L))
+  for (i in seq_along(top_level)) {
+    id <- unmap_synthetic_fixture_id(sub("^#([0-9]{4}).*$", "\\1", filenames[[i]]))
+    expect_true(id %in% c("8883", "8884"))
+    expect_match(basename(top_level[[i]]), map_synthetic_fixture_id(id), fixed = TRUE)
+  }
+  partial <- list.files(
+    file.path(public, "partial"), pattern = "detailed\\.xlsx$", full.names = TRUE
+  )
+  expect_length(partial, 1L)
+  expect_identical(
+    synchrony_fr_header_metadata(partial)$video_filename,
+    paste0("C:\\Users\\Public\\Downloads\\", media$partial)
+  )
+  expect_setequal(
+    metadata_names,
+    paste0("C:\\Users\\Public\\Downloads\\", media$matched)
+  )
+  expect_false(media$unmatched %in% c(filenames, media$partial))
+  videos <- list.files(public, pattern = "\\.mp4$")
+  expect_setequal(videos, unlist(media, use.names = FALSE))
+  for (video in videos) {
+    path <- file.path(public, video)
+    expect_gt(file.info(path)$size, 0)
+    connection <- file(path, "rb")
+    signature <- readBin(connection, "raw", n = 12L)
+    close(connection)
+    expect_identical(rawToChar(signature[5:8]), "ftyp")
+  }
+  if (nzchar(Sys.which("ffprobe"))) {
+    for (video in videos) {
+      probe <- system2(
+        Sys.which("ffprobe"),
+        c("-v", "error", "-show_entries", "format=duration",
+          "-of", "default=noprint_wrappers=1:nokey=1",
+          shQuote(file.path(public, video))),
+        stdout = TRUE
+      )
+      expect_null(attr(probe, "status"))
+      expect_equal(as.numeric(probe), 70)
+    }
+  }
+})
+
 test_that("invented public exports exercise CSV, TXT and XLSX conversion", {
   public <- testthat::test_path("..", "fixtures", "synthetic")
   csv <- loadFRfile(file.path(public, "testdata_detailed.csv"))

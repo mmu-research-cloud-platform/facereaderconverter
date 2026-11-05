@@ -50,6 +50,40 @@ test_fixture_id <- function(id) {
   }
 }
 
+test_fixture_brazil_media_names <- function(
+  root = file.path(Sys.getenv("TEST_DATA"), "brazil"),
+  mode = test_fixture_mode()
+) {
+  if (mode == "synthetic") {
+    matched <- paste0(
+      "#", map_synthetic_fixture_id(c("8883", "8884")), "_invented-session.mp4"
+    )
+    return(list(
+      matched = matched,
+      unmatched = sub("[.]mp4$", " - Copy.mp4", matched[[1L]]),
+      partial = sub("[.]mp4$", " - Copy (2).mp4", matched[[1L]])
+    ))
+  }
+  exports <- list.files(root, pattern = "detailed\\.xlsx$", full.names = TRUE,
+    ignore.case = TRUE
+  )
+  metadata_names <- vapply(
+    exports, function(path) synchrony_fr_header_metadata(path)$video_filename,
+    character(1)
+  )
+  videos <- list.files(
+    root, pattern = "\\.(mp4|mov|avi|mkv|webm)$",
+    recursive = TRUE, ignore.case = TRUE
+  )
+  list(
+    matched = basename(videos[
+      synchrony_video_key(videos) %in% synchrony_video_key(metadata_names)
+    ]),
+    unmatched = "ID100024_side_by_side - Copy.mp4",
+    partial = "ID100024_side_by_side - Copy (2).mp4"
+  )
+}
+
 test_fixture_paths <- function(role) {
   root <- Sys.getenv("TEST_DATA")
   is_synthetic <- test_fixture_mode() == "synthetic"
