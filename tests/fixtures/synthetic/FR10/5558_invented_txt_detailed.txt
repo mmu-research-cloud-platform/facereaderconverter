@@ -3,7 +3,7 @@ Video analysis detailed log
 Face Model	General
 Calibration	-
 Start time	1/1/2000 00:00:00.000
-Filename	synthetic-fr10.mp4
+Filename	#5558_invented-session.mp4
 Frame rate	30
 
 Video Time	Neutral	Happy	Sad	Angry	Surprised	Scared	Disgusted	Stimulus	Event Marker	Speech Rate

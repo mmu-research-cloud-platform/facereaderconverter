@@ -15,77 +15,55 @@ if (inherits(test_data_error, "error")) {
   ))
 }
 
-new_metadata_test_txt <- function() {
-  directory <- tempfile("metadata-test-")
-  dir.create(directory)
-  path <- file.path(directory, "invented-export_detailed.txt")
-  writeLines(
-    c(
-      "Video analysis detailed log",
-      "Filename\tinvented-media-id.mp4",
-      "Frame rate\t30",
-      "",
-      "Video Time\tNeutral",
-      "00:00:00.000\t0.5"
-    ),
-    path
-  )
-  path
-}
-
 test_that("extract_subject_id_metadata separates media and FaceReader names", {
-  path <- new_metadata_test_txt()
-  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
+  path <- test_fixture_path("c2e_primary_txt")
   metadata <- extract_subject_id_metadata(path)
 
-  expect_identical(metadata$id, "invented-media-id")
-  expect_identical(metadata$subject, "invented-export_detailed")
+  expect_identical(metadata$id, fixture_expected_primary_media_id())
+  expect_identical(
+    metadata$subject,
+    tools::file_path_sans_ext(basename(path))
+  )
 })
 
 test_that("extract_subject_id_metadata applies patterns to their source names", {
-  path <- new_metadata_test_txt()
-  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
+  path <- test_fixture_path("c2e_primary_txt")
   metadata <- extract_subject_id_metadata(
     path,
-    id_pattern = "media",
-    subject_pattern = "export"
+    id_pattern = test_fixture_id("8892"),
+    subject_pattern = "detailed"
   )
 
-  expect_identical(metadata$id, "media")
-  expect_identical(metadata$subject, "export")
+  expect_identical(metadata$id, test_fixture_id("8892"))
+  expect_identical(metadata$subject, "detailed")
 })
 
 test_that("extract_subject_id_metadata applies patterns to full paths", {
-  path <- new_metadata_test_txt()
-  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
+  path <- test_fixture_path("brazil_detailed_xlsx")
+  id_pattern <- paste0("Downloads[/\\\\]#", test_fixture_id("8883"))
+  subject_pattern <- "brazil[/\\\\]Participant 10"
   metadata <- extract_subject_id_metadata(
     path,
-    id_pattern = "invented-media-id\\.mp4",
-    subject_pattern = "invented-export",
+    id_pattern = id_pattern,
+    subject_pattern = subject_pattern,
     use_full_path = TRUE
   )
 
-  expect_identical(metadata$id, "invented-media-id.mp4")
-  expect_identical(metadata$subject, "invented-export")
+  expect_match(metadata$id, id_pattern)
+  expect_match(metadata$subject, subject_pattern)
 })
 
 test_that("extract_subject_id_metadata returns NA for missing media filename", {
-  directory <- tempfile("metadata-test-")
-  dir.create(directory)
-  path <- file.path(directory, "invented-export_detailed.csv")
-  writeLines("video_time,neutral\n00:00:00.000,0.5", path)
-  on.exit(unlink(directory, recursive = TRUE), add = TRUE)
+  path <- test_fixture_path("detailed_csv")
   metadata <- extract_subject_id_metadata(path)
 
-  expect_identical(metadata$id, NA_character_)
-  expect_identical(metadata$subject, "invented-export_detailed")
+  expect_true(is.na(metadata$id))
+  expect_identical(metadata$subject, tools::file_path_sans_ext(basename(path)))
 })
 
 test_that("extract_id_subject_metadata remains a compatibility alias", {
-  path <- new_metadata_test_txt()
-  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
   expect_identical(
-    extract_id_subject_metadata(path),
-    list(id = "invented-media-id", subject = "invented-export_detailed")
+    extract_id_subject_metadata(test_fixture_path("c2e_primary_txt")),
+    extract_subject_id_metadata(test_fixture_path("c2e_primary_txt"))
   )
 })

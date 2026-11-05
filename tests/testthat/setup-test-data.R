@@ -2,6 +2,20 @@
 # outputs, so stage every fixture in a disposable, writable copy.
 local({
   fixture <- select_test_data_fixture()
+  fixture_kind <- if (
+    identical(
+      normalizePath(fixture, winslash = "/", mustWork = TRUE),
+      normalizePath(
+        testthat::test_path("..", "fixtures", "synthetic"),
+        winslash = "/",
+        mustWork = TRUE
+      )
+    )
+  ) {
+    "synthetic"
+  } else {
+    "real"
+  }
   source_root <- fixture
   runtime_parent <- testthat::test_path()
   if (.Platform$OS.type == "windows") {
@@ -69,5 +83,11 @@ local({
   } else {
     normalizePath(runtime, winslash = "/", mustWork = TRUE)
   }
-  withr::local_envvar(TEST_DATA = fixture, .local_envir = testthat::teardown_env())
+  withr::local_envvar(
+    c(
+      TEST_DATA = fixture,
+      FACEREADER_TEST_FIXTURE_KIND = fixture_kind
+    ),
+    .local_envir = testthat::teardown_env()
+  )
 })

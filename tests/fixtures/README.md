@@ -13,6 +13,12 @@ No videos, project files or large private-only fixtures are distributed.
 Tests use fixture roles rather than participant-specific filenames. Synthetic
 metadata tests retain literal invented expectations.
 
+Synthetic export IDs in the four-digit range are assigned by a seeded
+derangement over all values from 1000 through 9999. The mapping is bijective,
+stable regardless of fixture selection order, and preserves repeated-ID
+relationships. It is only a way to make invented records reproducible; it is
+not an anonymization method or a privacy safeguard.
+
 ## Selection
 
 Run `devtools::test()` normally. Test helpers use `TEST_DATA/test_data.RDa` when

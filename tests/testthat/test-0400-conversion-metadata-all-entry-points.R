@@ -132,7 +132,7 @@ test_that("convertFRDirectory infers metadata from full paths", {
   result <- convertFRDirectory(
     input_dir,
     output_dir,
-    id_pattern = ".",
+    id_pattern = test_fixture_id("8883"),
     subject_pattern = "brazil",
     use_full_path = TRUE,
     cores = 1L,
@@ -141,6 +141,6 @@ test_that("convertFRDirectory infers metadata from full paths", {
 
   expect_identical(result$status, "Success")
   data <- readr::read_csv(result$outpath, show_col_types = FALSE)
-  expect_true(all(nchar(data$id) == 1L))
+  expect_true(all(data$id == test_fixture_id("8883")))
   expect_true(all(data$subject == "brazil"))
 })

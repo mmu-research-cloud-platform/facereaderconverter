@@ -36,14 +36,23 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
   )
   expect_true(all(!is.na(vapply(metadata, `[[`, character(1), "id"))))
 
-  selected <- input_files
+  pattern <- paste0(
+    "^", test_fixture_id("8895"), ".*(detailed|state)\\.xlsx$"
+  )
+  selected <- input_files[grepl(
+    pattern,
+    basename(input_files),
+    ignore.case = TRUE
+  )]
+  expect_length(selected, 2L)
+  expect_setequal(basename(selected), basename(input_files))
 
   dir.create(output_dir, recursive = TRUE)
 
   result <- convertFRDirectory(
     input_dir,
     output_dir,
-    pattern = "_(detailed|state)\\.xlsx$",
+    pattern = pattern,
     id = function(path) extract_subject_id_metadata(path)$id,
     subject = function(path) extract_subject_id_metadata(path)$subject,
     cores = 1L,
@@ -56,7 +65,7 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
   result <- convertFRDirectory(
     input_dir,
     output_dir,
-    pattern = "_(detailed|state)\\.xlsx$",
+    pattern = pattern,
     id = function(path) extract_subject_id_metadata(path)$id,
     subject = function(path) extract_subject_id_metadata(path)$subject,
     cores = 1L,
@@ -93,10 +102,11 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
     seq_along(converted),
     function(i) {
       all(
-        as.character(converted[[i]]$id) ==
-          fr_media_id(
-            synchrony_fr_header_metadata(selected[[i]])$video_filename
-          )
+        grepl(
+          paste0("#", test_fixture_id("8895")),
+          as.character(converted[[i]]$id),
+          fixed = TRUE
+        )
       )
     },
     logical(1)

@@ -354,10 +354,7 @@ test_that("synchrony_moments_pipeline processes Brazil video directory and expor
     full.names = TRUE,
     ignore.case = TRUE
   )
-  skip_if(
-    length(video_files) < 2L,
-    "This integration test requires two Brazil video fixtures."
-  )
+  skip_if(length(video_files) == 0L, "Brazil video fixtures are not available.")
 
   output_dir <- tempfile("brazil-clips-")
   on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)

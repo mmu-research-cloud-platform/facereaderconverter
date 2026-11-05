@@ -1,7 +1,36 @@
 # Run from the repository root with the development package loaded.
 # This generator never reads TEST_DATA or any private export.
+source(file.path("tools", "fixture-id-map.R"))
+
 generate_test_fixtures <- function(destination = file.path("tests", "fixtures", "synthetic")) {
   dir.create(destination, recursive = TRUE, showWarnings = FALSE)
+  obsolete <- file.path(destination, c(
+    "FR9/synthetic_fr9_detailed.xlsx",
+    "FR9/synthetic_fr9_state.xlsx",
+    "FR9/synthetic_16fps_detailed.xlsx",
+    "FR10/synthetic_txt_detailed.txt",
+    "FR10/synthetic_txt_state.txt",
+    "FR10/synthetic_xlsx_detailed.xlsx",
+    "FR10/synthetic_xlsx_state.xlsx",
+    "brazil/synthetic_parent_detailed.xlsx",
+    "brazil/synthetic_teen_detailed.xlsx",
+    "c2e-directory/a/parent/a_parent_detailed.txt",
+    "c2e-directory/a/teen/a_teen_detailed.txt",
+    "c2e-directory/b/parent/b_parent_detailed.txt",
+    "c2e-directory/b/teen/b_teen_detailed.txt",
+    "c2e-directory/c/parent/c_parent_detailed.txt",
+    "c2e-directory/c/teen/c_teen_detailed.txt",
+    "c2e-fail/synthetic_failure_detailed.txt"
+  ))
+  unlink(obsolete, force = TRUE)
+  ids <- stats::setNames(
+    vapply(
+      c(8883, 8892, 8894, 8895, 1218, 1267),
+      map_synthetic_fixture_id,
+      character(1)
+    ),
+    c("8883", "8892", "8894", "8895", "1218", "1267")
+  )
   emotions <- c("neutral", "happy", "sad", "angry", "surprised", "scared", "disgusted")
   frames <- 0:899
   signal <- function(offset, emotion, width = 44L) {
@@ -119,27 +148,96 @@ generate_test_fixtures <- function(destination = file.path("tests", "fixtures", 
       )
     }
   }
-  write_export("FR9/synthetic_fr9_detailed.xlsx", "synthetic-fr9.mp4")
-  write_export("FR9/synthetic_fr9_state.xlsx", "synthetic-fr9.mp4", state = TRUE)
-  write_export("FR9/synthetic_16fps_detailed.xlsx", "synthetic-sixteen-fps.mp4", fps = 16)
+  fr9_stem <- paste0(
+    ids[["8895"]],
+    " invented FR9 Participant 1_00024 invented_Analysis 2_video_20260101_120000"
+  )
+  fr9_media <- paste0("#", ids[["8895"]], "_invented-session.mp4")
+  write_export(
+    paste0("FR9/", fr9_stem, "_detailed.xlsx"),
+    fr9_media
+  )
+  write_export(
+    paste0("FR9/", fr9_stem, "_state.xlsx"),
+    fr9_media,
+    state = TRUE
+  )
+  write_export(
+    paste0("FR9/", ids[["1218"]], "_invented_FR9_16fps_detailed.xlsx"),
+    paste0("#", ids[["1218"]], "_invented-sixteen-fps.mp4"),
+    fps = 16
+  )
   for (type in c("detailed", "state")) {
     for (ext in c("xlsx", "txt")) {
-      write_export(paste0("FR10/synthetic_", ext, "_", type, ".", ext),
-        "synthetic-fr10.mp4", state = type == "state", extra = TRUE)
+      write_export(paste0(
+        "FR10/", ids[["8895"]], "_invented_", ext, "_", type, ".", ext
+      ),
+        paste0("#", ids[["8895"]], "_invented-session.mp4"),
+        state = type == "state", extra = TRUE)
     }
   }
   for (pair in c("a", "b", "c")) {
     for (role in c("parent", "teen")) {
+      pair_id <- c(a = "8892", b = "8894", c = "8895")[[pair]]
+      suffix <- if (pair == "a") "_1" else ""
+      participant <- if (role == "parent") "10" else "11"
       write_export(
         file.path("c2e-directory", pair, role,
-          paste0(pair, "_", role, "_detailed.txt")),
-        paste0("synthetic-pair-", pair, ".mp4")
+          paste0(
+            "Participant ", participant, "_", ids[[pair_id]],
+            "_Analysis 1_video_20260101_120000_detailed.txt"
+          )),
+        paste0(
+          "#", ids[[pair_id]],
+          " invented card game session synced 10 minutes",
+          suffix, ".mp4"
+        )
       )
     }
   }
-  write_export("c2e-fail/synthetic_failure_detailed.txt", "synthetic-failure.mp4")
-  write_export("brazil/synthetic_parent_detailed.xlsx", "synthetic-brazil.mp4")
-  write_export("brazil/synthetic_teen_detailed.xlsx", "synthetic-brazil.mp4")
+  fps_conflict_id <- ids[["8892"]]
+  fps_conflict_stem <- paste0(
+    "Participant 10_", fps_conflict_id,
+    "_Analysis 1_video_20260101_120000"
+  )
+  fps_conflict_media <- paste0("#", fps_conflict_id, "_invented-fps-conflict.mp4")
+  for (fps in c(30, 25)) {
+    write_export(
+      file.path(
+        "c2e-fps-conflict",
+        paste0(fps_conflict_stem, "_", fps, "fps_detailed.txt")
+      ),
+      fps_conflict_media,
+      fps = fps
+    )
+  }
+  write_export(
+    paste0(
+      "c2e-fail/Participant 10_", ids[["1267"]],
+      "_Analysis 1_video_20260101_120000_detailed.txt"
+    ),
+    paste0("#", ids[["1267"]], "_invented-failure.mp4")
+  )
+  write_export(
+    paste0(
+      "brazil/Participant 10_", ids[["8883"]],
+      "_Participant 10_Analysis 1_video_20260101_120000_detailed.xlsx"
+    ),
+    paste0(
+      "C:\\Users\\Public\\Downloads\\#", ids[["8883"]],
+      "_invented-session.mp4"
+    )
+  )
+  write_export(
+    paste0(
+      "brazil/Participant 10_", ids[["8883"]],
+      "_Participant 10_Analysis 1_video_20260101_120000_teen_detailed.xlsx"
+    ),
+    paste0(
+      "C:\\Users\\Public\\Downloads\\#", ids[["8883"]],
+      "_invented-session.mp4"
+    )
+  )
   invisible(destination)
 }
 

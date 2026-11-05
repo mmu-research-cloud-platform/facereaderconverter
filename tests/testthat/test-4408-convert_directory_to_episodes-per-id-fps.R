@@ -1,4 +1,4 @@
-txt_fixture <- test_fixture_path("c2e_detailed_txt")
+txt_fixture <- test_fixture_path("c2e_primary_txt")
 xlsx_fixture <- test_fixture_path("fr9_16fps_detailed_xlsx")
 
 write_txt_fixture <- function(destination, fps = NULL, keep_fps_line = TRUE) {

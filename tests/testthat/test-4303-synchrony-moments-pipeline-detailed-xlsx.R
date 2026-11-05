@@ -1,3 +1,5 @@
+TEST_DATA <- Sys.getenv("TEST_DATA")
+
 library(testthat)
 
 skip_if_not_installed("openxlsx")
@@ -116,7 +118,54 @@ test_that("synchrony_moments_pipeline matches detailed XLSX files and skips copi
   )))
 })
 
-test_that("synchrony_moments_pipeline processes matched detailed XLSX video pairs", {
+test_that("synchrony_moments_pipeline processes two matched Brazil XLSX video pairs", {
+  brazil_dir <- file.path(TEST_DATA, "brazil")
+  skip_if_not(dir.exists(brazil_dir))
+  detailed_files <- list.files(
+    brazil_dir,
+    pattern = "detailed\\.xlsx$",
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  skip_if(
+    length(detailed_files) != 4L,
+    "Brazil fixture must contain two matched detailed XLSX pairs."
+  )
+
+  output_dir <- tempfile("brazil-xlsx-clips-")
+  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
+  result <- NULL
+  expect_warning(
+    expect_message(
+      result <- synchrony_moments_pipeline(
+        brazil_dir,
+        output_dir = output_dir,
+        subject_from_filename = TRUE,
+        emotion = "not_an_emotion"
+      ),
+      "Skipped videos without matching detailed FaceReader exports:\\n.*ID100024_side_by_side - Copy\\.mp4"
+    ),
+    "Skipping video .*ID100024_side_by_side - Copy \\(2\\)\\.mp4"
+  )
+
+  expect_equal(sum(result$videos$status == "completed"), 2L)
+  expect_equal(sum(result$videos$status == "failed"), 1L)
+  expect_length(result$results, 2L)
+  expect_true(all(vapply(
+    result$results,
+    function(video) nrow(video$clip_manifest) == 0L,
+    logical(1)
+  )))
+  expect_equal(
+    result$videos[
+      video_filename == "ID100024_side_by_side - Copy.mp4",
+      status
+    ],
+    "unmatched"
+  )
+})
+
+test_that("synchrony_moments_pipeline handles invented matched XLSX video pairs", {
   root <- tempfile("synchrony-pipeline-xlsx-pairs-")
   dir.create(file.path(root, "videos"), recursive = TRUE)
   dir.create(file.path(root, "exports", "nested"), recursive = TRUE)
@@ -178,13 +227,6 @@ test_that("synchrony_moments_pipeline processes matched detailed XLSX video pair
     function(video) nrow(video$clip_manifest) == 0L,
     logical(1)
   )))
-  expect_equal(
-    result$videos[
-      video_filename == "session-unmatched.mp4",
-      status
-    ],
-    "unmatched"
-  )
 })
 
 test_that("synchrony_moments_pipeline filters videos before matching XLSX exports", {

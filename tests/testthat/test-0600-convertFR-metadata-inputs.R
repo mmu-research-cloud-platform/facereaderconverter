@@ -102,12 +102,12 @@ test_that("XLSX ingestion can infer metadata from full paths", {
 
   data <- loadFRfile(
     path,
-    id_pattern = ".",
+    id_pattern = test_fixture_id("8883"),
     subject_pattern = "brazil",
     use_full_path = TRUE
   )
 
-  expect_true(all(nchar(data$id) == 1L))
+  expect_true(all(data$id == test_fixture_id("8883")))
   expect_true(all(data$subject == "brazil"))
 })
 
@@ -116,12 +116,12 @@ test_that("Excel conversion can infer metadata from full paths", {
 
   data <- convertFRExcelFiles(
     path,
-    id_pattern = ".",
+    id_pattern = test_fixture_id("8883"),
     subject_pattern = "brazil",
     use_full_path = TRUE
   )
 
-  expect_true(all(nchar(data$id) == 1L))
+  expect_true(all(data$id == test_fixture_id("8883")))
   expect_true(all(data$subject == "brazil"))
 })
 
@@ -134,7 +134,7 @@ test_that("CSV ingestion can infer subject from the full path only", {
 
   data <- loadFRfile(
     path,
-    id_pattern = "does-not-match",
+    id_pattern = test_fixture_id("8883"),
     subject_pattern = "brazil",
     use_full_path = TRUE
   )
@@ -229,7 +229,10 @@ test_that("directory conversion applies metadata to supported file types", {
   result <- convertFRDirectory(
     input_dir,
     output_dir,
-    pattern = "_detailed\\.xlsx$",
+    pattern = paste0(
+      "^", test_fixture_id("8895"),
+      ".*detailed\\.xlsx$"
+    ),
     id = function(path) 12,
     subject = function(path) "Rebecca",
     cores = 1L
@@ -240,7 +243,10 @@ test_that("directory conversion applies metadata to supported file types", {
   result <- convertFRDirectory(
     input_dir,
     output_dir,
-    pattern = "_detailed\\.xlsx$",
+    pattern = paste0(
+      "^", test_fixture_id("8895"),
+      ".*detailed\\.xlsx$"
+    ),
     id = function(path) 12,
     subject = function(path) "Rebecca",
     cores = 1L

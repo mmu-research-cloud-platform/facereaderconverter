@@ -1,7 +1,10 @@
 library(testthat)
 
 copy_4400_fixture <- function(destination, index = 1L) {
-  file.copy(test_fixture_path("c2e_detailed_txt", index), destination)
+  file.copy(
+    test_fixture_path(if (index == 1L) "c2e_primary_txt" else "c2e_secondary_txt"),
+    destination
+  )
 }
 
 test_that("directory episodes combine fixture exports and save RDa", {
@@ -16,19 +19,7 @@ test_that("directory episodes combine fixture exports and save RDa", {
   )
   expect_s3_class(result, "fr_coding")
   expect_identical(result$metadata$fps, 30L)
-  candidate_files <- list.files(
-    root,
-    recursive = TRUE,
-    pattern = "\\.(txt|xlsx)$",
-    full.names = TRUE
-  )
-  detailed_files <- candidate_files[vapply(
-    candidate_files,
-    function(path) {
-      identical(synchrony_fr_header_metadata(path)$type, "detailed")
-    },
-    logical(1)
-  )]
+  detailed_files <- test_fixture_paths("c2e_detailed_txt")
   expect_setequal(
     as.character(unique(result$coding$id)),
     unname(vapply(
@@ -42,12 +33,7 @@ test_that("directory episodes combine fixture exports and save RDa", {
   )
   expect_setequal(
     as.character(unique(result$coding$subject)),
-    tools::file_path_sans_ext(basename(list.files(
-      root,
-      recursive = TRUE,
-      pattern = "_detailed\\.(txt|xlsx)$",
-      full.names = TRUE
-    )))
+    tools::file_path_sans_ext(basename(detailed_files))
   )
   expect_gt(nrow(result$episodes), 0L)
   saved <- new.env(parent = emptyenv())
@@ -60,26 +46,22 @@ test_that("directory episodes use fixture filename regexes independently", {
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_4400_fixture(file.path(root, "left-mum.txt"), 1L)
-  copy_4400_fixture(file.path(root, "right-teen.txt"), 2L)
+  first_name <- paste0(test_fixture_id("8892"), "-mum.txt")
+  second_name <- paste0(test_fixture_id("8895"), "-teen.txt")
+  copy_4400_fixture(file.path(root, first_name), 1L)
+  copy_4400_fixture(file.path(root, second_name), 2L)
   output <- file.path(root, "result.RDa")
 
   result <- convert_directory_to_episodes(
     root,
     outpath = output,
-    id_pattern = ".*",
+    id_pattern = "(?<![0-9])[0-9]{4}(?![0-9])",
     subject_pattern = "mum|teen",
     cores = 1L
   )
   expect_setequal(
     as.character(unique(result$coding$id)),
-    vapply(
-      1:2,
-      function(index) extract_subject_id_metadata(
-        test_fixture_path("c2e_detailed_txt", index)
-      )$id,
-      character(1)
-    )
+    test_fixture_id(c("8892", "8894"))
   )
   expect_setequal(
     as.character(unique(result$coding$subject)),
@@ -98,12 +80,14 @@ test_that("directory episodes use fixture filename regexes independently", {
 
   only_id <- convert_directory_to_episodes(
     root,
-    id_pattern = ".*",
+    id_pattern = "(?<![0-9])[0-9]{4}(?![0-9])",
     cores = 1L
   )
   expect_setequal(
     as.character(unique(only_id$coding$subject)),
-    c("left-mum", "right-teen")
+    c(
+      tools::file_path_sans_ext(c(first_name, second_name))
+    )
   )
 })
 
@@ -112,12 +96,10 @@ test_that("directory episodes reject conflicting FPS for the same id when skip_f
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  fixture <- test_fixture_path("c2e_detailed_txt")
+  fixtures <- test_fixture_fps_conflict_paths()
   # Same media file (so the same id) but a different recorded frame rate
-  file.copy(fixture, file.path(root, "first.txt"))
-  lines <- readLines(fixture, warn = FALSE)
-  lines <- sub("^Frame rate.*", "Frame rate\t25.000000000", lines)
-  writeLines(lines, file.path(root, "second.txt"))
+  file.copy(fixtures[[1L]], file.path(root, "first.txt"))
+  file.copy(fixtures[[2L]], file.path(root, "second.txt"))
 
   expect_match(
     conditionMessage(tryCatch(
@@ -134,7 +116,7 @@ test_that("directory episodes reject duplicate IDs and subjects when skip_fails 
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  source <- test_fixture_path("c2e_detailed_txt")
+  source <- test_fixture_path("c2e_primary_txt")
   dir.create(file.path(root, "nested-a"))
   dir.create(file.path(root, "nested-b"))
   file.copy(source, file.path(root, "nested-a", "same-a.txt"))

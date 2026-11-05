@@ -41,6 +41,49 @@ test_that("public RDa contains internally consistent invented coding", {
   ))
 })
 
+test_that("synthetic four-digit IDs use a stable, reversible derangement", {
+  ids <- synthetic_fixture_id_map()
+  expected_ids <- as.character(1000:9999)
+
+  expect_length(ids, 9000L)
+  expect_setequal(names(ids), expected_ids)
+  expect_true(all(as.integer(ids) %in% 1000:9999))
+  expect_equal(length(unique(unname(ids))), 9000L)
+  expect_false(any(names(ids) == unname(ids)))
+  expect_identical(synthetic_fixture_id_map(), ids)
+  expect_identical(
+    map_synthetic_fixture_id(c("1234", "8892", "1234")),
+    unname(ids[c("1234", "8892", "1234")])
+  )
+  expect_identical(
+    unmap_synthetic_fixture_id(unname(ids[c("1234", "8892")])),
+    c("1234", "8892")
+  )
+
+  set.seed(841)
+  expected_next <- runif(1)
+  set.seed(841)
+  map_synthetic_fixture_id(c("1234", "8892"))
+  expect_identical(runif(1), expected_next)
+
+  public <- testthat::test_path("..", "fixtures", "synthetic")
+  export <- file.path(
+    public,
+    "FR9",
+    paste0(
+      map_synthetic_fixture_id("8895"),
+      " invented FR9 Participant 1_00024 invented_Analysis 2_video_20260101_120000_detailed.xlsx"
+    )
+  )
+  metadata <- synchrony_fr_header_metadata(export)
+  expect_true(grepl(map_synthetic_fixture_id("8895"), basename(export), fixed = TRUE))
+  expect_true(grepl(
+    paste0("#", map_synthetic_fixture_id("8895")),
+    metadata$video_filename,
+    fixed = TRUE
+  ))
+})
+
 test_that("the common fixture loader populates its caller", {
   fixture <- local({
     load_test_data_fixture()
@@ -52,23 +95,42 @@ test_that("the common fixture loader populates its caller", {
 test_that("invented public exports exercise CSV, TXT and XLSX conversion", {
   public <- testthat::test_path("..", "fixtures", "synthetic")
   csv <- loadFRfile(file.path(public, "testdata_detailed.csv"))
-  txt <- loadFRfile(file.path(public, "FR10", "synthetic_txt_detailed.txt"))
-  xlsx <- loadFRfile(file.path(public, "FR10", "synthetic_xlsx_detailed.xlsx"))
-  state <- loadFRfile(file.path(public, "FR9", "synthetic_fr9_state.xlsx"))
+  fr10_id <- map_synthetic_fixture_id("8895")
+  txt <- loadFRfile(file.path(
+    public, "FR10", paste0(fr10_id, "_invented_txt_detailed.txt")
+  ))
+  xlsx <- loadFRfile(file.path(
+    public, "FR10", paste0(fr10_id, "_invented_xlsx_detailed.xlsx")
+  ))
+  state <- loadFRfile(file.path(
+    public,
+    "FR9",
+    paste0(
+      fr10_id,
+      " invented FR9 Participant 1_00024 invented_Analysis 2_video_20260101_120000_state.xlsx"
+    )
+  ))
   expect_gt(nrow(csv), 0L)
   expect_equal(txt[setdiff(names(txt), "subject")], xlsx[setdiff(names(xlsx), "subject")])
   expect_true(all(c("stimulus", "event_marker", "speech_rate") %in% names(txt)))
-  expect_true(all(state$id == "synthetic-fr9"))
+  expect_true(all(state$id == paste0("#", fr10_id, "_invented-session")))
   expect_true("dominant_expression" %in% names(state))
   expect_equal(
-    fr_inherited_fps(loadFRfile(file.path(public, "FR9", "synthetic_16fps_detailed.xlsx"))),
+    fr_inherited_fps(loadFRfile(file.path(
+      public,
+      "FR9",
+      paste0(map_synthetic_fixture_id("1218"), "_invented_FR9_16fps_detailed.xlsx")
+    ))),
     16
   )
   metadata <- extract_subject_id_metadata(
-    file.path(public, "FR10", "synthetic_txt_detailed.txt")
+    file.path(public, "FR10", paste0(fr10_id, "_invented_txt_detailed.txt"))
   )
-  expect_identical(metadata$id, "synthetic-fr10")
-  expect_identical(metadata$subject, "synthetic_txt_detailed")
+  expect_identical(metadata$id, paste0("#", fr10_id, "_invented-session"))
+  expect_identical(
+    metadata$subject,
+    paste0(fr10_id, "_invented_txt_detailed")
+  )
 })
 
 test_that("invented directory exports produce combined episodes", {

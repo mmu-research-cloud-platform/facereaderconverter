@@ -1,7 +1,7 @@
 TEST_DATA <- Sys.getenv("TEST_DATA")
 load_test_data_fixture()
 
-txt_fixture <- test_fixture_path("c2e_detailed_txt")
+txt_fixture <- test_fixture_path("c2e_primary_txt")
 xlsx_fixture <- test_fixture_path("fr9_16fps_detailed_xlsx")
 
 # Fixture text with the "Frame rate" line replaced or removed

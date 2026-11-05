@@ -1,9 +1,7 @@
 library(testthat)
 
-copy_4407_fixture <- function(destination, index = 1L, video = "#4831_fixture.mp4") {
-  lines <- readLines(test_fixture_path("c2e_detailed_txt", index), warn = FALSE)
-  lines <- sub("^Filename\\t.*$", paste0("Filename\t", video), lines)
-  writeLines(lines, destination)
+copy_4407_fixture <- function(destination) {
+  file.copy(test_fixture_path("c2e_primary_txt"), destination)
 }
 
 test_that("4407 filter_name matches export basenames before parsing", {
@@ -138,11 +136,10 @@ test_that("4412 skip_fails skips a subject pattern mismatch", {
 
 test_that("4413 README directory episode example runs on fixture", {
   root <- file.path(Sys.getenv("TEST_DATA"), "c2e-directory")
-  detailed_files <- list.files(
-    root,
-    recursive = TRUE,
-    pattern = "_detailed\\.txt$",
-    full.names = TRUE
+  fixture <- test_fixture_path("c2e_primary_txt")
+  filter <- paste0(
+    "^Participant 10_", test_fixture_id("8892"),
+    "_.*_detailed\\.txt$"
   )
   output <- tempfile(fileext = ".RDa")
   on.exit(unlink(output), add = TRUE)
@@ -150,7 +147,7 @@ test_that("4413 README directory episode example runs on fixture", {
   coded_data <- convert_directory_to_episodes(
     inpath = root,
     outpath = output,
-    filter_name = "_detailed\\.txt$",
+    filter_name = filter,
     skip_fails = TRUE,
     cores = 1L
   )
@@ -158,9 +155,9 @@ test_that("4413 README directory episode example runs on fixture", {
   expect_s3_class(coded_data, "fr_coding")
   expect_gt(nrow(coded_data$episodes), 0L)
   expect_true(file.exists(output))
-  expect_setequal(
+  expect_equal(
     unique(as.character(coded_data$coding$subject)),
-    tools::file_path_sans_ext(basename(detailed_files))
+    tools::file_path_sans_ext(basename(fixture))
   )
 })
 
@@ -282,7 +279,7 @@ test_that("4418 multiple IDs error when skip_fails is FALSE", {
   root <- tempfile("directory-multi-id-fail-")
   dir.create(root)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_4407_fixture(file.path(root, "only.txt"), video = "#4831-card-synced.mp4")
+  copy_4407_fixture(file.path(root, "only.txt"))
 
   expect_error(
     convert_directory_to_episodes(
@@ -300,7 +297,7 @@ test_that("4419 multiple IDs are skipped with a warning when skip_fails is TRUE"
   root <- tempfile("directory-multi-id-skip-")
   dir.create(root)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_4407_fixture(file.path(root, "only.txt"), video = "#4831-card-synced.mp4")
+  copy_4407_fixture(file.path(root, "only.txt"))
 
   expect_warning(
     expect_error(
@@ -358,21 +355,17 @@ test_that("4421 duplicate ID and subject errors when skip_fails is FALSE", {
   expect_false(file.exists(file.path(root, "episodes.RDa")))
 })
 
-copy_4407_same_id_other_fps <- function(destination, fps = "25.000000000") {
-  lines <- readLines(test_fixture_path("c2e_detailed_txt"), warn = FALSE)
-  lines <- sub("^Filename\\t.*$", "Filename\\t#4831_fixture.mp4", lines)
-  writeLines(
-    sub("^Frame rate.*", paste0("Frame rate\t", fps), lines),
-    destination
-  )
+copy_4407_fps_conflict_pair <- function(root) {
+  fixtures <- test_fixture_fps_conflict_paths()
+  file.copy(fixtures[[1L]], file.path(root, "first.txt"))
+  file.copy(fixtures[[2L]], file.path(root, "second.txt"))
 }
 
 test_that("4422 conflicting FPS for the same id is skipped when skip_fails is TRUE", {
   root <- tempfile("directory-fps-skip-")
   dir.create(root)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_4407_fixture(file.path(root, "first.txt"))
-  copy_4407_same_id_other_fps(file.path(root, "second.txt"))
+  copy_4407_fps_conflict_pair(root)
 
   expect_warning(
     result <- convert_directory_to_episodes(
@@ -390,8 +383,7 @@ test_that("4423 conflicting FPS for the same id errors when skip_fails is FALSE"
   root <- tempfile("directory-fps-fail-")
   dir.create(root)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_4407_fixture(file.path(root, "first.txt"))
-  copy_4407_same_id_other_fps(file.path(root, "second.txt"))
+  copy_4407_fps_conflict_pair(root)
 
   expect_error(
     convert_directory_to_episodes(root, skip_fails = FALSE, cores = 1L),

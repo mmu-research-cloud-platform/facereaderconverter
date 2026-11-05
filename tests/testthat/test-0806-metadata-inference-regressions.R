@@ -71,7 +71,7 @@ test_that("directory episodes reject duplicate NA-ID subject pairs", {
   dir.create(file.path(root, "a"), recursive = TRUE)
   dir.create(file.path(root, "b"), recursive = TRUE)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  fixture <- test_fixture_path("c2e_detailed_txt")
+  fixture <- test_fixture_path("c2e_primary_txt")
   file.copy(fixture, file.path(root, "a", "mum.txt"))
   file.copy(fixture, file.path(root, "b", "mum.txt"))
 
