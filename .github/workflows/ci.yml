@@ -33,5 +33,7 @@ jobs:
       - name: Check package
         run: rcmdcheck::rcmdcheck(args = "--no-manual", error_on = "error")
         shell: Rscript {0}
+
         env:
           FACEREADER_TEST_FIXTURE: synthetic
+
