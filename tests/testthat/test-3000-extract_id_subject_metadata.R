@@ -16,56 +16,47 @@ if (inherits(test_data_error, "error")) {
 }
 
 test_that("extract_subject_id_metadata separates media and FaceReader names", {
-  path <- file.path(
-    TEST_DATA,
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-  )
+  path <- test_fixture_path("c2e_primary_txt")
   metadata <- extract_subject_id_metadata(path)
 
-  expect_identical(
-    metadata$id,
-    "#8892 Sussed card game teen view point synced 10 minutes_1"
-  )
+  expect_identical(metadata$id, fixture_expected_primary_media_id())
   expect_identical(
     metadata$subject,
-    "Participant 10_8892_Analysis 1_video_20260721_125850_detailed"
+    tools::file_path_sans_ext(basename(path))
   )
 })
 
 test_that("extract_subject_id_metadata applies patterns to their source names", {
-  path <- file.path(
-    TEST_DATA,
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-  )
+  path <- test_fixture_path("c2e_primary_txt")
   metadata <- extract_subject_id_metadata(
     path,
-    id_pattern = "8892",
+    id_pattern = test_fixture_id("8892"),
     subject_pattern = "detailed"
   )
 
-  expect_identical(metadata$id, "8892")
+  expect_identical(metadata$id, test_fixture_id("8892"))
   expect_identical(metadata$subject, "detailed")
 })
 
 test_that("extract_subject_id_metadata applies patterns to full paths", {
-  path <- list.files(
-    file.path(TEST_DATA, "brazil"),
-    pattern = "Participant 10.*detailed\\.xlsx$",
-    full.names = TRUE
-  )[[1L]]
+  path <- test_fixture_path("brazil_detailed_xlsx")
+  id_pattern <- paste0("Downloads[/\\\\]#", test_fixture_id("8883"))
+  subject_pattern <- "brazil[/\\\\]Participant 10"
+  expect_match(path, subject_pattern)
+  expect_false(grepl(subject_pattern, basename(path)))
   metadata <- extract_subject_id_metadata(
     path,
-    id_pattern = "Downloads[/\\\\]#8883",
-    subject_pattern = "brazil[/\\\\]Participant 10",
+    id_pattern = id_pattern,
+    subject_pattern = subject_pattern,
     use_full_path = TRUE
   )
 
-  expect_match(metadata$id, "Downloads[/\\\\]#8883")
-  expect_match(metadata$subject, "brazil[/\\\\]Participant 10")
+  expect_match(metadata$id, id_pattern)
+  expect_match(metadata$subject, subject_pattern)
 })
 
 test_that("extract_subject_id_metadata returns NA for missing media filename", {
-  path <- file.path(TEST_DATA, "testdata_detailed.csv")
+  path <- test_fixture_path("detailed_csv")
   metadata <- extract_subject_id_metadata(path)
 
   expect_true(is.na(metadata$id))
@@ -74,13 +65,7 @@ test_that("extract_subject_id_metadata returns NA for missing media filename", {
 
 test_that("extract_id_subject_metadata remains a compatibility alias", {
   expect_identical(
-    extract_id_subject_metadata(file.path(
-      TEST_DATA,
-      "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-    )),
-    extract_subject_id_metadata(file.path(
-      TEST_DATA,
-      "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-    ))
+    extract_id_subject_metadata(test_fixture_path("c2e_primary_txt")),
+    extract_subject_id_metadata(test_fixture_path("c2e_primary_txt"))
   )
 })

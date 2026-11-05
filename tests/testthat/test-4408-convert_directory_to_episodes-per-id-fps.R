@@ -1,17 +1,5 @@
-TEST_DATA <- Sys.getenv("TEST_DATA")
-
-txt_fixture <- file.path(
-  TEST_DATA,
-  "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-)
-xlsx_fixture <- file.path(
-  TEST_DATA,
-  "FR9/FR9 1218 participant_Analysis 1_video_20260910_110344_detailed.xlsx"
-)
-
-if (!file.exists(txt_fixture) || !file.exists(xlsx_fixture)) {
-  testthat::skip("The TEST_DATA FaceReader fixtures are not available.")
-}
+txt_fixture <- test_fixture_path("c2e_primary_txt")
+xlsx_fixture <- test_fixture_path("fr9_16fps_detailed_xlsx")
 
 write_txt_fixture <- function(destination, fps = NULL, keep_fps_line = TRUE) {
   lines <- readLines(txt_fixture, warn = FALSE)

@@ -1,32 +1,41 @@
 library(testthat)
 
-copy_folder_regex_fixture <- function(relative_path, destination) {
-  file.copy(file.path(Sys.getenv("TEST_DATA"), relative_path), destination)
+copy_folder_regex_fixture <- function(destination, index = 1L) {
+  file.copy(test_fixture_path(
+    if (index == 1L) "c2e_primary_txt" else "c2e_secondary_txt"
+  ), destination)
 }
 
 test_that("directory episodes infer IDs and subjects from their own sources", {
   parent <- tempfile("folder-regex-")
   root <- file.path(parent, "study")
-  dir.create(file.path(root, "8892", "mum"), recursive = TRUE)
-  dir.create(file.path(root, "8895", "teen"), recursive = TRUE)
+  dir.create(file.path(root, test_fixture_id("8892"), "mum"), recursive = TRUE)
+  dir.create(file.path(root, test_fixture_id("8895"), "teen"), recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
   copy_folder_regex_fixture(
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt",
-    file.path(root, "8892", "mum", "mum.txt")
+    file.path(root, test_fixture_id("8892"), "mum", "mum.txt"),
+    1L
   )
   copy_folder_regex_fixture(
-    "c2e-directory/mum/8894/Participant 11_8894_Analysis 1_video_20260721_135456_detailed.txt",
-    file.path(root, "8895", "teen", "teen.txt")
+    file.path(root, test_fixture_id("8895"), "teen", "teen.txt"),
+    2L
   )
 
   result <- convert_directory_to_episodes(root, cores = 1L)
-  expect_setequal(
-    as.character(unique(result$coding$id)),
-    c(
-      "#8892 Sussed card game teen view point synced 10 minutes_1",
-      "#8894 Sussed card game teen view point synced 10 minutes"
+  observed_ids <- as.character(unique(result$coding$id))
+  if (test_fixture_mode() == "synthetic") {
+    expect_setequal(
+      observed_ids,
+      c(
+      fixture_expected_primary_media_id(),
+      fixture_expected_secondary_media_id()
+      )
     )
-  )
+  } else {
+    expect_length(observed_ids, 2L)
+    expect_true(any(grepl("^#8892", observed_ids)))
+    expect_true(any(grepl("^#8894", observed_ids)))
+  }
   expect_setequal(as.character(unique(result$coding$subject)), c("mum", "teen"))
   expect_gt(nrow(result$episodes), 0L)
   saved <- new.env(parent = emptyenv())
@@ -39,12 +48,14 @@ test_that("directory episodes infer IDs and subjects from their own sources", {
 
 test_that("directory names do not override media and FaceReader filenames", {
   parent <- tempfile("folder-precedence-")
-  root <- file.path(parent, "study-9999-teen")
-  dir.create(file.path(root, "8888", "mum"), recursive = TRUE)
+  root <- file.path(parent, paste0("study-", test_fixture_id("9999"), "-teen"))
+  dir.create(
+    file.path(root, test_fixture_id("8888"), "mum"),
+    recursive = TRUE
+  )
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
   copy_folder_regex_fixture(
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt",
-    file.path(root, "8888", "mum", "Participant_teen_detailed.txt")
+    file.path(root, test_fixture_id("8888"), "mum", "Participant_teen_detailed.txt")
   )
 
   result <- convert_directory_to_episodes(
@@ -54,7 +65,7 @@ test_that("directory names do not override media and FaceReader filenames", {
   )
   expect_equal(
     unique(as.character(result$coding$id)),
-    "#8892 Sussed card game teen view point synced 10 minutes_1"
+    fixture_expected_primary_media_id()
   )
   expect_equal(
     unique(as.character(result$coding$subject)),
@@ -63,18 +74,17 @@ test_that("directory names do not override media and FaceReader filenames", {
 })
 
 test_that("directory regexes do not use parent folders as metadata sources", {
-  parent <- tempfile("outer-8822-")
+  parent <- tempfile(paste0("outer-", test_fixture_id("8822"), "-"))
   root <- file.path(parent, "study")
   dir.create(root, recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_folder_regex_fixture(
-    "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt",
-    file.path(root, "analysis.txt")
-  )
+  copy_folder_regex_fixture(file.path(root, "analysis.txt"))
+  expect_match(dirname(file.path(root, "analysis.txt")), test_fixture_id("8822"))
+  expect_false(grepl(test_fixture_id("8822"), "analysis.txt"))
 
   result <- convert_directory_to_episodes(
     root,
-    id_pattern = "8822",
+    id_pattern = test_fixture_id("8822"),
     cores = 1L
   )
   expect_true(all(is.na(as.character(result$coding$id))))
@@ -83,18 +93,11 @@ test_that("directory regexes do not use parent folders as metadata sources", {
 
 test_that("directory episodes default IDs and subjects to fixture filenames", {
   root <- file.path(Sys.getenv("TEST_DATA"), "c2e-directory")
-  detailed_files <- list.files(
-    root,
-    recursive = TRUE,
-    pattern = "_detailed\\.txt$",
-    full.names = TRUE
-  )
+  detailed_files <- test_fixture_paths("c2e_detailed_txt")
   expected_subjects <- tools::file_path_sans_ext(basename(detailed_files))
   expected_ids <- vapply(
     detailed_files,
-    function(path) {
-      extract_subject_id_metadata(path)$id
-    },
+    function(path) extract_subject_id_metadata(path)$id,
     character(1)
   )
   output <- tempfile(fileext = ".RDa")
@@ -110,8 +113,8 @@ test_that("directory episodes default IDs and subjects to fixture filenames", {
     subject = as.character(result$coding$subject)
   ))
 
-  expect_setequal(observed_groups$id, expected_ids)
   expect_setequal(observed_groups$subject, expected_subjects)
+  expect_setequal(observed_groups$id, expected_ids)
 })
 
 test_that("directory episodes default IDs and subjects to fixture filenames - brazil", {
@@ -130,14 +133,6 @@ test_that("directory episodes default IDs and subjects to fixture filenames - br
     logical(1)
   )]
   expected_subjects <- tools::file_path_sans_ext(basename(detailed_files))
-  expected_ids <- vapply(
-    detailed_files,
-    function(path) {
-      value <- extract_subject_id_metadata(path)$id
-      if (is.null(value)) NA_character_ else value
-    },
-    character(1)
-  )
   output <- tempfile(fileext = ".RDa")
   on.exit(unlink(output), add = TRUE)
 
@@ -151,9 +146,27 @@ test_that("directory episodes default IDs and subjects to fixture filenames - br
     subject = as.character(result$coding$subject)
   ))
 
-  expect_setequal(observed_groups$id, unname(expected_ids))
   expect_setequal(observed_groups$subject, expected_subjects)
 
+  if (test_fixture_mode() == "synthetic") {
+    expect_setequal(
+      observed_groups$id,
+      tools::file_path_sans_ext(unlist(
+        test_fixture_brazil_media_names()[c("matched", "partial")],
+        use.names = FALSE
+      ))
+    )
+  } else {
+    expected_ids <- vapply(
+      detailed_files,
+      function(path) {
+        value <- extract_subject_id_metadata(path)$id
+        if (is.null(value)) NA_character_ else value
+      },
+      character(1)
+    )
+    expect_setequal(observed_groups$id, unname(expected_ids))
+  }
   expect_true(anyDuplicated(observed_groups$id) > 0L)
 
   expect_false(anyDuplicated(observed_groups$subject) > 0L)

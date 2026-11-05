@@ -1,0 +1,52 @@
+name: Set up R
+description: Install R and package dependencies without external setup actions.
+inputs:
+  extra-package:
+    description: Additional comma-separated R packages required by the calling workflow.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install R on Linux
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y r-base r-base-dev libcurl4-openssl-dev libssl-dev libxml2-dev
+    - name: Install R on macOS
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        if ! command -v Rscript >/dev/null 2>&1; then
+          brew install r
+        fi
+    - name: Install R on Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        if (-not (Get-Command Rscript -ErrorAction SilentlyContinue)) {
+          choco install r.project --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "R installation failed." }
+          $r = Get-ChildItem 'C:\Program Files\R' -Directory |
+            Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $r) { throw "R installation directory was not found." }
+          $bin = Join-Path $r.FullName 'bin'
+          $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        }
+    - name: Prepare writable R library
+      shell: Rscript {0}
+      run: |
+        library <- file.path(Sys.getenv("RUNNER_TEMP"), "r-library")
+        dir.create(library, recursive = TRUE, showWarnings = FALSE)
+        library <- normalizePath(library, winslash = "/", mustWork = TRUE)
+        cat(paste0("R_LIBS_USER=", library, "\n"), file = Sys.getenv("GITHUB_ENV"), append = TRUE)
+    - name: Install R dependencies
+      shell: Rscript {0}
+      env:
+        EXTRA_R_PACKAGE: ${{ inputs.extra-package }}
+      run: |
+        options(repos = c(CRAN = "https://cloud.r-project.org"))
+        install.packages("pak")
+        pak::local_install_deps(dependencies = TRUE)
+        extra_packages <- strsplit(Sys.getenv("EXTRA_R_PACKAGE"), ",[[:space:]]*")[[1]]
+        pak::pkg_install(extra_packages)

@@ -1,14 +1,8 @@
 TEST_DATA <- Sys.getenv("TEST_DATA")
 load_test_data_fixture()
 
-txt_fixture <- file.path(
-  TEST_DATA,
-  "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-)
-xlsx_fixture <- file.path(
-  TEST_DATA,
-  "FR9/FR9 1218 participant_Analysis 1_video_20260910_110344_detailed.xlsx"
-)
+txt_fixture <- test_fixture_path("c2e_primary_txt")
+xlsx_fixture <- test_fixture_path("fr9_16fps_detailed_xlsx")
 
 # Fixture text with the "Frame rate" line replaced or removed
 txt_with_fps <- function(destination, fps = NULL) {

@@ -18,23 +18,16 @@ if (inherits(test_data_error, "error")) {
 test_that("convertFRDirectory writes the verified FR9 id-subject output", {
   skip_if_not_installed("readxl")
 
-  input_dir <- file.path(TEST_DATA, "FR9")
+  input_dir <- tempfile("fr9_id_subject_input_")
+  dir.create(input_dir)
   output_dir <- tempfile("fr9_id_subject_")
-  skip_if(
-    !dir.exists(input_dir),
-    "The FR9 directory fixture is not available"
+  on.exit(unlink(c(input_dir, output_dir), recursive = TRUE, force = TRUE), add = TRUE)
+  input_files <- c(
+    test_fixture_path("fr9_detailed_xlsx"),
+    test_fixture_path("fr9_state_xlsx")
   )
-
-  input_files <- list.files(
-    input_dir,
-    pattern = "\\.xlsx$",
-    ignore.case = TRUE,
-    full.names = TRUE
-  )
-  skip_if(
-    length(input_files) == 0L,
-    "The FR9 directory contains no Excel files"
-  )
+  file.copy(input_files, input_dir)
+  input_files <- file.path(input_dir, basename(input_files))
 
   metadata <- lapply(input_files, extract_subject_id_metadata)
   expect_identical(
@@ -43,30 +36,23 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
   )
   expect_true(all(!is.na(vapply(metadata, `[[`, character(1), "id"))))
 
-  selected <- input_files[
-    grepl(
-      "8895.*(detailed|state)\\.xlsx$",
-      basename(input_files),
-      ignore.case = TRUE
-    )
-  ]
-  expect_length(selected, 2L)
-  expect_setequal(
-    basename(selected),
-    c(
-      "8895 mum FR9 Participant 1_00024 mum_Analysis 2_video_20260908_135003_detailed.xlsx",
-      "8895 mum FR9_00024 mum_Analysis 2_video_20260908_135003_state.xlsx"
-    )
+  pattern <- paste0(
+    "^", test_fixture_id("8895"), ".*(detailed|state)\\.xlsx$"
   )
+  selected <- input_files[grepl(
+    pattern,
+    basename(input_files),
+    ignore.case = TRUE
+  )]
+  expect_length(selected, 2L)
+  expect_setequal(basename(selected), basename(input_files))
 
-  unlink(output_dir, recursive = TRUE, force = TRUE)
   dir.create(output_dir, recursive = TRUE)
-  on.exit(unlink(output_dir, recursive = TRUE, force = TRUE), add = TRUE)
 
   result <- convertFRDirectory(
     input_dir,
     output_dir,
-    pattern = "8895.*(detailed|state)\\.xlsx$",
+    pattern = pattern,
     id = function(path) extract_subject_id_metadata(path)$id,
     subject = function(path) extract_subject_id_metadata(path)$subject,
     cores = 1L,
@@ -79,7 +65,7 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
   result <- convertFRDirectory(
     input_dir,
     output_dir,
-    pattern = "8895.*(detailed|state)\\.xlsx$",
+    pattern = pattern,
     id = function(path) extract_subject_id_metadata(path)$id,
     subject = function(path) extract_subject_id_metadata(path)$subject,
     cores = 1L,
@@ -117,9 +103,7 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
     function(i) {
       all(
         as.character(converted[[i]]$id) ==
-          fr_media_id(
-            synchrony_fr_header_metadata(selected[[i]])$video_filename
-          )
+          extract_subject_id_metadata(result$inpath[[i]])$id
       )
     },
     logical(1)

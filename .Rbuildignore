@@ -8,3 +8,6 @@
 ^facereaderconverter_.*\.pdf$
 ^\.github$
 ^DEPENDENCY_TREE\.md$
+^\.cache$
+^\.git$
+^tests/testthat/\.fixture-work-

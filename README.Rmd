@@ -16,6 +16,7 @@ knitr::opts_chunk$set(
 # facereaderconverter
 
 <!-- badges: start -->
+[![Codecov test coverage](https://codecov.io/gh/mmu-research-cloud-platform/facereaderconverter/branch/main/graph/badge.svg)](https://codecov.io/gh/mmu-research-cloud-platform/facereaderconverter)
 <!-- badges: end -->
 
 The package is a series of functions for converting FaceReader output files into a more analysis-friendly format, and for detecting episodes of emotion from the time series data. It also includes some utilities for downstream analysis.

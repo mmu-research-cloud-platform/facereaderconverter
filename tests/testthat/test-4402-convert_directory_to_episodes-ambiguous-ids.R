@@ -1,43 +1,58 @@
 library(testthat)
 
 copy_ambiguous_id_fixture <- function(destination) {
-  file.copy(
-    file.path(
-      Sys.getenv("TEST_DATA"),
-      "c2e-directory/mum/8892/Participant 10_8892_Analysis 1_video_20260721_125850_detailed.txt"
-    ),
-    destination
-  )
+  file.copy(test_fixture_path("c2e_primary_txt"), destination)
 }
 
 test_that("4402 directory ID patterns read media metadata only", {
   root <- tempfile("ambiguous-filename-")
   dir.create(root)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_ambiguous_id_fixture(file.path(root, "ID-8892-ID-8895-mum.txt"))
+  copy_ambiguous_id_fixture(file.path(
+    root,
+    paste0(
+      "ID-", test_fixture_id("8892"), "-ID-", test_fixture_id("8895"),
+      "-mum.txt"
+    )
+  ))
 
   result <- convert_directory_to_episodes(
     root,
     id_pattern = "#[0-9]{4}",
     subject_pattern = "mum"
   )
-  expect_equal(unique(as.character(result$coding$id)), "#8892")
+  expect_equal(
+    unique(as.character(result$coding$id)),
+    paste0("#", test_fixture_id("8892"))
+  )
   expect_equal(unique(as.character(result$coding$subject)), "mum")
 })
 
 test_that("4403 directory ID regex applies to media filename", {
   root <- tempfile("ambiguous-folder-")
-  dir.create(file.path(root, "ID-9999", "mum"), recursive = TRUE)
+  dir.create(
+    file.path(root, paste0("ID-", test_fixture_id("9999")), "mum"),
+    recursive = TRUE
+  )
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
-  copy_ambiguous_id_fixture(file.path(root, "ID-9999", "mum", "ID-8895.txt"))
+  copy_ambiguous_id_fixture(file.path(
+    root, paste0("ID-", test_fixture_id("9999")), "mum",
+    paste0("ID-", test_fixture_id("8895"), ".txt")
+  ))
 
   result <- convert_directory_to_episodes(
     root,
     id_pattern = "#[0-9]{4}",
-    subject_pattern = "ID-8895"
+    subject_pattern = paste0("ID-", test_fixture_id("8895"))
   )
-  expect_equal(unique(as.character(result$coding$id)), "#8892")
-  expect_equal(unique(as.character(result$coding$subject)), "ID-8895")
+  expect_equal(
+    unique(as.character(result$coding$id)),
+    paste0("#", test_fixture_id("8892"))
+  )
+  expect_equal(
+    unique(as.character(result$coding$subject)),
+    paste0("ID-", test_fixture_id("8895"))
+  )
 })
 
 test_that("4404 directory ID regex applies to full media filename", {
@@ -45,20 +60,15 @@ test_that("4404 directory ID regex applies to full media filename", {
   dir.create(root)
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
   file.copy(
-    file.path(
-      Sys.getenv("TEST_DATA"),
-      "brazil",
-      "Participant 10_Participant 10_Analysis 1_video_20260918_143140_detailed.xlsx"
-    ),
-    file.path(
-      root,
-      "Participant 10_Participant 10_Analysis 1_video_20260918_143140_detailed.xlsx"
-    )
+    test_fixture_path("brazil_detailed_xlsx"),
+    file.path(root, basename(test_fixture_path("brazil_detailed_xlsx")))
   )
 
   result <- convert_directory_to_episodes(
     root,
-    id_pattern = "Downloads[/\\\\]#8883",
+    id_pattern = paste0(
+      "Downloads[/\\\\]#", test_fixture_id("8883")
+    ),
     subject_pattern = "Participant 10_Analysis",
     use_full_path = TRUE,
     cores = 1L
@@ -66,7 +76,7 @@ test_that("4404 directory ID regex applies to full media filename", {
 
   expect_equal(
     unique(as.character(result$coding$id)),
-    "Downloads\\#8883"
+    paste0("Downloads\\#", test_fixture_id("8883"))
   )
   expect_equal(
     unique(as.character(result$coding$subject)),
@@ -76,23 +86,41 @@ test_that("4404 directory ID regex applies to full media filename", {
 
 test_that("4404 repeated fixture IDs remain unambiguous", {
   root <- tempfile("repeated-id-")
-  dir.create(file.path(root, "ID-9999", "mum"), recursive = TRUE)
+  dir.create(
+    file.path(root, paste0("ID-", test_fixture_id("9999")), "mum"),
+    recursive = TRUE
+  )
   on.exit(unlink(root, recursive = TRUE, force = TRUE), add = TRUE)
   copy_ambiguous_id_fixture(file.path(
     root,
-    "ID-9999",
+    paste0("ID-", test_fixture_id("9999")),
     "mum",
-    "ID-8892-ID-8892.txt"
+    paste0(
+      "ID-", test_fixture_id("8892"), "-ID-",
+      test_fixture_id("8892"), ".txt"
+    )
   ))
 
   result <- convert_directory_to_episodes(
     root,
     id_pattern = "#[0-9]{4}",
-    subject_pattern = "ID-8892-ID-8892",
+    subject_pattern = paste0(
+      "ID-", test_fixture_id("8892"), "-ID-",
+      test_fixture_id("8892")
+    ),
     cores = 1L
   )
-  expect_equal(unique(as.character(result$coding$id)), "#8892")
-  expect_equal(unique(as.character(result$coding$subject)), "ID-8892-ID-8892")
+  expect_equal(
+    unique(as.character(result$coding$id)),
+    paste0("#", test_fixture_id("8892"))
+  )
+  expect_equal(
+    unique(as.character(result$coding$subject)),
+    paste0(
+      "ID-", test_fixture_id("8892"), "-ID-",
+      test_fixture_id("8892")
+    )
+  )
   expect_equal(file.exists(file.path(root, "episodes.RDa")), TRUE)
 })
 
@@ -149,6 +177,9 @@ test_that("4406 real c2e-fail uses media filename despite folder ID", {
     subject_pattern = "Participant",
     cores = 1L
   )
-  expect_equal(unique(as.character(result$coding$id)), "#1267")
+  expect_equal(
+    unique(as.character(result$coding$id)),
+    paste0("#", test_fixture_id("1267"))
+  )
   expect_equal(file.exists(output), TRUE)
 })
