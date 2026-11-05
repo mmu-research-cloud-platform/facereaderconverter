@@ -156,6 +156,16 @@ test_that("directory episodes default IDs and subjects to fixture filenames - br
         use.names = FALSE
       ))
     )
+  } else {
+    expected_ids <- vapply(
+      detailed_files,
+      function(path) {
+        value <- extract_subject_id_metadata(path)$id
+        if (is.null(value)) NA_character_ else value
+      },
+      character(1)
+    )
+    expect_setequal(observed_groups$id, unname(expected_ids))
   }
   expect_true(anyDuplicated(observed_groups$id) > 0L)
 

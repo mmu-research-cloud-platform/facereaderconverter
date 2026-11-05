@@ -1,6 +1,6 @@
 # Run from the repository root with the development package loaded.
 # This generator never reads TEST_DATA or any private export.
-source(file.path("tools", "fixture-id-map.R"))
+source(file.path("tests", "fixtures", "fixture-id-map.R"))
 
 generate_test_fixtures <- function(destination = file.path("tests", "fixtures", "synthetic")) {
   ffmpeg <- Sys.which("ffmpeg")

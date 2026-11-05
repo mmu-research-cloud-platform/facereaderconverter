@@ -22,7 +22,7 @@ select_test_data_fixture <- function(
 
 fixture_id_map_environment <- new.env(parent = globalenv())
 sys.source(
-  testthat::test_path("..", "..", "tools", "fixture-id-map.R"),
+  testthat::test_path("..", "fixtures", "fixture-id-map.R"),
   envir = fixture_id_map_environment
 )
 

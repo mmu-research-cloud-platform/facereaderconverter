@@ -102,11 +102,8 @@ test_that("convertFRDirectory writes the verified FR9 id-subject output", {
     seq_along(converted),
     function(i) {
       all(
-        grepl(
-          paste0("#", test_fixture_id("8895")),
-          as.character(converted[[i]]$id),
-          fixed = TRUE
-        )
+        as.character(converted[[i]]$id) ==
+          extract_subject_id_metadata(result$inpath[[i]])$id
       )
     },
     logical(1)

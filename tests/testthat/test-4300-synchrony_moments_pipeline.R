@@ -345,6 +345,8 @@ test_that("synchrony_moments_pipeline exports ten Brazil happy clips to a folder
 })
 
 test_that("synchrony_moments_pipeline processes Brazil video directory and exports", {
+  skip_if(!nzchar(Sys.which("ffmpeg")), "FFmpeg is not available.")
+  skip_if(!nzchar(Sys.which("ffprobe")), "FFprobe is not available.")
   brazil_dir <- file.path(TEST_DATA, "brazil")
   skip_if_not(dir.exists(brazil_dir))
   video_files <- list.files(
