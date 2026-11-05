@@ -42,6 +42,8 @@ test_that("extract_subject_id_metadata applies patterns to full paths", {
   path <- test_fixture_path("brazil_detailed_xlsx")
   id_pattern <- paste0("Downloads[/\\\\]#", test_fixture_id("8883"))
   subject_pattern <- "brazil[/\\\\]Participant 10"
+  expect_match(path, subject_pattern)
+  expect_false(grepl(subject_pattern, basename(path)))
   metadata <- extract_subject_id_metadata(
     path,
     id_pattern = id_pattern,

@@ -79,6 +79,8 @@ test_that("directory regexes do not use parent folders as metadata sources", {
   dir.create(root, recursive = TRUE)
   on.exit(unlink(parent, recursive = TRUE, force = TRUE), add = TRUE)
   copy_folder_regex_fixture(file.path(root, "analysis.txt"))
+  expect_match(dirname(file.path(root, "analysis.txt")), test_fixture_id("8822"))
+  expect_false(grepl(test_fixture_id("8822"), "analysis.txt"))
 
   result <- convert_directory_to_episodes(
     root,
